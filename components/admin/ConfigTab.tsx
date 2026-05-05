@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Settings, Key, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
-type AIProvider = 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'custom'
+type AIProvider = 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'custom'
 
 interface Config {
   provider: AIProvider
@@ -93,6 +93,7 @@ export function ConfigTab() {
                   openai: 'gpt-3.5-turbo',
                   anthropic: 'claude-3-haiku-20240307',
                   openrouter: 'meta-llama/llama-3.1-70b-instruct',
+                  ollama: 'dolphin-mistral',
                   custom: 'custom-model',
                 }
                 setConfig(prev => prev ? {
@@ -107,6 +108,7 @@ export function ConfigTab() {
               <option value="openai">OpenAI（GPT系列）</option>
               <option value="anthropic">Anthropic（Claude系列）</option>
               <option value="openrouter">OpenRouter（多模型聚合）</option>
+              <option value="ollama">Ollama（本地大模型）</option>
               <option value="custom">自定义（OpenAI兼容格式）</option>
             </select>
           </div>
@@ -119,7 +121,8 @@ export function ConfigTab() {
                 ({config?.provider === 'deepseek' ? 'DeepSeek' :
                   config?.provider === 'openai' ? 'OpenAI' :
                     config?.provider === 'anthropic' ? 'Anthropic' :
-                      config?.provider === 'openrouter' ? 'OpenRouter' : '自定义'})
+                      config?.provider === 'openrouter' ? 'OpenRouter' :
+                        config?.provider === 'ollama' ? 'Ollama' : '自定义'})
               </span>
             </label>
             <div className="px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-sm text-zinc-300 font-mono">
@@ -135,6 +138,7 @@ export function ConfigTab() {
               {config?.provider === 'openai' && <span className="text-zinc-500 text-xs ml-1">格式: sk-...</span>}
               {config?.provider === 'anthropic' && <span className="text-zinc-500 text-xs ml-1">格式: sk-ant-...</span>}
               {config?.provider === 'openrouter' && <span className="text-zinc-500 text-xs ml-1">格式: sk-or-...</span>}
+              {config?.provider === 'ollama' && <span className="text-zinc-500 text-xs ml-1">（本地运行，无需Key）</span>}
             </label>
             <div className="relative">
               <Input
@@ -146,7 +150,8 @@ export function ConfigTab() {
                     config?.provider === 'openai' ? 'sk-...' :
                       config?.provider === 'anthropic' ? 'sk-ant-...' :
                         config?.provider === 'openrouter' ? 'sk-or-...' :
-                          'your-api-key'
+                          config?.provider === 'ollama' ? 'ollama（无需填写）' :
+                            'your-api-key'
                 }
                 className="bg-zinc-800 border-zinc-700 text-white font-mono pr-10"
               />
@@ -161,16 +166,20 @@ export function ConfigTab() {
           </div>
 
           {/* 自定义API基地址 */}
-          {(config?.provider === 'custom' || config?.provider === 'openrouter') && (
+          {(config?.provider === 'custom' || config?.provider === 'openrouter' || config?.provider === 'ollama') && (
             <div>
               <label className="text-sm text-zinc-400 mb-1.5 block">
                 API 基地址
-                <span className="text-zinc-500 text-xs ml-1">（OpenAI兼容格式）</span>
+                {config?.provider === 'ollama' ? (
+                  <span className="text-zinc-500 text-xs ml-1">（默认: http://localhost:11434）</span>
+                ) : (
+                  <span className="text-zinc-500 text-xs ml-1">（OpenAI兼容格式）</span>
+                )}
               </label>
               <Input
                 value={newBaseUrl}
                 onChange={(e) => setNewBaseUrl(e.target.value)}
-                placeholder="https://api.example.com/v1"
+                placeholder={config?.provider === 'ollama' ? 'http://localhost:11434 或 http://192.168.x.x:11434' : 'https://api.example.com/v1'}
                 className="bg-zinc-800 border-zinc-700 text-white font-mono"
               />
             </div>
@@ -185,11 +194,11 @@ export function ConfigTab() {
         <CardContent className="space-y-4">
           <div>
             <label className="text-sm text-zinc-400 mb-1.5 block">模型</label>
-            {config?.provider === 'custom' ? (
+            {config?.provider === 'custom' || config?.provider === 'ollama' ? (
               <Input
                 value={config?.model || ''}
                 onChange={(e) => config && setConfig({ ...config, model: e.target.value })}
-                placeholder="例如：gpt-4o-mini、llama-3.1-8b 等"
+                placeholder={config?.provider === 'ollama' ? '例如：dolphin-mistral、llama3.2、qwen2.5 等' : '例如：gpt-4o-mini、llama-3.1-8b 等'}
                 className="bg-zinc-800 border-zinc-700 text-white font-mono"
               />
             ) : (

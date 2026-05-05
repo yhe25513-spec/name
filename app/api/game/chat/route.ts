@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (!aiConfig.api_key) {
+  if (!aiConfig.api_key && aiConfig.provider !== 'ollama') {
     return new Response(JSON.stringify({ error: 'AI API key not configured' }), { status: 500 })
   }
 
@@ -118,11 +118,16 @@ export async function POST(req: NextRequest) {
         aiConfig.temperature,
         aiConfig.max_tokens
       )
-    } else if (['openai', 'anthropic', 'openrouter', 'custom'].includes(aiConfig.provider)) {
-      // OpenRouter 使用 OpenAI 兼容格式
-      const baseUrl = aiConfig.provider === 'openrouter' && !aiConfig.api_base_url
-        ? 'https://openrouter.ai/api/v1'
-        : aiConfig.api_base_url
+    } else if (['openai', 'anthropic', 'openrouter', 'ollama', 'custom'].includes(aiConfig.provider)) {
+      // 确定 base URL
+      let baseUrl = aiConfig.api_base_url
+      if (!baseUrl) {
+        if (aiConfig.provider === 'openrouter') {
+          baseUrl = 'https://openrouter.ai/api/v1'
+        } else if (aiConfig.provider === 'ollama') {
+          baseUrl = 'http://localhost:11434'
+        }
+      }
       stream = await streamOpenAIChat(
         userInput,
         scenario,

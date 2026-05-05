@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 interface AIConfig {
   id: string
   name: string
-  provider: 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'custom'
+  provider: 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'custom'
   model: string
   api_key: string
   api_base_url?: string
@@ -27,6 +27,7 @@ const PROVIDER_LABELS: Record<AIProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   openrouter: 'OpenRouter',
+  ollama: 'Ollama',
   custom: '自定义',
 }
 
@@ -35,6 +36,7 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: 'gpt-3.5-turbo',
   anthropic: 'claude-3-sonnet-20240229',
   openrouter: 'meta-llama/llama-3.1-70b-instruct',
+  ollama: 'dolphin-mistral',
   custom: 'custom-model',
 }
 
@@ -201,6 +203,7 @@ export function AIConfigsTab() {
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
             <option value="openrouter">OpenRouter</option>
+            <option value="ollama">Ollama（本地）</option>
             <option value="custom">自定义（OpenAI兼容）</option>
           </select>
         </div>
@@ -208,11 +211,11 @@ export function AIConfigsTab() {
         {/* 模型 */}
         <div>
           <label className="text-sm text-zinc-400 mb-1.5 block">模型</label>
-          {form.provider === 'custom' ? (
+          {form.provider === 'custom' || form.provider === 'ollama' ? (
             <Input
               value={form.model || ''}
               onChange={(e) => setForm({ ...form, model: e.target.value })}
-              placeholder="输入模型名称"
+              placeholder={form.provider === 'ollama' ? "例如：dolphin-mistral、llama3.2、qwen2.5" : "输入模型名称"}
               className="bg-zinc-800 border-zinc-700 text-white"
             />
           ) : (
@@ -257,12 +260,17 @@ export function AIConfigsTab() {
 
         {/* API Key */}
         <div>
-          <label className="text-sm text-zinc-400 mb-1.5 block">API Key</label>
+          <label className="text-sm text-zinc-400 mb-1.5 block">
+            API Key
+            {form.provider === 'ollama' && (
+              <span className="text-zinc-500 text-xs ml-1">（本地运行，无需填写）</span>
+            )}
+          </label>
           <Input
             type={showKey[editingId || 'new'] ? 'text' : 'password'}
             value={form.api_key || ''}
             onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-            placeholder="sk-..."
+            placeholder={form.provider === 'ollama' ? 'ollama（无需填写）' : 'sk-...'}
             className="bg-zinc-800 border-zinc-700 text-white font-mono"
           />
         </div>
@@ -276,7 +284,7 @@ export function AIConfigsTab() {
           <Input
             value={form.api_base_url || ''}
             onChange={(e) => setForm({ ...form, api_base_url: e.target.value })}
-            placeholder={form.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.example.com/v1'}
+            placeholder={form.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : form.provider === 'ollama' ? 'http://localhost:11434' : 'https://api.example.com/v1'}
             className="bg-zinc-800 border-zinc-700 text-white font-mono text-xs"
           />
         </div>

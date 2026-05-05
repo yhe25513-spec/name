@@ -68,10 +68,13 @@ export async function streamOpenAIChat(
       stream: true,
     }
   } else {
-    // OpenAI 兼容格式（包括 OpenRouter）
+    // OpenAI 兼容格式（包括 OpenRouter、Ollama）
     headers = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+    }
+    // Ollama 本地运行不需要认证，但如果提供了 key 也可以使用
+    if (apiKey && provider !== 'ollama') {
+      headers['Authorization'] = `Bearer ${apiKey}`
     }
     // OpenRouter 需要额外的头部
     if (provider === 'openrouter' || apiUrl?.includes('openrouter.ai')) {
