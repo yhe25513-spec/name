@@ -20,7 +20,9 @@ export async function streamOpenAIChat(
   let apiUrl: string
   if (baseUrl) {
     // 自定义 base URL，使用 OpenAI 兼容格式
-    apiUrl = baseUrl.replace(/\/$/, '') + '/chat/completions'
+    // Ollama 使用 /v1/chat/completions
+    const path = provider === 'ollama' ? '/v1/chat/completions' : '/chat/completions'
+    apiUrl = baseUrl.replace(/\/$/, '') + path
   } else if (provider === 'anthropic') {
     // Anthropic API
     apiUrl = 'https://api.anthropic.com/v1/messages'
