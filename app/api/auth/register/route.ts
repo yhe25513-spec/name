@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabase = createAdminClient()
+    const supabase = await createAdminClient()
 
     const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
       email,

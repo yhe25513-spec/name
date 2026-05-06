@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Sword, Eye, EyeOff, Loader2, Mail, X } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [registerForm, setRegisterForm] = useState({ email: '', password: '', username: '' })
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
   const [resetSent, setResetSent] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -170,16 +171,14 @@ export default function LoginPage() {
                     登录
                   </Button>
                   <div className="flex justify-center">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => { setResetSent(false); setForgotPasswordEmail(''); }}
-                          className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
-                        >
-                          忘记密码？
-                        </button>
-                      </DialogTrigger>
+                    <button
+                      type="button"
+                      onClick={() => { setResetSent(false); setForgotPasswordEmail(''); setForgotOpen(true); }}
+                      className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+                    >
+                      忘记密码？
+                    </button>
+                    <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
                       <DialogContent className="bg-zinc-900 border-zinc-700 text-white">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
@@ -221,11 +220,9 @@ export default function LoginPage() {
                                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                 发送重置链接
                               </Button>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" className="border-zinc-700">
-                                  取消
-                                </Button>
-                              </DialogTrigger>
+                              <Button variant="outline" className="border-zinc-700" onClick={() => setForgotOpen(false)}>
+                                取消
+                              </Button>
                             </div>
                           </form>
                         )}

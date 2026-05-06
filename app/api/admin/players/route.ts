@@ -65,17 +65,17 @@ export async function DELETE(req: Request) {
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { deleteUnverified } = await req.json()
-  
+
   if (deleteUnverified) {
     const adminSupabase = await createAdminClient()
-    
+
     const { data: allUsers, error: listError } = await adminSupabase.auth.admin.listUsers()
-    
+
     if (listError) {
       return NextResponse.json({ error: listError.message }, { status: 500 })
     }
 
-    const unverifiedUsers = (allUsers || []).filter(u => !u.email_confirmed_at)
+    const unverifiedUsers = (allUsers || []).filter((u: { email_confirmed_at: string | null; id: string }) => !u.email_confirmed_at)
     const deletedCount = unverifiedUsers.length
     const errors: string[] = []
 

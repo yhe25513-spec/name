@@ -239,16 +239,6 @@ export function ConfigTab() {
                     <option value="claude-3-opus-20240229">claude-3-opus（强）</option>
                   </>
                 )}
-                {config?.provider === 'openrouter' && (
-                  <>
-                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B（推荐）</option>
-                    <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B（快）</option>
-                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                    <option value="openai/gpt-4o">GPT-4o</option>
-                    <option value="google/gemini-pro-1.5">Gemini Pro 1.5</option>
-                    <option value="nousresearch/hermes-3-llama-3.1-405b">Hermes 3 405B</option>
-                  </>
-                )}
               </select>
             )}
           </div>
