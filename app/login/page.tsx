@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Sword, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Sword, Eye, EyeOff, Loader2, Mail, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function LoginPage() {
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [registerForm, setRegisterForm] = useState({ email: '', password: '', username: '' })
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [resetSent, setResetSent] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -43,19 +46,56 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
-      email: registerForm.email,
-      password: registerForm.password,
-      options: {
-        data: { username: registerForm.username || registerForm.email.split('@')[0] },
-      },
-    })
-    if (error) {
-      toast.error('注册失败', { description: error.message })
-    } else {
-      toast.success('注册成功！请检查邮箱验证（或直接登录）')
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: registerForm.email,
+          password: registerForm.password,
+          username: registerForm.username,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        toast.error('注册失败', { description: result.error })
+      } else {
+        await supabase.auth.signInWithPassword({
+          email: registerForm.email,
+          password: registerForm.password,
+        })
+        toast.success('注册成功！正在进入游戏...')
+        router.push('/game')
+        router.refresh()
+      }
+    } catch (error) {
+      toast.error('注册失败', { description: '网络错误' })
     }
     setLoading(false)
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!forgotPasswordEmail) {
+      toast.error('请输入邮箱')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+      redirectTo: `${window.location.origin}/login`,
+    })
+    if (error) {
+      toast.error('发送失败', { description: error.message })
+    } else {
+      setResetSent(true)
+      toast.success('密码重置邮件已发送！请检查邮箱')
+    }
+    setLoading(false)
+  }
+
+  function resetForgotPassword() {
+    setResetSent(false)
+    setForgotPasswordEmail('')
   }
 
   return (
@@ -129,6 +169,69 @@ export default function LoginPage() {
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     登录
                   </Button>
+                  <div className="flex justify-center">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => { setResetSent(false); setForgotPasswordEmail(''); }}
+                          className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+                        >
+                          忘记密码？
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-zinc-900 border-zinc-700 text-white">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-blue-400" />
+                            忘记密码
+                          </DialogTitle>
+                        </DialogHeader>
+                        {resetSent ? (
+                          <div className="py-4 text-center">
+                            <p className="text-green-400 mb-2">✓ 密码重置邮件已发送！</p>
+                            <p className="text-zinc-400 text-sm">请检查您的邮箱获取重置链接</p>
+                            <div className="mt-4 flex justify-center">
+                              <Button
+                                variant="outline"
+                                onClick={resetForgotPassword}
+                                className="border-zinc-700"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                关闭
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleForgotPassword} className="space-y-4 mt-4">
+                            <Input
+                              type="email"
+                              placeholder="请输入注册时的邮箱"
+                              value={forgotPasswordEmail}
+                              onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                              required
+                              className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                type="submit"
+                                disabled={loading}
+                                className="flex-1 bg-amber-500 hover:bg-amber-400 text-black"
+                              >
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                发送重置链接
+                              </Button>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" className="border-zinc-700">
+                                  取消
+                                </Button>
+                              </DialogTrigger>
+                            </div>
+                          </form>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </form>
               </TabsContent>
 

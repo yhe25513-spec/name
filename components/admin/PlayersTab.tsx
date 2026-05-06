@@ -5,12 +5,13 @@ import { PlayerStats } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Users, Shield, Loader2 } from 'lucide-react'
+import { Users, Shield, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function PlayersTab() {
   const [players, setPlayers] = useState<PlayerStats[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { fetchPlayers() }, [])
 
@@ -39,6 +40,25 @@ export function PlayersTab() {
     }
   }
 
+  async function deleteUnverifiedUsers() {
+    if (!confirm('确认删除所有未验证邮箱的用户？此操作不可撤销！')) return
+    
+    setDeleting(true)
+    const res = await fetch('/api/admin/players', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deleteUnverified: true }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      toast.success(data.message)
+      fetchPlayers()
+    } else {
+      toast.error(data.error || '删除失败')
+    }
+    setDeleting(false)
+  }
+
   function formatDate(ts: string | null) {
     if (!ts) return '从未'
     return new Date(ts).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -52,6 +72,16 @@ export function PlayersTab() {
           玩家管理
           {!loading && <span className="text-sm text-zinc-500 font-normal">({players.length} 人)</span>}
         </h2>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={deleteUnverifiedUsers}
+          disabled={deleting}
+          className="h-8 text-xs"
+        >
+          <Trash2 className="w-3 h-3 mr-1" />
+          {deleting ? '删除中...' : '删除未验证用户'}
+        </Button>
       </div>
 
       {loading ? (

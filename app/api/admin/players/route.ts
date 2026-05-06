@@ -55,3 +55,44 @@ export async function PATCH(req: Request) {
 
   return NextResponse.json({ success: true })
 }
+
+export async function DELETE(req: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { deleteUnverified } = await req.json()
+  
+  if (deleteUnverified) {
+    const adminSupabase = await createAdminClient()
+    
+    const { data: allUsers, error: listError } = await adminSupabase.auth.admin.listUsers()
+    
+    if (listError) {
+      return NextResponse.json({ error: listError.message }, { status: 500 })
+    }
+
+    const unverifiedUsers = (allUsers || []).filter(u => !u.email_confirmed_at)
+    const deletedCount = unverifiedUsers.length
+    const errors: string[] = []
+
+    for (const u of unverifiedUsers) {
+      const { error: deleteError } = await adminSupabase.auth.admin.deleteUser(u.id)
+      if (deleteError) {
+        errors.push(`删除用户 ${u.email}: ${deleteError.message}`)
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedCount,
+      errors,
+      message: `已删除 ${deletedCount} 个未验证用户`
+    })
+  }
+
+  return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+}

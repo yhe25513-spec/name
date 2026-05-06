@@ -194,13 +194,24 @@ export function ConfigTab() {
         <CardContent className="space-y-4">
           <div>
             <label className="text-sm text-zinc-400 mb-1.5 block">模型</label>
-            {config?.provider === 'custom' || config?.provider === 'ollama' ? (
-              <Input
-                value={config?.model || ''}
-                onChange={(e) => config && setConfig({ ...config, model: e.target.value })}
-                placeholder={config?.provider === 'ollama' ? '例如：dolphin-mistral、llama3.2、qwen2.5 等' : '例如：gpt-4o-mini、llama-3.1-8b 等'}
-                className="bg-zinc-800 border-zinc-700 text-white font-mono"
-              />
+            {config?.provider === 'custom' || config?.provider === 'ollama' || config?.provider === 'openrouter' ? (
+              <>
+                <Input
+                  value={config?.model || ''}
+                  onChange={(e) => config && setConfig({ ...config, model: e.target.value })}
+                  placeholder={
+                    config?.provider === 'ollama' ? '例如：dolphin-mistral、llama3.2、qwen2.5 等' :
+                      config?.provider === 'openrouter' ? '例如：cognitivecomputations/dolphin-mistral-24b-venice-edition:free' :
+                        '例如：gpt-4o-mini、llama-3.1-8b 等'
+                  }
+                  className="bg-zinc-800 border-zinc-700 text-white font-mono"
+                />
+                {config?.provider === 'openrouter' && (
+                  <p className="text-xs text-zinc-500 mt-1">
+                    在 <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="text-amber-400 hover:underline">openrouter.ai/models</a> 查看所有可用模型ID
+                  </p>
+                )}
+              </>
             ) : (
               <select
                 value={config?.model || 'deepseek-chat'}
