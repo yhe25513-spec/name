@@ -17,8 +17,9 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [loginForm, setLoginForm] = useState({ emailOrUsername: '', password: '' })
   const [registerForm, setRegisterForm] = useState({ email: '', password: '', username: '' })
+  const [registerMode, setRegisterMode] = useState<'username' | 'email'>('username')
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [forgotOpen, setForgotOpen] = useState(false)
@@ -26,8 +27,12 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    const isEmail = loginForm.emailOrUsername.includes('@')
+    const loginEmail = isEmail
+      ? loginForm.emailOrUsername
+      : `${loginForm.emailOrUsername.trim()}@play-xiuxian.top`
     const { error } = await supabase.auth.signInWithPassword({
-      email: loginForm.email,
+      email: loginEmail,
       password: loginForm.password,
     })
     if (error) {
@@ -48,11 +53,14 @@ export default function LoginPage() {
     }
     setLoading(true)
     try {
+      const finalEmail = registerMode === 'username'
+        ? `${registerForm.username.trim()}@play-xiuxian.top`
+        : registerForm.email
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: registerForm.email,
+          email: finalEmail,
           password: registerForm.password,
           username: registerForm.username,
         }),
@@ -62,7 +70,7 @@ export default function LoginPage() {
         toast.error('注册失败', { description: result.error })
       } else {
         await supabase.auth.signInWithPassword({
-          email: registerForm.email,
+          email: finalEmail,
           password: registerForm.password,
         })
         toast.success('注册成功！正在进入游戏...')
@@ -137,10 +145,10 @@ export default function LoginPage() {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <Input
-                      type="email"
-                      placeholder="邮箱"
-                      value={loginForm.email}
-                      onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                      type="text"
+                      placeholder="用户名 或 邮箱"
+                      value={loginForm.emailOrUsername}
+                      onChange={(e) => setLoginForm({ ...loginForm, emailOrUsername: e.target.value })}
                       required
                       className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500 focus:border-amber-500/50"
                     />
@@ -234,21 +242,39 @@ export default function LoginPage() {
 
               <TabsContent value="register">
                 <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="flex rounded-md overflow-hidden border border-zinc-700 text-sm">
+                    <button type="button"
+                      onClick={() => setRegisterMode('username')}
+                      className={`flex-1 py-1.5 transition-colors ${registerMode === 'username' ? 'bg-amber-500 text-black font-semibold' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                        }`}
+                    >用户名注册</button>
+                    <button type="button"
+                      onClick={() => setRegisterMode('email')}
+                      className={`flex-1 py-1.5 transition-colors ${registerMode === 'email' ? 'bg-amber-500 text-black font-semibold' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                        }`}
+                    >邮箱注册</button>
+                  </div>
                   <Input
                     type="text"
-                    placeholder="用户名（可选）"
+                    placeholder="用户名（登录时使用）"
                     value={registerForm.username}
                     onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                    className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500 focus:border-amber-500/50"
-                  />
-                  <Input
-                    type="email"
-                    placeholder="邮箱"
-                    value={registerForm.email}
-                    onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
                     required
                     className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500 focus:border-amber-500/50"
                   />
+                  {registerMode === 'email' && (
+                    <Input
+                      type="email"
+                      placeholder="邮箱（可用于找回密码）"
+                      value={registerForm.email}
+                      onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                      required
+                      className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500 focus:border-amber-500/50"
+                    />
+                  )}
+                  {registerMode === 'username' && (
+                    <p className="text-xs text-zinc-500">无需邮箱，用户名即账号，请牢记用户名和密码</p>
+                  )}
                   <div className="relative">
                     <Input
                       type={showPassword ? 'text' : 'password'}
