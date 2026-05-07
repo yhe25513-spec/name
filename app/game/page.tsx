@@ -15,8 +15,8 @@ export default async function GamePage() {
 
   const { data: scenarios } = await supabase
     .from('game_scenarios')
-    .select('id, title, description, initial_state, background_image_url')
-    .eq('is_published', true)
+    .select('id, title, description, initial_state, background_image_url, created_by, is_published')
+    .or(`is_published.eq.true,created_by.eq.${user.id}`)
 
   const adminSupabase = await createAdminClient()
   const { data: profile } = await adminSupabase
@@ -31,6 +31,7 @@ export default async function GamePage() {
       scenarios={scenarios || []}
       username={profile?.username || user.email || '冒险者'}
       isAdmin={profile?.role === 'admin'}
+      userId={user.id}
     />
   )
 }
