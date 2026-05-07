@@ -28,6 +28,7 @@ function detectGenre(title = '', description = ''): string {
   if (/科幻|星[际球]|飞船|机甲|未来|机械|赛博|AI/.test(text)) return '科幻未来'
   if (/武侠|江湖|武林|门派|宗师|内功|剑法/.test(text)) return '武侠江湖'
   if (/都市|异能|现代|校园|超能/.test(text)) return '都市异能'
+  if (/言情|恋爱|甜宠|虐恋|爱情/.test(text)) return '言情恋爱'
   if (/奇幻|魔法|精灵|矮人|龙|剑与魔法|冒险者/.test(text)) return '奇幻冒险'
   return '其他'
 }
@@ -40,6 +41,7 @@ const GENRE_STYLES: Record<string, { color: string; ring: string }> = {
   '武侠江湖': { color: 'text-red-400', ring: 'ring-red-500/30' },
   '都市异能': { color: 'text-blue-400', ring: 'ring-blue-500/30' },
   '奇幻冒险': { color: 'text-amber-400', ring: 'ring-amber-500/30' },
+  '言情恋爱': { color: 'text-pink-400', ring: 'ring-pink-500/30' },
   '其他': { color: 'text-zinc-400', ring: 'ring-zinc-500/30' },
 }
 

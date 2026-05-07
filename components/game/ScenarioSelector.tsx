@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Sword, Clock, PlayCircle, PlusCircle, Settings, LogOut, User, Trash2, Search, Sparkles, Edit3, ScrollText, Gamepad2, ChevronRight } from 'lucide-react'
+import { Sword, Clock, PlayCircle, PlusCircle, Settings, LogOut, User, Trash2, Search, Sparkles, Edit3, ScrollText, Gamepad2, ChevronRight, Loader2, Wand2, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -29,6 +30,7 @@ function detectGenre(title = '', description = ''): string {
   if (/科幻|星[际球]|飞船|机甲|未来|机械|赛博|AI|人工智能/.test(text)) return '科幻未来'
   if (/武侠|江湖|武林|门派|宗师|内功|剑法/.test(text)) return '武侠江湖'
   if (/都市|异能|现代|校园|超能/.test(text)) return '都市异能'
+  if (/言情|恋爱|甜宠|虐恋|爱情/.test(text)) return '言情恋爱'
   if (/奇幻|魔法|精灵|矮人|龙|剑与魔法|冒险者/.test(text)) return '奇幻冒险'
   return '其他'
 }
@@ -40,6 +42,7 @@ const GENRE_COLORS: Record<string, { bg: string; border: string; text: string; g
   '科幻未来': { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', gradient: 'from-cyan-600/20 to-blue-600/10', icon: '🚀' },
   '武侠江湖': { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', gradient: 'from-red-600/20 to-rose-600/10', icon: '⚔' },
   '都市异能': { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', gradient: 'from-blue-600/20 to-violet-600/10', icon: '🌆' },
+  '言情恋爱': { bg: 'bg-pink-500/10', border: 'border-pink-500/30', text: 'text-pink-400', gradient: 'from-pink-600/20 to-rose-600/10', icon: '💕' },
   '奇幻冒险': { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', gradient: 'from-amber-600/20 to-yellow-600/10', icon: '🗡' },
   '其他': { bg: 'bg-zinc-500/10', border: 'border-zinc-500/30', text: 'text-zinc-400', gradient: 'from-zinc-600/20 to-zinc-600/10', icon: '🎲' },
 }
@@ -54,6 +57,8 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
   const [genreFilter, setGenreFilter] = useState('全部')
   const [previewScenario, setPreviewScenario] = useState<Partial<GameScenario> | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [aiStep, setAiStep] = useState<'choose' | 'prompt' | 'generating'>('choose')
+  const [aiPrompt, setAiPrompt] = useState('')
 
   // 同步 props 变化
   useEffect(() => { setLocalSaves(saves) }, [saves])
@@ -146,6 +151,117 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
     const diffDays = Math.floor(diffHours / 24)
     if (diffDays < 7) return `${diffDays} 天前`
     return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  async function handleAIGenerate() {
+    if (!aiPrompt.trim()) {
+      toast.error('请输入场景创意描述')
+      return
+    }
+    setAiStep('generating')
+    try {
+      const res = await fetch('/api/admin/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `请为一个文字冒险游戏创建完整的场景设定。
+
+用户的创意描述：${aiPrompt.trim()}
+
+请严格按照以下纯 JSON 格式返回（只返回 JSON，不要用任何 markdown 代码块或额外文字包裹）：
+
+{
+  "title": "场景标题（简洁吸引人，体现核心主题）",
+  "description": "一句话简介（20字以内）",
+  "worldSetting": "世界观设定（200字左右）",
+  "gameRules": "核心规则（条目式）",
+  "protagonist": "主角设定（身份、背景、性格）",
+  "storyPlot": "故事主线",
+  "atmosphere": "风格氛围描述",
+  "firstScene": "第一回合开场剧情（用第二人称"你"，200字左右）",
+  "playerOptions": "初始行动选项（每行一个，用数字编号，3-4个选项）"
+}`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.content) {
+        toast.error('AI 生成失败', { description: data.error || '请先配置 AI 服务' })
+        setAiStep('prompt')
+        return
+      }
+
+      // 解析 JSON（兼容 AI 用 markdown 包裹的情况）
+      let raw = data.content.trim()
+      const match = raw.match(/```(?:json)?\s*([\s\S]+?)\s*```/)
+      if (match) raw = match[1].trim()
+      const scenarioData = JSON.parse(raw)
+
+      if (!scenarioData.title) {
+        toast.error('AI 生成的内容不完整，请重试')
+        setAiStep('prompt')
+        return
+      }
+
+      // 构造 system prompt（与 SimpleScenarioEditor 中一致）
+      const systemPrompt = `你是文字冒险游戏《${scenarioData.title}》的GM。
+
+【世界观】
+${scenarioData.worldSetting || '（待补充）'}
+
+【核心规则】
+${scenarioData.gameRules || '（待补充）'}
+
+【主角设定】
+${scenarioData.protagonist || '（待补充）'}
+
+【剧情走向】
+${scenarioData.storyPlot || '（待补充）'}
+
+【叙事风格】
+${scenarioData.atmosphere || '（待补充）'}
+
+第一回合剧情：
+${scenarioData.firstScene || '描写主角醒来/出现时的场景、状态、环境'}
+
+初始行动选项：
+${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线索'}
+
+【回合推进】
+每回合结束时显示：【第X回合 | 当前位置：XXX】
+根据玩家输入推进剧情，保持风格一致。`
+
+      const createRes = await fetch('/api/admin/scenarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: scenarioData.title,
+          description: scenarioData.description || '',
+          system_prompt: systemPrompt,
+          initial_state: {
+            hp: 100,
+            maxHp: 100,
+            attributes: { '力量': 10, '敏捷': 10, '智慧': 10 },
+            inventory: [],
+            flags: {},
+            location: '起点',
+          },
+        }),
+      })
+
+      if (createRes.ok) {
+        toast.success('场景已通过 AI 智能生成！')
+        setShowCreateDialog(false)
+        router.push('/admin')
+        router.refresh()
+      } else {
+        const err = await createRes.json()
+        toast.error('创建场景失败', { description: err.error })
+        setAiStep('prompt')
+      }
+    } catch (err) {
+      toast.error('AI 生成失败', { description: '请检查 AI 配置是否正确或重试' })
+      setAiStep('prompt')
+    }
   }
 
   function getGenre(name: string) {
@@ -465,7 +581,10 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
       </main>
 
       {/* 创建场景弹窗 */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={(o) => {
+        setShowCreateDialog(o)
+        if (o) { setAiStep('choose'); setAiPrompt('') }
+      }}>
         <DialogContent className="bg-zinc-900 border-zinc-700 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
@@ -473,43 +592,87 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
               创建新场景
             </DialogTitle>
             <DialogDescription className="text-zinc-400 text-sm">
-              选择一种方式开始创作你的文字冒险世界
+              {aiStep === 'prompt' ? '输入你的场景创意，AI 将自动生成完整场景' : '选择一种方式开始创作你的文字冒险世界'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 pt-2">
-            <button
-              onClick={() => {
-                setShowCreateDialog(false)
-                router.push('/admin')
-              }}
-              className="w-full p-4 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-amber-500/40 hover:bg-zinc-800 transition-all text-left group"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-                  <Edit3 className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-white group-hover:text-amber-300 transition-colors">从零开始创作</div>
-                  <div className="text-xs text-zinc-500 mt-0.5">使用表单编辑器，逐步填写世界观、剧情和规则</div>
-                </div>
-              </div>
-            </button>
+            {aiStep === 'choose' && (
+              <>
+                <button
+                  onClick={() => { setShowCreateDialog(false); router.push('/admin') }}
+                  className="w-full p-4 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-amber-500/40 hover:bg-zinc-800 transition-all text-left group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <Edit3 className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white group-hover:text-amber-300 transition-colors">从零开始创作</div>
+                      <div className="text-xs text-zinc-500 mt-0.5">使用表单编辑器，逐步填写世界观、剧情和规则</div>
+                    </div>
+                  </div>
+                </button>
 
-            <button
-              className="w-full p-4 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-zinc-600 transition-all text-left group opacity-60 cursor-not-allowed"
-              disabled
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                </div>
+                <button
+                  onClick={() => setAiStep('prompt')}
+                  className="w-full p-4 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-purple-500/40 hover:bg-zinc-800 transition-all text-left group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
+                      <Wand2 className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">AI 智能生成</div>
+                      <div className="text-xs text-zinc-500 mt-0.5">输入关键词，AI 自动生成完整的游戏场景</div>
+                    </div>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {aiStep === 'prompt' && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-right-1 duration-200 fill-mode-both">
                 <div>
-                  <div className="text-sm font-medium text-zinc-400">AI 智能生成</div>
-                  <div className="text-xs text-zinc-600 mt-0.5">输入一个关键词，AI 自动生成完整场景（即将推出）</div>
+                  <label className="text-xs text-zinc-400 mb-1.5 block">
+                    描述你想要的场景（题材、风格、创意方向）
+                  </label>
+                  <Textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="例如：都市修仙题材，程序员穿越到修真世界用代码破解功法"
+                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 min-h-[100px] text-sm"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAiStep('choose')}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    返回
+                  </button>
+                  <Button
+                    onClick={handleAIGenerate}
+                    disabled={!aiPrompt.trim()}
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white font-semibold shadow-lg shadow-purple-500/20"
+                  >
+                    <Wand2 className="w-4 h-4 mr-1.5" />
+                    AI 智能生成
+                  </Button>
                 </div>
               </div>
-            </button>
+            )}
+
+            {aiStep === 'generating' && (
+              <div className="py-8 text-center animate-in fade-in duration-200 fill-mode-both">
+                <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mx-auto mb-4">
+                  <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                </div>
+                <p className="text-zinc-300 font-medium">AI 正在生成场景...</p>
+                <p className="text-xs text-zinc-500 mt-1">正在根据你的创意构思世界观、剧情和规则</p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
