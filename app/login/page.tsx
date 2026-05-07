@@ -41,7 +41,7 @@ export default function LoginPage() {
   const [resetSent, setResetSent] = useState(false)
   const [forgotOpen, setForgotOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('login')
-  const [shakeKey, setShakeKey] = useState(0)
+  const [shaking, setShaking] = useState(false)
 
   const loginInputRef = useRef<HTMLInputElement>(null)
   const registerInputRef = useRef<HTMLInputElement>(null)
@@ -67,7 +67,10 @@ export default function LoginPage() {
     }
   }, [forgotOpen])
 
-  const triggerShake = useCallback(() => setShakeKey((k) => k + 1), [])
+  const triggerShake = useCallback(() => {
+    setShaking(true)
+    setTimeout(() => setShaking(false), 500)
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -161,12 +164,6 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          25% { transform: translateY(-20px) translateX(10px); }
-          50% { transform: translateY(-10px) translateX(-10px); }
-          75% { transform: translateY(-30px) translateX(5px); }
-        }
         @keyframes float-slow {
           0%, 100% { transform: translateY(0px) translateX(0px) scale(1); }
           33% { transform: translateY(-15px) translateX(8px) scale(1.05); }
@@ -179,23 +176,6 @@ export default function LoginPage() {
         }
         .animate-shake {
           animation: shake 0.4s ease-in-out;
-        }
-        .card-glow::before {
-          content: '';
-          position: absolute;
-          inset: -1px;
-          border-radius: inherit;
-          background: linear-gradient(180deg, rgba(251,191,36,0.2) 0%, transparent 60%);
-          pointer-events: none;
-          z-index: -1;
-        }
-        .card-glow::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          box-shadow: inset 0 1px 1px rgba(251,191,36,0.06);
-          pointer-events: none;
         }
       `}</style>
 
@@ -246,7 +226,11 @@ export default function LoginPage() {
 
           {/* 登录卡片 */}
           <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
-            <Card className="relative card-glow bg-zinc-900/80 border-zinc-700/40 backdrop-blur-xl shadow-2xl">
+            <div className="relative">
+              {/* 顶部渐变光晕边框（Card overflow-hidden 会裁剪伪元素，故用外层 wrapper） */}
+              <div className="pointer-events-none absolute -inset-[1px] rounded-xl bg-gradient-to-b from-amber-500/20 to-transparent" />
+              <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_1px_0_rgba(251,191,36,0.06)]" />
+              <Card className="relative bg-zinc-900/80 border-zinc-700/40 backdrop-blur-xl shadow-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-white text-lg">进入游戏</CardTitle>
                 <CardDescription className="text-zinc-500">
@@ -271,7 +255,7 @@ export default function LoginPage() {
                   </TabsList>
 
                   <TabsContent value="login" className="mt-0">
-                    <form onSubmit={handleLogin} className="space-y-4" key="login-form">
+                    <form onSubmit={handleLogin} className={`space-y-4${shaking ? ' animate-shake' : ''}`} key="login-form">
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
                         <Input
@@ -282,7 +266,6 @@ export default function LoginPage() {
                           onChange={(e) => setLoginForm({ ...loginForm, emailOrUsername: e.target.value })}
                           required
                           className="bg-zinc-800/80 border-zinc-600/60 text-white placeholder:text-zinc-500 pl-9 focus-visible:border-amber-500/50 focus-visible:shadow-[0_0_12px_rgba(251,191,36,0.1)] transition-shadow duration-200"
-                          data-shake={shakeKey}
                         />
                       </div>
                       <div className="relative">
@@ -326,7 +309,7 @@ export default function LoginPage() {
 
                   <TabsContent value="register" className="mt-0">
                     {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
-                    <form onSubmit={handleRegister} className="space-y-4" key="register-form">
+                    <form onSubmit={handleRegister} className={`space-y-4${shaking ? ' animate-shake' : ''}`} key="register-form">
                       <div className="flex rounded-md overflow-hidden border border-zinc-700/60 text-sm">
                         <button
                           type="button"
@@ -430,6 +413,7 @@ export default function LoginPage() {
                 </Tabs>
               </CardContent>
             </Card>
+            </div>
           </div>
 
           <p className="text-center text-zinc-700 text-xs mt-5">
