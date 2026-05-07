@@ -8,9 +8,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '请先登录' }, { status: 401 })
   }
 
-  const { prompt } = await req.json()
+  let prompt: string
+  try {
+    const body = await req.json()
+    prompt = body.prompt
+  } catch {
+    return NextResponse.json({ error: '请求格式错误' }, { status: 400 })
+  }
   if (!prompt?.trim()) {
-    return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
+    return NextResponse.json({ error: '缺少提示词' }, { status: 400 })
   }
 
   // 获取 AI 配置：优先用 ai_configs 中的默认配置，降级到 admin_config
@@ -81,71 +87,90 @@ export async function POST(req: NextRequest) {
   const systemPrompt = '你是一个专业的游戏文案策划，擅长为文字冒险游戏创作沉浸式内容。回复简洁有创意，直接输出内容，不要添加额外说明。'
 
   try {
-    let response: Response
+    let baseUrl: string
+    let requestBody: Record<string, unknown>
+    let requestHeaders: Record<string, string>
 
     if (provider === 'anthropic') {
-      const baseUrl = 'https://api.anthropic.com/v1/messages'
-      response = await fetch(baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          temperature,
-          messages: [{ role: 'user', content: prompt }],
-          system: systemPrompt,
-        }),
-      })
+      baseUrl = 'https://api.anthropic.com/v1/messages'
+      requestHeaders = {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      }
+      requestBody = {
+        model,
+        max_tokens: maxTokens,
+        temperature,
+        messages: [{ role: 'user', content: prompt }],
+        system: systemPrompt,
+      }
     } else {
-      let baseUrl = 'https://api.deepseek.com'
-      if (provider === 'openai') baseUrl = 'https://api.openai.com'
-      else if (provider === 'openrouter') baseUrl = 'https://openrouter.ai/api/v1'
-      // custom provider uses default baseUrl
+      baseUrl = provider === 'openai' ? 'https://api.openai.com'
+        : provider === 'openrouter' ? 'https://openrouter.ai/api/v1'
+        : 'https://api.deepseek.com'
 
-      response = await fetch(`${baseUrl}/chat/completions`, {
+      // 自定义 provider 尝试读取 api_base_url
+      if (!['openai', 'openrouter', 'deepseek'].includes(provider)) {
+        const { data: customConfig } = await adminSupabase
+          .from('admin_config')
+          .select('api_base_url')
+          .single()
+        if (customConfig?.api_base_url) baseUrl = customConfig.api_base_url
+      }
+
+      requestHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        ...(provider === 'openrouter' ? {
+          'HTTP-Referer': 'https://localhost:3000',
+          'X-Title': 'Text Adventure Game',
+        } : {}),
+      }
+      requestBody = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+      }
+    }
+
+    const apiUrl = provider === 'anthropic' ? baseUrl : `${baseUrl}/chat/completions`
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000)
+
+    try {
+      const response = await fetch(apiUrl, {
+        signal: controller.signal,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          ...(provider === 'openrouter' ? {
-            'HTTP-Referer': 'https://localhost:3000',
-            'X-Title': 'Text Adventure Game',
-          } : {}),
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prompt },
-          ],
-          temperature,
-          max_tokens: maxTokens,
-        }),
+        headers: requestHeaders,
+        body: JSON.stringify(requestBody),
       })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        return NextResponse.json(
+          { error: `AI 服务响应异常 (${response.status})` },
+          { status: 502 }
+        )
+      }
+
+      const data = await response.json()
+      let content = ''
+
+      if (provider === 'anthropic') {
+        content = data.content?.[0]?.text || ''
+      } else {
+        content = data.choices?.[0]?.message?.content || ''
+      }
+
+      return NextResponse.json({ content: content.trim() })
+    } finally {
+      clearTimeout(timeout)
     }
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json(
-        { error: `AI 服务响应异常 (${response.status})` },
-        { status: 502 }
-      )
-    }
-
-    const data = await response.json()
-    let content = ''
-
-    if (provider === 'anthropic') {
-      content = data.content?.[0]?.text || ''
-    } else {
-      content = data.choices?.[0]?.message?.content || ''
-    }
-
-    return NextResponse.json({ content: content.trim() })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: `AI 请求失败: ${msg}` }, { status: 500 })

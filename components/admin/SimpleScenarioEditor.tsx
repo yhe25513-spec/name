@@ -176,26 +176,58 @@ export function SimpleScenarioEditor({ scenario, onSave, onCancel, open, saving,
   const [showPreview, setShowPreview] = useState(false)
   const [aiGenerating, setAiGenerating] = useState<string | null>(null)
 
-  const [form, setForm] = useState<SimpleForm>({
-    title: scenario?.title || '',
-    description: scenario?.description || '',
-    worldSetting: '',
-    gameRules: '',
-    protagonist: '',
-    storyPlot: '',
-    atmosphere: '',
-    firstScene: '',
-    playerOptions: DEFAULT_OPTIONS,
-    ai_config_id: scenario?.ai_config_id || null,
-  })
+  // 从 system_prompt 中提取各字段（用于编辑已有场景时回填）
+  function extractFromPrompt(prompt: string | undefined, field: string): string {
+    if (!prompt) return ''
+    const regex = new RegExp(`【${field}】[\\s\\n]*([^\\n]*(?:\\n(?!【|第一回合|初始行动|\\[回合)[^\\n]*)*)`)
+    const match = prompt.match(regex)
+    return match ? match[1].trim() : ''
+  }
+
+  function extractFirstScene(prompt?: string): string {
+    if (!prompt) return ''
+    const match = prompt.match(/第一回合剧情[:：][\s\n]*([\s\S]*?)(?=初始行动选项|$)/)
+    return match ? match[1].trim() : ''
+  }
+
+  function extractOptions(prompt?: string): string {
+    if (!prompt) return DEFAULT_OPTIONS
+    const match = prompt.match(/初始行动选项[:：][\s\n]*([\s\S]*?)(?=\n\n【|$)/)
+    return match ? match[1].trim() : DEFAULT_OPTIONS
+  }
+
+  function buildInitialForm(s?: Partial<GameScenario>): SimpleForm {
+    const prompt = s?.system_prompt
+    return {
+      title: s?.title || '',
+      description: s?.description || '',
+      worldSetting: extractFromPrompt(prompt, '世界观'),
+      gameRules: extractFromPrompt(prompt, '核心规则'),
+      protagonist: extractFromPrompt(prompt, '主角设定'),
+      storyPlot: extractFromPrompt(prompt, '剧情走向'),
+      atmosphere: extractFromPrompt(prompt, '叙事风格'),
+      firstScene: extractFirstScene(prompt),
+      playerOptions: extractOptions(prompt) || DEFAULT_OPTIONS,
+      ai_config_id: s?.ai_config_id || null,
+    }
+  }
+
+  const [form, setForm] = useState<SimpleForm>(buildInitialForm(scenario))
+
+  // 同步表单：当 scenario 或 open 变化时重建表单（用于编辑不同场景时更新）
+  useEffect(() => {
+    if (open) {
+      setForm(buildInitialForm(scenario))
+      setSelectedTemplate(null)
+      setExpanded(EXPANDED_DEFAULT)
+      setShowPreview(false)
+      fetchAIConfigs()
+    }
+  }, [open, scenario?.id])
 
   // AI 配置列表
   const [aiConfigs, setAiConfigs] = useState<AIConfig[]>([])
   const [aiConfigsLoading, setAiConfigsLoading] = useState(false)
-
-  useEffect(() => {
-    if (open) fetchAIConfigs()
-  }, [open])
 
   async function fetchAIConfigs() {
     setAiConfigsLoading(true)

@@ -90,7 +90,11 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
   }, [scenarios, genreFilter, searchQuery])
 
   async function startNewGame(scenario: Partial<GameScenario>) {
-    setCreating(scenario.id!)
+    if (!scenario.id) {
+      toast.error('场景数据异常，无法开始游戏')
+      return
+    }
+    setCreating(scenario.id)
     try {
       const res = await fetch('/api/game/save', {
         method: 'POST',
@@ -505,10 +509,18 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                       <Button
                         onClick={() => startNewGame(scenario)}
                         disabled={creating === scenario.id}
-                        className={`w-full ${gc.text.replace('text-', 'bg-').replace('400', '600')} hover:${gc.text.replace('text-', 'bg-').replace('400', '500')} text-white border-0`}
-                        style={{
-                          backgroundColor: `color-mix(in srgb, ${genre === '修仙修真' ? '#10b981' : genre === '末日生存' ? '#f97316' : genre === '悬疑解谜' ? '#a855f7' : genre === '科幻未来' ? '#06b6d4' : genre === '武侠江湖' ? '#ef4444' : genre === '都市异能' ? '#3b82f6' : genre === '奇幻冒险' ? '#f59e0b' : '#71717a'} 80%, black 20%)`
-                        }}
+                        className={
+                          'w-full text-white border-0 ' + (
+                            genre === '修仙修真' ? 'bg-emerald-600 hover:bg-emerald-500' :
+                            genre === '末日生存' ? 'bg-orange-600 hover:bg-orange-500' :
+                            genre === '悬疑解谜' ? 'bg-purple-600 hover:bg-purple-500' :
+                            genre === '科幻未来' ? 'bg-cyan-600 hover:bg-cyan-500' :
+                            genre === '武侠江湖' ? 'bg-red-600 hover:bg-red-500' :
+                            genre === '都市异能' ? 'bg-blue-600 hover:bg-blue-500' :
+                            genre === '奇幻冒险' ? 'bg-amber-600 hover:bg-amber-500' :
+                            'bg-zinc-600 hover:bg-zinc-500'
+                          )
+                        }
                       >
                         {creating === scenario.id ? (
                           <span className="flex items-center gap-1.5">
