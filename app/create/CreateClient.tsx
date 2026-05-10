@@ -57,7 +57,10 @@ const MAX_POLL_TIME = 300000 // 5 分钟超时
 export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [mode, setMode] = useState<Mode>(() => (searchParams.get('mode') as Mode) || 'image')
+  const [mode, setMode] = useState<Mode>(() => {
+    const param = searchParams.get('mode') as Mode
+    return param === 'video' && !isAdmin ? 'image' : (param || 'image')
+  })
   const [prompt, setPrompt] = useState('')
   const [style, setStyle] = useState<Style>('奇幻')
   const [ratio, setRatio] = useState<Ratio>('1:1')
@@ -212,6 +215,12 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           setGenerating(false)
         }
       } else {
+        if (mode === 'video' && !isAdmin) {
+          toast.error('视频生成功能仅管理员可用')
+          setGenerating(false)
+          return
+        }
+
         // 视频生成（异步提交 + 轮询）
         const res = await fetch('/api/generate-video', {
           method: 'POST',

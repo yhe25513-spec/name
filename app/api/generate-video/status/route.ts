@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '请先登录' }, { status: 401 })
   }
 
+  // 仅管理员可用
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') {
+    return NextResponse.json({ error: '仅管理员可用' }, { status: 403 })
+  }
+
   let requestId: string
   try {
     const body = await req.json()
