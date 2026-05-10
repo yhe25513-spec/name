@@ -25,18 +25,21 @@ export async function GET() {
   const userIsAdmin = await isAdmin(user.id)
   const adminSupabase = await createAdminClient()
 
-  // Admin 可以看到所有场景，普通用户可以看到自己的 + 所有已发布的
-  // 使用 adminClient 绕过 RLS，用代码逻辑控制权限
-  let query = adminSupabase.from('game_scenarios').select('*, ai_config:ai_configs(*)')
-
-  if (!userIsAdmin) {
-    query = query.or(`is_published.eq.true,created_by.eq.${user.id}`)
-  }
-
-  const { data, error: queryError } = await query.order('created_at', { ascending: false })
+  // 使用 adminClient 绕过 RLS（防止表级权限限制）
+  // 然后在代码层过滤：普通用户只能看到已发布 + 自己的
+  const { data, error: queryError } = await adminSupabase
+    .from('game_scenarios')
+    .select('*, ai_config:ai_configs(*)')
+    .order('created_at', { ascending: false })
 
   if (queryError) return NextResponse.json({ error: queryError.message }, { status: 500 })
-  return NextResponse.json({ scenarios: data || [], isAdmin: userIsAdmin, userId: user.id })
+
+  let scenarios = data || []
+  if (!userIsAdmin) {
+    scenarios = scenarios.filter(s => s.is_published || s.created_by === user.id)
+  }
+
+  return NextResponse.json({ scenarios, isAdmin: userIsAdmin, userId: user.id })
 }
 
 export async function POST(req: NextRequest) {

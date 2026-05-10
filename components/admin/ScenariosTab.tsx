@@ -209,13 +209,13 @@ export function ScenariosTab() {
                       </Badge>
                     </div>
                   </div>
-                  {/* AI 配置 */}
-                  <div className="mt-2 flex items-center gap-2">
-                    <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px] flex items-center gap-1">
-                      <Server className="w-3 h-3" />
-                      {s.ai_config?.name || '默认配置'}
-                    </Badge>
-                    {isAdmin && (
+                  {/* AI 配置（仅管理员可见） */}
+                  {isAdmin && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px] flex items-center gap-1">
+                        <Server className="w-3 h-3" />
+                        {s.ai_config?.name || '默认配置'}
+                      </Badge>
                       <select
                         value={s.ai_config_id || ''}
                         onChange={(e) => updateScenarioAIConfig(s.id, e.target.value || null)}
@@ -228,8 +228,8 @@ export function ScenariosTab() {
                           </option>
                         ))}
                       </select>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
                   <div className="flex gap-2">

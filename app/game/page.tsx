@@ -14,10 +14,15 @@ export default async function GamePage() {
     .order('updated_at', { ascending: false })
 
   const adminSupabase = await createAdminClient()
-  const { data: scenarios } = await adminSupabase
+  const { data: allScenarios } = await adminSupabase
     .from('game_scenarios')
     .select('id, title, description, initial_state, background_image_url, created_by, is_published')
-    .or(`is_published.eq.true,created_by.eq.${user.id}`)
+    .order('created_at', { ascending: false })
+
+  // 只显示已发布 + 自己创建的（未发布的别人看不到）
+  const scenarios = (allScenarios || []).filter(
+    s => s.is_published || s.created_by === user.id
+  )
 
   const { data: profile } = await adminSupabase
     .from('profiles')
