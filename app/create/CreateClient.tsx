@@ -85,13 +85,6 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
 
-  // 同步 URL 参数
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('mode', mode)
-    router.replace(`/create?${params.toString()}`, { scroll: false })
-  }, [mode])
-
   // 保存历史
   const saveToHistory = useCallback((item: HistoryItem) => {
     setHistory(prev => {
