@@ -26,7 +26,7 @@ export async function GET() {
   const adminSupabase = await createAdminClient()
 
   // 使用 adminClient 绕过 RLS（防止表级权限限制）
-  // 然后在代码层过滤：普通用户只能看到已发布 + 自己的
+  // 然后在代码层过滤权限：admin 看全部，普通用户只看自己的
   const { data, error: queryError } = await adminSupabase
     .from('game_scenarios')
     .select('*, ai_config:ai_configs(*)')
@@ -36,7 +36,7 @@ export async function GET() {
 
   let scenarios = data || []
   if (!userIsAdmin) {
-    scenarios = scenarios.filter(s => s.is_published || s.created_by === user.id)
+    scenarios = scenarios.filter(s => s.created_by === user.id)
   }
 
   return NextResponse.json({ scenarios, isAdmin: userIsAdmin, userId: user.id })
