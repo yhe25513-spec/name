@@ -7,33 +7,39 @@ export default async function GamePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: saves } = await supabase
-    .from('game_saves')
-    .select('*, scenario:game_scenarios(id, title, description)')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-
   const adminSupabase = await createAdminClient()
-  const { data: allScenarios } = await adminSupabase
-    .from('game_scenarios')
-    .select('id, title, description, initial_state, background_image_url, created_by, is_published')
-    .order('created_at', { ascending: false })
+
+  // 并行查询：saves、scenarios、profile 互不依赖
+  const [savesResult, allScenariosResult, profileResult] = await Promise.all([
+    supabase
+      .from('game_saves')
+      .select('*, scenario:game_scenarios(id, title, description)')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false }),
+    adminSupabase
+      .from('game_scenarios')
+      .select('id, title, description, initial_state, background_image_url, created_by, is_published')
+      .order('created_at', { ascending: false }),
+    adminSupabase
+      .from('profiles')
+      .select('username, role')
+      .eq('id', user.id)
+      .single(),
+  ])
+
+  const saves = savesResult.data || []
+  const allScenarios = allScenariosResult.data || []
+  const profile = profileResult.data
 
   // 只显示已发布 + 自己创建的（未发布的别人看不到）
-  const scenarios = (allScenarios || []).filter(
+  const scenarios = allScenarios.filter(
     s => s.is_published || s.created_by === user.id
   )
 
-  const { data: profile } = await adminSupabase
-    .from('profiles')
-    .select('username, role')
-    .eq('id', user.id)
-    .single()
-
   return (
     <ScenarioSelector
-      saves={saves || []}
-      scenarios={scenarios || []}
+      saves={saves}
+      scenarios={scenarios}
       username={profile?.username || user.email || '冒险者'}
       isAdmin={profile?.role === 'admin'}
       userId={user.id}
