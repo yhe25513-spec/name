@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ChevronDown, ChevronUp, Sparkles, Server, Wand2, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp, Sparkles, Server, Wand2, Eye, EyeOff, CheckCircle2, ImageIcon, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api-client'
 
@@ -28,6 +28,7 @@ interface SimpleForm {
   firstScene: string
   playerOptions: string
   ai_config_id: string | null
+  background_image_url: string
 }
 
 interface SimpleEditorProps {
@@ -210,6 +211,7 @@ export function SimpleScenarioEditor({ scenario, onSave, onCancel, open, saving,
       firstScene: extractFirstScene(prompt),
       playerOptions: extractOptions(prompt) || DEFAULT_OPTIONS,
       ai_config_id: s?.ai_config_id || null,
+      background_image_url: s?.background_image_url || '',
     }
   }
 
@@ -351,12 +353,14 @@ ${prompt}
     }
 
     await onSave({
-      ...scenario,
+      id: scenario?.id,
       title: form.title,
       description: form.description,
       system_prompt: systemPrompt,
       initial_state: initialState,
       ai_config_id: form.ai_config_id || undefined,
+      background_image_url: form.background_image_url || undefined,
+      is_published: scenario?.is_published,
     })
   }
 
@@ -513,6 +517,77 @@ ${prompt}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="玩家在选择界面看到的简短介绍，例如：在核爆后的废土上活下去"
                 className="bg-zinc-800 border-zinc-700 text-white h-10 placeholder:text-zinc-600"
+              />
+            </div>
+            {/* 背景图片 */}
+            <div>
+              <label className="text-xs text-zinc-400 mb-1 block flex items-center gap-1">
+                <ImageIcon className="w-3.5 h-3.5" />
+                场景背景图
+              </label>
+              <p className="text-[10px] text-zinc-500 mb-2">玩家进入场景后自动作为聊天背景显示，建议使用 16:9 横图</p>
+              {form.background_image_url && (
+                <div className="relative rounded-lg overflow-hidden border border-zinc-700 h-28 mb-2 group">
+                  <img
+                    src={form.background_image_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                  <button
+                    onClick={() => setForm({ ...form, background_image_url: '' })}
+                    className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/60 text-white/70 hover:text-white hover:bg-black/85 transition-colors"
+                    title="移除图片"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  id="bg-upload-editor"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    if (file.size > 10 * 1024 * 1024) {
+                      toast.error('图片太大了', { description: '请选择 10MB 以下的图片' })
+                      return
+                    }
+                    const fd = new FormData()
+                    fd.append('file', file)
+                    try {
+                      toast.loading('上传中...')
+                      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+                      const data = await res.json()
+                      toast.dismiss()
+                      if (res.ok) {
+                        setForm({ ...form, background_image_url: data.url })
+                        toast.success('图片上传成功')
+                      } else {
+                        toast.error('上传失败', { description: data.error || '请重试' })
+                      }
+                    } catch {
+                      toast.dismiss()
+                      toast.error('网络错误', { description: '图片上传失败，请检查网络后重试' })
+                    }
+                  }}
+                />
+                <label
+                  htmlFor="bg-upload-editor"
+                  className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg border-2 border-dashed border-zinc-700 hover:border-amber-500/40 hover:bg-amber-500/5 cursor-pointer transition-all text-zinc-500 hover:text-amber-400 text-xs"
+                >
+                  <Upload className="w-4 h-4" />
+                  上传图片
+                </label>
+              </div>
+              <Input
+                value={form.background_image_url}
+                onChange={(e) => setForm({ ...form, background_image_url: e.target.value })}
+                placeholder="或输入图片 URL（支持网络图片链接）"
+                className="bg-zinc-800 border-zinc-700 text-white h-9 text-sm placeholder:text-zinc-600 mt-2"
               />
             </div>
             {isAdmin && (

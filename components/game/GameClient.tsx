@@ -109,6 +109,10 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     if (saved) {
       setBgImageUrl(saved)
       analyzeImageBrightness(saved).then(setBgBrightness)
+    } else if (scenario.background_image_url) {
+      // 场景自带背景图，自动设为聊天背景（用户未手动设置时）
+      setBgImageUrl(scenario.background_image_url)
+      analyzeImageBrightness(scenario.background_image_url).then(setBgBrightness)
     }
     const savedTheme = localStorage.getItem('game-theme')
     if (savedTheme) setThemeId(savedTheme)
