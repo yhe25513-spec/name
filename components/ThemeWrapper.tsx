@@ -27,6 +27,11 @@ export function ThemeWrapper({ children }: { children: React.ReactNode }) {
 
       setThemeVars(css)
       setFontFamily(font.cssVar)
+
+      // 同步到 document.documentElement 确保 Portal 弹窗也能继承
+      const root = document.documentElement
+      Object.entries(css).forEach(([key, val]) => root.style.setProperty(key, val))
+      root.style.fontFamily = font.cssVar
     }
 
     applyTheme()
