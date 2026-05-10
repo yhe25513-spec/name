@@ -13,12 +13,12 @@ export default async function GamePage() {
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
 
-  const { data: scenarios } = await supabase
+  const adminSupabase = await createAdminClient()
+  const { data: scenarios } = await adminSupabase
     .from('game_scenarios')
     .select('id, title, description, initial_state, background_image_url, created_by, is_published')
     .or(`is_published.eq.true,created_by.eq.${user.id}`)
 
-  const adminSupabase = await createAdminClient()
   const { data: profile } = await adminSupabase
     .from('profiles')
     .select('username, role')

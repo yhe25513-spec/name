@@ -23,9 +23,11 @@ export async function GET() {
   if (error || !supabase || !user) return NextResponse.json({ error }, { status: 403 })
 
   const userIsAdmin = await isAdmin(user.id)
+  const adminSupabase = await createAdminClient()
 
-  // Admin 可以看到所有场景，普通用户只能看到自己的 + 所有已发布的
-  let query = supabase.from('game_scenarios').select('*, ai_config:ai_configs(*)')
+  // Admin 可以看到所有场景，普通用户可以看到自己的 + 所有已发布的
+  // 使用 adminClient 绕过 RLS，用代码逻辑控制权限
+  let query = adminSupabase.from('game_scenarios').select('*, ai_config:ai_configs(*)')
 
   if (!userIsAdmin) {
     query = query.or(`is_published.eq.true,created_by.eq.${user.id}`)
