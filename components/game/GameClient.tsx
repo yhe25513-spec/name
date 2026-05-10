@@ -9,13 +9,40 @@ import { ChatArea } from './ChatArea'
 import { InputArea } from './InputArea'
 import { SidePanel } from './SidePanel'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Save, CheckCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { ArrowLeft, Save, CheckCircle, ImageIcon, X, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-client'
+import { THEMES, getTheme, FONTS, buildCustomThemeCss } from '@/lib/themes'
 
 interface GameClientProps {
   initialSave: GameSave
   isSandbox?: boolean
+}
+
+const ATMOSPHERE_GLOW: Record<string, { glow: string; banner: string; accent: string }> = {
+  danger: {
+    glow: 'rgba(220,38,38,0.12)',
+    banner: 'from-red-900/40 via-red-800/10 to-transparent',
+    accent: 'border-red-500/30',
+  },
+  mystery: {
+    glow: 'rgba(147,51,234,0.12)',
+    banner: 'from-purple-900/40 via-purple-800/10 to-transparent',
+    accent: 'border-purple-500/30',
+  },
+  triumph: {
+    glow: 'rgba(217,119,6,0.15)',
+    banner: 'from-amber-900/40 via-amber-800/10 to-transparent',
+    accent: 'border-amber-500/30',
+  },
+  normal: {
+    glow: 'rgba(120,113,108,0.05)',
+    banner: 'from-zinc-900/30 via-transparent to-transparent',
+    accent: 'border-zinc-700/30',
+  },
 }
 
 export function GameClient({ initialSave, isSandbox = false }: GameClientProps) {
@@ -35,7 +62,114 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   const [atmosphereHint, setAtmosphereHint] = useState<AIResponse['atmosphereHint']>('normal')
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [bgImageUrl, setBgImageUrl] = useState('')
+  const [showBgDialog, setShowBgDialog] = useState(false)
+  const [bgInputUrl, setBgInputUrl] = useState('')
+  const [bgOpacity, setBgOpacity] = useState(0.30)
+  const [bgBrightness, setBgBrightness] = useState(0.5) // 0=暗 1=亮
+  const [themeId, setThemeId] = useState('dark')
+  const [fontId, setFontId] = useState('sans')
+  const [customThemeColors, setCustomThemeColors] = useState<{ bgShade: 'dark' | 'medium' | 'light'; accentColor: 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue' }>({
+    bgShade: 'dark',
+    accentColor: 'amber',
+  })
   const hasStartedRef = useRef(false)
+
+  // Canvas 采样分析图片平均亮度（WCAG 相对亮度加权）
+  function analyzeImageBrightness(url: string): Promise<number> {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'Anonymous'
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = 100
+          canvas.height = 100
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0, 100, 100)
+          const data = ctx.getImageData(0, 0, 100, 100).data
+          let total = 0
+          for (let i = 0; i < data.length; i += 4) {
+            // WCAG 感知亮度加权：人眼对绿色最敏感
+            total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000
+          }
+          resolve(Math.round((total / (data.length / 4) / 255) * 100) / 100)
+        } catch {
+          resolve(0.5)
+        }
+      }
+      img.onerror = () => resolve(0.5)
+      img.src = url
+    })
+  }
+
+  // 从 localStorage 加载背景图片、主题、字体、自定义主题
+  useEffect(() => {
+    const saved = localStorage.getItem('game-bg-image')
+    if (saved) {
+      setBgImageUrl(saved)
+      analyzeImageBrightness(saved).then(setBgBrightness)
+    }
+    const savedTheme = localStorage.getItem('game-theme')
+    if (savedTheme) setThemeId(savedTheme)
+    const savedFont = localStorage.getItem('game-font')
+    if (savedFont) setFontId(savedFont)
+    const savedCustom = localStorage.getItem('game-custom-theme')
+    if (savedCustom) {
+      try { setCustomThemeColors(JSON.parse(savedCustom)) } catch { /* ignore */ }
+    }
+  }, [])
+
+  // 主题变化时持久化
+  useEffect(() => {
+    localStorage.setItem('game-theme', themeId)
+    window.dispatchEvent(new Event('theme-change'))
+  }, [themeId])
+
+  // 字体变化时持久化
+  useEffect(() => {
+    localStorage.setItem('game-font', fontId)
+    window.dispatchEvent(new Event('theme-change'))
+  }, [fontId])
+
+  // 自定义主题变化时持久化
+  useEffect(() => {
+    localStorage.setItem('game-custom-theme', JSON.stringify(customThemeColors))
+    window.dispatchEvent(new Event('theme-change'))
+  }, [customThemeColors])
+
+  // 图片 URL 变化时重新分析亮度
+  useEffect(() => {
+    if (bgImageUrl) {
+      analyzeImageBrightness(bgImageUrl).then(setBgBrightness)
+    }
+  }, [bgImageUrl])
+
+  function handleBgImageSave() {
+    const url = bgInputUrl.trim()
+    if (!url) {
+      localStorage.removeItem('game-bg-image')
+      setBgImageUrl('')
+    } else {
+      localStorage.setItem('game-bg-image', url)
+      setBgImageUrl(url)
+    }
+    setShowBgDialog(false)
+  }
+
+  function handleBgImageClear() {
+    localStorage.removeItem('game-bg-image')
+    setBgImageUrl('')
+    setBgInputUrl('')
+    setShowBgDialog(false)
+  }
+
+  const atmosphere = atmosphereHint || 'normal'
+  const glow = ATMOSPHERE_GLOW[atmosphere]
+  const currentTheme = themeId === 'custom'
+    ? { ...getTheme('dark'), css: buildCustomThemeCss(customThemeColors), id: 'custom', name: '自定义', icon: '🎨' }
+    : getTheme(themeId)
+  const selectedFont = FONTS.find((f) => f.id === fontId) || FONTS[0]
 
   // 开场剧情发送函数（独立出来避免循环依赖）
   const sendOpeningScene = useCallback(async () => {
@@ -102,7 +236,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
 
     try {
       const openingHistory = [...messages, openingMsg]
-      const res = await fetch('/api/game/chat', {
+      const res = await apiFetch('/api/game/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -205,7 +339,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     setStreamingText('')
 
     try {
-      const res = await fetch('/api/game/chat', {
+      const res = await apiFetch('/api/game/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +425,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     currentSaveId: string
   ) {
     try {
-      const res = await fetch('/api/game/save', {
+      const res = await apiFetch('/api/game/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -313,7 +447,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   async function handleManualSave() {
     setSaving(true)
     try {
-      const res = await fetch('/api/game/save', {
+      const res = await apiFetch('/api/game/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -336,24 +470,336 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   }
 
   return (
-    <div className={cn(
-      'h-screen flex flex-col bg-zinc-950 text-white',
-      atmosphereHint === 'danger' && 'bg-red-950/5',
-      atmosphereHint === 'mystery' && 'bg-purple-950/5',
-      atmosphereHint === 'triumph' && 'bg-amber-950/5',
-    )}>
+    <div
+        className="h-screen flex flex-col relative overflow-hidden"
+        style={{ ...currentTheme.css, backgroundColor: 'var(--bg-primary)', fontFamily: selectedFont.cssVar } as React.CSSProperties}>
+      {/* 氛围边缘辉光 */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-700"
+        style={{
+          boxShadow: `inset 0 0 120px 40px ${glow.glow}, inset 0 0 300px 80px ${glow.glow}`,
+        }}
+      />
+
+      {/* 氛围顶部渐变横幅 */}
+      <div
+        className={cn(
+          'pointer-events-none absolute top-0 left-0 right-0 h-32 z-0 bg-gradient-to-b transition-opacity duration-700',
+          glow.banner
+        )}
+      />
+
+      {/* 自定义背景图片 */}
+      {bgImageUrl && (
+        <div
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            backgroundImage: `url(${bgImageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: bgOpacity,
+          }}
+        />
+      )}
+
+      {/* 自适应暗色叠加层 — 根据图片亮度自动调节，图片始终清晰，暗层保护文字可读 */}
+      {bgImageUrl && (
+        <div
+          className="pointer-events-none absolute inset-0 z-[2] transition-opacity duration-500"
+          style={{
+            background: 'rgb(0,0,0)',
+            opacity: 0.05 + bgBrightness * 0.20, // 亮图 → 稍微加深但不压死图片
+          }}
+        />
+      )}
+
       {/* 顶栏 */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900 flex-shrink-0">
+      <div className="relative z-10 flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]/80 backdrop-blur-sm flex-shrink-0">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push('/game')}
-          className="text-zinc-400 hover:text-white h-8 px-2"
+          className="text-[var(--text-muted)] hover:text-[var(--text-primary)] h-8 px-2"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           返回
         </Button>
+
+        {/* 氛围指示器 */}
+        <div className="hidden sm:flex items-center gap-1.5">
+          <span
+            className={cn(
+              'w-1.5 h-1.5 rounded-full transition-colors duration-500',
+              atmosphere === 'danger' && 'bg-red-400 shadow-[0_0_6px_rgba(220,38,38,0.6)]',
+              atmosphere === 'mystery' && 'bg-purple-400 shadow-[0_0_6px_rgba(147,51,234,0.6)]',
+              atmosphere === 'triumph' && 'bg-amber-400 shadow-[0_0_6px_rgba(217,119,6,0.6)]',
+              atmosphere === 'normal' && 'bg-zinc-500'
+            )}
+          />
+          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+            {atmosphere === 'danger' && '危险'}
+            {atmosphere === 'mystery' && '神秘'}
+            {atmosphere === 'triumph' && '凯旋'}
+            {atmosphere === 'normal' && '平静'}
+          </span>
+        </div>
+
         <div className="flex-1" />
+
+        {/* 背景图片设置 */}
+        <Dialog open={showBgDialog} onOpenChange={setShowBgDialog}>
+          <DialogTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-8 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors',
+                  bgImageUrl && 'text-[var(--accent)]'
+                )}
+              >
+                <ImageIcon className="w-3.5 h-3.5 mr-1" />
+                背景
+              </Button>
+            }
+          />
+          <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+                外观设置
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
+              {/* —— 主题选择 —— */}
+              <div>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
+                  聊天主题
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {THEMES.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setThemeId(t.id)}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
+                        themeId === t.id
+                          ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm shadow-[var(--accent)]/10'
+                          : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-zinc-600 hover:bg-zinc-800/50'
+                      )}
+                    >
+                      <span className="text-lg">{t.icon}</span>
+                      <span className={cn(
+                        'text-[10px] font-medium',
+                        themeId === t.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
+                      )}>
+                        {t.name}
+                      </span>
+                    </button>
+                  ))}
+                  {/* 自定义 */}
+                  <button
+                    onClick={() => setThemeId('custom')}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
+                      themeId === 'custom'
+                        ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm shadow-[var(--accent)]/10'
+                        : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-zinc-600 hover:bg-zinc-800/50'
+                    )}
+                  >
+                    <span className="text-lg">🎨</span>
+                    <span className={cn(
+                      'text-[10px] font-medium',
+                      themeId === 'custom' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
+                    )}>
+                      自定义
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* —— 自定义主题 —— */}
+              {themeId === 'custom' && (
+                <div className="space-y-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
+                  <div>
+                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-semibold">背景色阶</p>
+                    <div className="flex gap-1.5">
+                      {(['dark', 'medium', 'light'] as const).map((shade) => (
+                        <button
+                          key={shade}
+                          onClick={() => setCustomThemeColors(prev => ({ ...prev, bgShade: shade }))}
+                          className={cn(
+                            'flex-1 text-[11px] py-1.5 rounded-md border transition-all',
+                            customThemeColors.bgShade === shade
+                              ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-[var(--accent)]'
+                              : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-600'
+                          )}
+                        >
+                          {shade === 'dark' ? '暗色' : shade === 'medium' ? '中调' : '亮色'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-semibold">强调色</p>
+                    <div className="flex gap-1.5">
+                      {[
+                        { id: 'amber', label: '琥珀' },
+                        { id: 'cyan', label: '青蓝' },
+                        { id: 'emerald', label: '翠绿' },
+                        { id: 'purple', label: '紫韵' },
+                        { id: 'gold', label: '赤金' },
+                        { id: 'blue', label: '湛蓝' },
+                      ].map((ac) => (
+                        <button
+                          key={ac.id}
+                          onClick={() => setCustomThemeColors(prev => ({ ...prev, accentColor: ac.id as 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue' }))}
+                          className={cn(
+                            'flex-1 text-[11px] py-1.5 rounded-md border transition-all',
+                            customThemeColors.accentColor === ac.id
+                              ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-[var(--accent)]'
+                              : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-600'
+                          )}
+                        >
+                          {ac.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* —— 字体选择 —— */}
+              <div>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
+                  字体样式
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {FONTS.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setFontId(f.id)}
+                      className={cn(
+                        'flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border transition-all duration-200',
+                        fontId === f.id
+                          ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm shadow-[var(--accent)]/10'
+                          : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-zinc-600 hover:bg-zinc-800/50'
+                      )}
+                    >
+                      <span className="text-xs font-medium" style={fontId === f.id ? { color: 'var(--accent)' } : { color: 'var(--text-secondary)' }}>
+                        {f.name}
+                      </span>
+                      <span className="text-[10px] text-[var(--text-muted)]">Aa 天地玄黄</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 分割 */}
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-[var(--border)]" />
+                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest">背景图片</span>
+                <div className="h-px flex-1 bg-[var(--border)]" />
+              </div>
+
+              {/* 本地上传 */}
+              <div className="relative">
+                <input
+                  id="bg-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error('图片太大了', { description: '请选择 5MB 以下的图片' })
+                      return
+                    }
+                    const reader = new FileReader()
+                    reader.onload = (ev) => {
+                      const dataUrl = ev.target?.result as string
+                      setBgInputUrl(dataUrl)
+                    }
+                    reader.readAsDataURL(file)
+                  }}
+                />
+                <label
+                  htmlFor="bg-upload"
+                  className="flex items-center justify-center gap-2 w-full py-5 rounded-lg border-2 border-dashed border-[var(--border)]
+                    hover:border-[var(--accent)]/40 hover:bg-[var(--accent-soft)] cursor-pointer transition-all duration-200
+                    text-[var(--text-muted)] hover:text-[var(--accent)]"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span className="text-xs">上传背景图片</span>
+                </label>
+              </div>
+
+              {/* URL 输入 */}
+              <Input
+                value={bgInputUrl}
+                onChange={(e) => setBgInputUrl(e.target.value)}
+                placeholder="或输入图片 URL..."
+                className="bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)]"
+              />
+
+              {/* 预览 */}
+              {(bgImageUrl || bgInputUrl) && (
+                <div className="relative rounded-lg overflow-hidden border border-[var(--border)] h-20 group">
+                  <img
+                    src={bgInputUrl || bgImageUrl}
+                    alt="背景预览"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                </div>
+              )}
+
+              {/* 图片浓度（透明度） */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[var(--text-muted)]">图片浓度</span>
+                <input
+                  type="range"
+                  min="5"
+                  max="70"
+                  value={Math.round(bgOpacity * 100)}
+                  onChange={(e) => setBgOpacity(Number(e.target.value) / 100)}
+                  className="flex-1 h-1.5 bg-[var(--border)] rounded-full appearance-none cursor-pointer
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5
+                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-500"
+                />
+                <span className="text-xs text-[var(--text-muted)] w-8 text-right">{Math.round(bgOpacity * 100)}%</span>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleBgImageClear}
+                  variant="outline"
+                  size="sm"
+                  className="border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  清除
+                </Button>
+                <Button
+                  onClick={handleBgImageSave}
+                  size="sm"
+                  disabled={!bgInputUrl.trim()}
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-black disabled:opacity-40"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1" />
+                  应用背景
+                </Button>
+            </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {!isSandbox && (
           <Button
             variant="ghost"
@@ -362,7 +808,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
             disabled={saving}
             className={cn(
               'h-8 px-3 text-xs transition-colors',
-              saveSuccess ? 'text-emerald-400' : 'text-zinc-400 hover:text-white'
+              saveSuccess ? 'text-emerald-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             )}
           >
             {saveSuccess
@@ -379,19 +825,20 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       </div>
 
       {/* 移动端状态栏 */}
-      <div className="lg:hidden flex-shrink-0">
+      <div className="lg:hidden flex-shrink-0 relative z-10">
         <StatusBar state={state} scenarioTitle={scenario.title} />
       </div>
 
       {/* 主区域 */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative z-10">
         {/* 对话区 */}
         <div className="flex flex-col flex-1 overflow-hidden">
           <ChatArea
             messages={messages}
             streamingText={streamingText}
             isStreaming={isStreaming}
-            atmosphereHint={atmosphereHint}
+            atmosphereHint={atmosphere}
+            hasBgImage={!!bgImageUrl}
           />
           <InputArea
             onSubmit={sendMessage}
@@ -402,7 +849,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
 
         {/* PC 端侧边栏 */}
         <div className="hidden lg:block">
-          <SidePanel state={state} turnCount={turnCount} />
+          <SidePanel state={state} turnCount={turnCount} hasBgImage={!!bgImageUrl} />
         </div>
       </div>
     </div>

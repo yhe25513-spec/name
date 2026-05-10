@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Users, Shield, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-client'
 
 export function PlayersTab() {
   const [players, setPlayers] = useState<PlayerStats[]>([])
@@ -17,7 +18,7 @@ export function PlayersTab() {
 
   async function fetchPlayers() {
     setLoading(true)
-    const res = await fetch('/api/admin/players')
+    const res = await apiFetch('/api/admin/players')
     const data = await res.json()
     setPlayers(data.players || [])
     setLoading(false)
@@ -27,7 +28,7 @@ export function PlayersTab() {
     const newRole = player.role === 'admin' ? 'player' : 'admin'
     if (!confirm(`确认将 ${player.username} 的角色改为 ${newRole}？`)) return
 
-    const res = await fetch('/api/admin/players', {
+    const res = await apiFetch('/api/admin/players', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId: player.id, role: newRole }),
@@ -44,7 +45,7 @@ export function PlayersTab() {
     if (!confirm('确认删除所有未验证邮箱的用户？此操作不可撤销！')) return
     
     setDeleting(true)
-    const res = await fetch('/api/admin/players', {
+    const res = await apiFetch('/api/admin/players', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ deleteUnverified: true }),

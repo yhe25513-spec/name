@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Settings, Key, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-client'
 
 type AIProvider = 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'custom'
 
@@ -30,7 +31,7 @@ export function ConfigTab() {
 
   async function fetchConfig() {
     setLoading(true)
-    const res = await fetch('/api/admin/config')
+    const res = await apiFetch('/api/admin/config')
     const data = await res.json()
     setConfig(data.config)
     setLoading(false)
@@ -47,7 +48,7 @@ export function ConfigTab() {
     if (newApiKey.trim()) updates.api_key = newApiKey.trim()
     if (newBaseUrl.trim()) updates.api_base_url = newBaseUrl.trim()
 
-    const res = await fetch('/api/admin/config', {
+    const res = await apiFetch('/api/admin/config', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),

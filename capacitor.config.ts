@@ -5,10 +5,10 @@ const config: CapacitorConfig = {
   appName: '异界修真指南',
   webDir: 'dist',
   server: {
-    // 部署后改成你的线上地址，API 就能工作了
-    // url: 'https://你的项目名.vercel.app',
-    // cleartext: true,
+    url: 'https://www.play-xiuxian.top',
+    cleartext: true,
     androidScheme: 'https',
+    allowNavigation: ['www.play-xiuxian.top', 'play-xiuxian.top'],
   },
   android: {
     buildOptions: {

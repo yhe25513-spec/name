@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, Edit2, Key, Check, X, Server, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-client'
 
 interface AIConfig {
   id: string
@@ -59,7 +60,7 @@ export function AIConfigsTab() {
   async function fetchConfigs() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/ai-configs')
+      const res = await apiFetch('/api/admin/ai-configs')
       const data = await res.json()
       if (res.ok) {
         setConfigs(data.configs || [])
@@ -111,7 +112,7 @@ export function AIConfigsTab() {
     const body = isNew ? form : { ...form, id: editingId }
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -132,7 +133,7 @@ export function AIConfigsTab() {
   async function deleteConfig(id: string) {
     if (!confirm('确定要删除这个配置吗？')) return
     try {
-      const res = await fetch(`/api/admin/ai-configs?id=${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/admin/ai-configs?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('配置已删除')
         fetchConfigs()
@@ -147,7 +148,7 @@ export function AIConfigsTab() {
 
   async function setDefault(id: string) {
     try {
-      const res = await fetch('/api/admin/ai-configs', {
+      const res = await apiFetch('/api/admin/ai-configs', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_default: true }),

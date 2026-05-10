@@ -1,97 +1,141 @@
 'use client'
 
 import { GameState } from '@/lib/types'
-import { Heart, Package, MapPin, Swords, Star } from 'lucide-react'
+import { Heart, Package, MapPin, Swords, Star, Shield } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 
 interface SidePanelProps {
   state: GameState
   turnCount: number
+  hasBgImage?: boolean
 }
 
-export function SidePanel({ state, turnCount }: SidePanelProps) {
+export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelProps) {
   const hpPercent = Math.round((state.hp / state.maxHp) * 100)
   const hpColor = hpPercent > 60 ? 'bg-emerald-500' : hpPercent > 30 ? 'bg-amber-500' : 'bg-red-500'
+  const hpGlow = hpPercent > 60 ? 'shadow-emerald-500/20' : hpPercent > 30 ? 'shadow-amber-500/20' : 'shadow-red-500/20'
 
   return (
-    <div className="w-64 flex-shrink-0 border-l border-zinc-800 bg-zinc-900/50 flex flex-col">
+    <div
+      className={cn(
+        'w-64 flex-shrink-0 border-l flex flex-col',
+        hasBgImage ? 'backdrop-blur-md' : 'backdrop-blur-sm',
+      )}
+      style={{
+        backgroundColor: 'var(--bg-secondary)',
+        borderColor: 'var(--border)',
+      }}
+    >
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-5">
+        <div className="p-4 space-y-4">
           {/* 生命值 */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="w-4 h-4 text-red-400" />
-              <span className="text-xs font-medium text-zinc-300">生命值</span>
-              <span className="text-xs text-zinc-500 ml-auto">{state.hp}/{state.maxHp}</span>
+          <div
+            className={cn('rounded-xl p-3.5 border shadow-sm', hpGlow)}
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-red-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>生命</span>
+              </div>
+              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                <span style={{ color: 'var(--text-primary)' }} className="font-medium">{state.hp}</span>
+                <span style={{ color: 'var(--text-muted)' }}>/{state.maxHp}</span>
+              </span>
             </div>
-            <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
               <div
-                className={`h-full rounded-full transition-all duration-500 ${hpColor}`}
+                className={cn('h-full rounded-full transition-all duration-700 ease-out', hpColor)}
                 style={{ width: `${hpPercent}%` }}
               />
             </div>
           </div>
 
-          <Separator className="bg-zinc-800" />
-
-          {/* 位置 */}
-          {state.location && (
-            <>
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <MapPin className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs font-medium text-zinc-300">当前位置</span>
-                </div>
-                <p className="text-sm text-zinc-200 pl-6">{state.location}</p>
+          {/* 位置 + 回合 */}
+          <div className="flex items-center gap-2">
+            {state.location && (
+              <div
+                className="flex-1 flex items-center gap-1.5 rounded-lg px-3 py-2 border min-w-0"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--accent)' }} />
+                <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{state.location}</span>
               </div>
-              <Separator className="bg-zinc-800" />
-            </>
-          )}
+            )}
+            <div
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 border flex-shrink-0"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border)',
+              }}
+            >
+              <Swords className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+              <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{turnCount}</span>
+            </div>
+          </div>
 
           {/* 属性 */}
           {Object.keys(state.attributes).length > 0 && (
-            <>
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Star className="w-4 h-4 text-purple-400" />
-                  <span className="text-xs font-medium text-zinc-300">属性</span>
-                </div>
-                <div className="space-y-1.5 pl-1">
-                  {Object.entries(state.attributes).map(([key, val]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-400">{key}</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-purple-500 rounded-full"
-                            style={{ width: `${Math.min(100, (val as number) * 10)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-zinc-300 tabular-nums w-4 text-right">{val as number}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+                <Star className="w-3 h-3" style={{ color: 'var(--accent)' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>属性</span>
               </div>
-              <Separator className="bg-zinc-800" />
-            </>
+              <div className="space-y-2">
+                {Object.entries(state.attributes).map(([key, val]) => {
+                  const pct = Math.min(100, (val as number) * 10)
+                  return (
+                    <div key={key} className="flex items-center gap-2 px-0.5">
+                      <span className="text-xs w-10 flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{key}</span>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%`, backgroundColor: 'var(--accent)', opacity: 0.7 }}
+                        />
+                      </div>
+                      <span className="text-xs tabular-nums w-6 text-right font-medium" style={{ color: 'var(--text-secondary)' }}>{val as number}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           )}
 
           {/* 背包 */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-medium text-zinc-300">背包</span>
-              <span className="text-xs text-zinc-600 ml-auto">{state.inventory.length} 件</span>
+            <div className="flex items-center justify-between mb-2 px-0.5">
+              <div className="flex items-center gap-1.5">
+                <Package className="w-3 h-3" style={{ color: 'var(--accent)' }} />
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>背包</span>
+              </div>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{state.inventory.length} 件</span>
             </div>
             {state.inventory.length === 0 ? (
-              <p className="text-xs text-zinc-600 pl-6">空</p>
+              <p className="text-[11px] italic px-0.5" style={{ color: 'var(--text-muted)' }}>空无一物</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5 pl-1">
+              <div className="flex flex-wrap gap-1.5">
                 {state.inventory.map((item, i) => (
-                  <Badge key={i} variant="outline" className="text-xs border-zinc-700 text-zinc-300 bg-zinc-800/70">
+                  <Badge
+                    key={i}
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] transition-all duration-150 cursor-default',
+                      'hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)]',
+                    )}
+                    style={{
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-secondary)',
+                      backgroundColor: 'var(--bg-card)',
+                    }}
+                  >
                     {item}
                   </Badge>
                 ))}
@@ -99,12 +143,13 @@ export function SidePanel({ state, turnCount }: SidePanelProps) {
             )}
           </div>
 
-          <Separator className="bg-zinc-800" />
-
-          {/* 回合数 */}
-          <div className="flex items-center gap-2">
-            <Swords className="w-4 h-4 text-zinc-500" />
-            <span className="text-xs text-zinc-500">第 {turnCount} 回合</span>
+          {/* 底部回合标记 */}
+          <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-center gap-2">
+              <Shield className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+              <span className="text-[10px] tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>第 {turnCount} 回合</span>
+              <Shield className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
           </div>
         </div>
       </ScrollArea>

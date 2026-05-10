@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Plus, Edit, Trash2, Eye, EyeOff, Loader2, Search, Server, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { SimpleScenarioEditor } from './SimpleScenarioEditor'
+import { apiFetch } from '@/lib/api-client'
 
 const DEFAULT_INITIAL_STATE: GameState = {
   hp: 100,
@@ -63,7 +64,7 @@ export function ScenariosTab() {
 
   async function fetchScenarios() {
     setLoading(true)
-    const res = await fetch('/api/admin/scenarios')
+    const res = await apiFetch('/api/admin/scenarios')
     const data = await res.json()
     setScenarios(data.scenarios || [])
     setIsAdmin(data.isAdmin || false)
@@ -77,14 +78,14 @@ export function ScenariosTab() {
 
   async function fetchAIConfigs() {
     try {
-      const res = await fetch('/api/admin/ai-configs')
+      const res = await apiFetch('/api/admin/ai-configs')
       const data = await res.json()
       if (res.ok) setAiConfigs(data.configs || [])
     } catch { /* silent */ }
   }
 
   async function updateScenarioAIConfig(scenarioId: string, aiConfigId: string | null) {
-    const res = await fetch('/api/admin/scenarios', {
+    const res = await apiFetch('/api/admin/scenarios', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: scenarioId, ai_config_id: aiConfigId || undefined }),
@@ -239,7 +240,7 @@ export function ScenariosTab() {
                           <Edit className="w-3 h-3 mr-1" />编辑
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => {
-                          const res = fetch('/api/admin/scenarios', {
+                          const res = apiFetch('/api/admin/scenarios', {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ id: s.id, is_published: !s.is_published }),
@@ -257,7 +258,7 @@ export function ScenariosTab() {
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => {
                           if (!confirm('确认删除？此操作不可撤销。')) return
-                          fetch(`/api/admin/scenarios?id=${s.id}`, { method: 'DELETE' }).then(r => {
+                          apiFetch(`/api/admin/scenarios?id=${s.id}`, { method: 'DELETE' }).then(r => {
                             if (r.ok) { toast.success('已删除'); fetchScenarios() }
                           })
                         }} className="border-zinc-700 text-red-400 hover:text-red-300 hover:border-red-500/30 text-xs h-8 ml-auto">
@@ -280,7 +281,7 @@ export function ScenariosTab() {
         onSave={async (scenario) => {
           setSaving(true)
           try {
-            const res = await fetch('/api/admin/scenarios', {
+            const res = await apiFetch('/api/admin/scenarios', {
               method: scenario.id ? 'PATCH' : 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(scenario),

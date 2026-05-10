@@ -8,6 +8,7 @@ import { FlaskConical, Play, Loader2, Send, Terminal } from 'lucide-react'
 import { GameClient } from '@/components/game/GameClient'
 import { GameSave } from '@/lib/types'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-client'
 
 export function SandboxTab() {
   const [scenarios, setScenarios] = useState<GameScenario[]>([])
@@ -27,7 +28,7 @@ export function SandboxTab() {
 
   async function fetchScenarios() {
     setLoading(true)
-    const res = await fetch('/api/admin/scenarios')
+    const res = await apiFetch('/api/admin/scenarios')
     const data = await res.json()
     const list = data.scenarios || []
     setScenarios(list)
@@ -76,7 +77,7 @@ export function SandboxTab() {
     setApiLoading(true)
     setApiResponse('')
     try {
-      const res = await fetch('/api/admin/test-ai', {
+      const res = await apiFetch('/api/admin/test-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

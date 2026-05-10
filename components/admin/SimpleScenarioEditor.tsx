@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, ChevronDown, ChevronUp, Sparkles, Server, Wand2, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-client'
 
 interface AIConfig {
   id: string
@@ -232,7 +233,7 @@ export function SimpleScenarioEditor({ scenario, onSave, onCancel, open, saving,
   async function fetchAIConfigs() {
     setAiConfigsLoading(true)
     try {
-      const res = await fetch('/api/admin/ai-configs')
+      const res = await apiFetch('/api/admin/ai-configs')
       const data = await res.json()
       if (res.ok) {
         setAiConfigs(data.configs || [])
@@ -302,7 +303,7 @@ ${form.playerOptions || DEFAULT_OPTIONS}
   const generateWithAI = async (field: string, prompt: string) => {
     setAiGenerating(field)
     try {
-      const res = await fetch('/api/admin/generate-content', {
+      const res = await apiFetch('/api/admin/generate-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

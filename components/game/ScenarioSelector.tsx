@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/api-client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Sword, Clock, PlayCircle, PlusCircle, Settings, LogOut, User, Trash2, Search, Sparkles, Edit3, ScrollText, Gamepad2, ChevronRight, Loader2, Wand2, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface ScenarioSelectorProps {
   saves: GameSave[]
@@ -35,16 +37,16 @@ function detectGenre(title = '', description = ''): string {
   return '其他'
 }
 
-const GENRE_COLORS: Record<string, { bg: string; border: string; text: string; gradient: string; icon: string }> = {
-  '修仙修真': { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', gradient: 'from-emerald-600/20 to-teal-600/10', icon: '☯' },
-  '末日生存': { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', gradient: 'from-orange-600/20 to-red-600/10', icon: '⚠' },
-  '悬疑解谜': { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', gradient: 'from-purple-600/20 to-indigo-600/10', icon: '🔍' },
-  '科幻未来': { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', gradient: 'from-cyan-600/20 to-blue-600/10', icon: '🚀' },
-  '武侠江湖': { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', gradient: 'from-red-600/20 to-rose-600/10', icon: '⚔' },
-  '都市异能': { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', gradient: 'from-blue-600/20 to-violet-600/10', icon: '🌆' },
-  '言情恋爱': { bg: 'bg-pink-500/10', border: 'border-pink-500/30', text: 'text-pink-400', gradient: 'from-pink-600/20 to-rose-600/10', icon: '💕' },
-  '奇幻冒险': { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', gradient: 'from-amber-600/20 to-yellow-600/10', icon: '🗡' },
-  '其他': { bg: 'bg-zinc-500/10', border: 'border-zinc-500/30', text: 'text-zinc-400', gradient: 'from-zinc-600/20 to-zinc-600/10', icon: '🎲' },
+const GENRE_COLORS: Record<string, { bg: string; border: string; text: string; gradient: string; icon: string; glow: string }> = {
+  '修仙修真': { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', gradient: 'from-emerald-600/20 to-teal-600/10', icon: '☯', glow: 'shadow-emerald-500/10 group-hover:shadow-emerald-500/25' },
+  '末日生存': { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', gradient: 'from-orange-600/20 to-red-600/10', icon: '⚠', glow: 'shadow-orange-500/10 group-hover:shadow-orange-500/25' },
+  '悬疑解谜': { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', gradient: 'from-purple-600/20 to-indigo-600/10', icon: '🔍', glow: 'shadow-purple-500/10 group-hover:shadow-purple-500/25' },
+  '科幻未来': { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', gradient: 'from-cyan-600/20 to-blue-600/10', icon: '🚀', glow: 'shadow-cyan-500/10 group-hover:shadow-cyan-500/25' },
+  '武侠江湖': { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', gradient: 'from-red-600/20 to-rose-600/10', icon: '⚔', glow: 'shadow-red-500/10 group-hover:shadow-red-500/25' },
+  '都市异能': { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', gradient: 'from-blue-600/20 to-violet-600/10', icon: '🌆', glow: 'shadow-blue-500/10 group-hover:shadow-blue-500/25' },
+  '言情恋爱': { bg: 'bg-pink-500/10', border: 'border-pink-500/30', text: 'text-pink-400', gradient: 'from-pink-600/20 to-rose-600/10', icon: '💕', glow: 'shadow-pink-500/10 group-hover:shadow-pink-500/25' },
+  '奇幻冒险': { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', gradient: 'from-amber-600/20 to-yellow-600/10', icon: '🗡', glow: 'shadow-amber-500/10 group-hover:shadow-amber-500/25' },
+  '其他': { bg: 'bg-zinc-500/10', border: 'border-zinc-500/30', text: 'text-zinc-400', gradient: 'from-zinc-600/20 to-zinc-600/10', icon: '🎲', glow: 'shadow-zinc-500/10 group-hover:shadow-zinc-500/25' },
 }
 
 export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }: ScenarioSelectorProps) {
@@ -96,7 +98,7 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
     }
     setCreating(scenario.id)
     try {
-      const res = await fetch('/api/game/save', {
+      const res = await apiFetch('/api/game/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,7 +132,7 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
 
     setDeleting(saveId)
     try {
-      const res = await fetch(`/api/game/save?id=${saveId}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/game/save?id=${saveId}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('存档已删除')
         setLocalSaves(prev => prev.filter(s => s.id !== saveId))
@@ -164,7 +166,7 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
     }
     setAiStep('generating')
     try {
-      const res = await fetch('/api/admin/generate-content', {
+      const res = await apiFetch('/api/admin/generate-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,7 +236,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
 每回合结束时显示：【第X回合 | 当前位置：XXX】
 根据玩家输入推进剧情，保持风格一致。`
 
-      const createRes = await fetch('/api/admin/scenarios', {
+      const createRes = await apiFetch('/api/admin/scenarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -282,26 +284,26 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
   const allGenres = ['全部', ...Object.keys(GENRE_COLORS).filter(g => (genreCounts[g] || 0) > 0)]
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* 顶部导航 */}
-      <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-20">
+      <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)]/80 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
           <div className="flex items-center gap-2 flex-shrink-0">
             <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
               <Sword className="w-4 h-4 text-amber-400" />
             </div>
-            <span className="font-bold text-white hidden sm:inline">文字冒险</span>
+            <span className="font-bold text-[var(--text-primary)] hidden sm:inline">文字冒险</span>
           </div>
 
           {/* 搜索 */}
           <div className="flex-1 max-w-md mx-auto">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索场景..."
-                className="w-full pl-9 h-9 bg-zinc-800 border-zinc-700 text-white text-sm placeholder:text-zinc-500 rounded-lg"
+                className="w-full pl-9 h-9 bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] rounded-lg"
               />
             </div>
           </div>
@@ -311,7 +313,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               onClick={() => router.push('/admin')}
               variant="outline"
               size="sm"
-              className="border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 hidden sm:inline-flex"
+              className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/30 hidden sm:inline-flex"
             >
               <Edit3 className="w-4 h-4 mr-1.5" />
               {isAdmin ? '管理' : '创作'}
@@ -320,11 +322,11 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               onClick={handleLogout}
               variant="ghost"
               size="sm"
-              className="text-zinc-500 hover:text-zinc-300"
+              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
             >
               <LogOut className="w-4 h-4" />
             </Button>
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-zinc-500 ml-1 pl-3 border-l border-zinc-800">
+            <div className="hidden sm:flex items-center gap-1.5 text-sm text-[var(--text-muted)] ml-1 pl-3 border-l border-[var(--border)]">
               <User className="w-3.5 h-3.5" />
               <span className="truncate max-w-[100px]">{username}</span>
             </div>
@@ -337,7 +339,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             onClick={() => setShowCreateDialog(true)}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-semibold shadow-lg shadow-amber-500/20"
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-semibold shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-200"
           >
             <Sparkles className="w-4 h-4 mr-2" />
             创建新场景
@@ -346,7 +348,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
             onClick={() => router.push('/admin')}
             variant="outline"
             size="sm"
-            className="border-zinc-700 text-zinc-400 hover:text-white sm:hidden"
+            className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:hidden"
           >
             <Edit3 className="w-4 h-4 mr-1.5" />
             {isAdmin ? '管理后台' : '我的创作'}
@@ -358,8 +360,8 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-amber-400" />
-              <h2 className="text-lg font-semibold text-zinc-200">继续游戏</h2>
-              <span className="text-xs text-zinc-600 ml-auto">{localSaves.length} 个存档</span>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">继续游戏</h2>
+              <span className="text-xs text-[var(--text-muted)] ml-auto">{localSaves.length} 个存档</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {localSaves.map((save) => {
@@ -374,14 +376,22 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                   <Card
                     key={save.id}
                     onClick={() => router.push(`/game/${save.id}`)}
-                    className="relative bg-zinc-900 border-zinc-700/50 hover:border-zinc-600 cursor-pointer transition-all duration-200 group overflow-hidden"
+                    className={cn(
+                      'relative bg-[var(--bg-secondary)] border-[var(--border)] cursor-pointer transition-all duration-200 group overflow-hidden',
+                      'hover:border-[var(--accent)]/30 hover:shadow-xl hover:-translate-y-0.5',
+                      gc.glow
+                    )}
                   >
                     {/* 顶部分隔色条 */}
                     <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${gc.gradient}`} />
+                    {/* 流派背景图标 */}
+                    <div className="absolute -bottom-4 -right-4 text-6xl opacity-[0.04] pointer-events-none select-none">
+                      {gc.icon}
+                    </div>
                     <button
                       onClick={(e) => deleteSave(save.id, e)}
                       disabled={deleting === save.id}
-                      className="absolute top-3 right-3 p-1.5 rounded text-zinc-600 hover:text-red-400 hover:bg-zinc-800 transition-colors z-10 opacity-0 group-hover:opacity-100"
+                      className="absolute top-3 right-3 p-1.5 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--bg-card)] transition-colors z-10 opacity-0 group-hover:opacity-100"
                       title="删除存档"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -392,29 +402,29 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                           {genre}
                         </span>
                       </div>
-                      <CardTitle className="text-sm text-white group-hover:text-amber-300 transition-colors truncate pr-2">
+                      <CardTitle className="text-sm text-[var(--text-primary)] group-hover:text-amber-300 transition-colors truncate pr-2">
                         {scenarioTitle}
                       </CardTitle>
-                      <CardDescription className="text-zinc-500 text-xs">
+                      <CardDescription className="text-[var(--text-muted)] text-xs">
                         {formatTime(save.updated_at)}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-4 pb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-400">
+                        <Badge variant="outline" className="text-xs border-[var(--border)] text-[var(--text-secondary)]">
                           第 {save.turn_count} 回合
                         </Badge>
                       </div>
                       {/* HP 条 */}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-zinc-500 w-6">HP</span>
-                        <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <span className="text-xs text-[var(--text-muted)] w-6">HP</span>
+                        <div className="flex-1 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
                           <div
                             className={`h-full ${hpColor} rounded-full transition-all duration-300`}
                             style={{ width: `${hpPercent}%` }}
                           />
                         </div>
-                        <span className="text-xs text-zinc-500 w-10 text-right">{hp.hp || 0}/{hp.maxHp || 100}</span>
+                        <span className="text-xs text-[var(--text-muted)] w-10 text-right">{hp.hp || 0}/{hp.maxHp || 100}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -428,21 +438,21 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Gamepad2 className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-lg font-semibold text-zinc-200">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
               {localSaves.length > 0 ? '探索新世界' : '开始冒险'}
             </h2>
           </div>
 
           {/* 流派筛选 */}
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin">
             {allGenres.map((genre) => (
               <button
                 key={genre}
                 onClick={() => setGenreFilter(genre)}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                   genreFilter === genre
-                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                    : 'bg-zinc-800/50 text-zinc-400 border border-transparent hover:bg-zinc-800 hover:text-zinc-300'
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/40 shadow-sm shadow-[var(--accent)]/10'
+                    : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
                 {genre}
@@ -453,7 +463,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
 
           {/* 场景卡片网格 */}
           {categorized.length === 0 ? (
-            <div className="text-center py-16 text-zinc-600">
+            <div className="text-center py-16 text-[var(--text-muted)]">
               <ScrollText className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-lg">暂无场景</p>
               <p className="text-sm mt-1 mb-4">
@@ -462,7 +472,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               {!searchQuery && (
                 <Button
                   onClick={() => router.push('/admin')}
-                  className="bg-amber-500 hover:bg-amber-400 text-black"
+                  className="bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20"
                 >
                   <PlusCircle className="w-4 h-4 mr-1.5" />
                   创建第一个场景
@@ -471,7 +481,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {categorized.map((scenario) => {
+              {categorized.map((scenario, index) => {
                 const genre = (scenario as any)._genre || '其他'
                 const gc = getGenre(genre)
                 const state = scenario.initial_state as { hp?: number; maxHp?: number } | undefined
@@ -479,10 +489,22 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 return (
                   <Card
                     key={scenario.id}
-                    className="group relative bg-zinc-900 border-zinc-700/50 hover:border-zinc-600 transition-all duration-200 flex flex-col overflow-hidden"
+                    className={cn(
+                      'group relative bg-[var(--bg-secondary)] border-[var(--border)] transition-all duration-300 flex flex-col overflow-hidden',
+                      'hover:border-[var(--accent)]/30 hover:shadow-xl hover:-translate-y-1',
+                      gc.glow,
+                    )}
+                    style={{
+                      animation: `fadeSlideIn 0.4s ease-out ${index * 0.05}s both`,
+                    }}
                   >
                     {/* 顶部分隔色条 */}
                     <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gc.gradient}`} />
+
+                    {/* 流派背景装饰图标 */}
+                    <div className="absolute -bottom-3 -right-3 text-7xl opacity-[0.03] pointer-events-none select-none group-hover:opacity-[0.06] transition-opacity duration-500">
+                      {gc.icon}
+                    </div>
 
                     <CardHeader className="pb-2 pt-5 px-4">
                       <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -490,10 +512,10 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                           {genre}
                         </span>
                       </div>
-                      <CardTitle className="text-base text-white leading-snug line-clamp-1">
+                      <CardTitle className="text-base text-[var(--text-primary)] leading-snug line-clamp-1 group-hover:text-amber-300 transition-colors duration-200">
                         {scenario.title}
                       </CardTitle>
-                      <CardDescription className="text-zinc-400 text-sm leading-relaxed line-clamp-2 mt-1">
+                      <CardDescription className="text-[var(--text-secondary)] text-sm leading-relaxed line-clamp-2 mt-1">
                         {scenario.description || '暂无描述'}
                       </CardDescription>
                     </CardHeader>
@@ -501,7 +523,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                     <CardContent className="mt-auto pt-0 px-4 pb-4">
                       <div className="flex items-center justify-between mb-3">
                         {state && (
-                          <div className="flex items-center gap-2 text-xs text-zinc-500">
+                          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                             <span>HP {state.hp || 100}/{state.maxHp || 100}</span>
                           </div>
                         )}
@@ -509,18 +531,17 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                       <Button
                         onClick={() => startNewGame(scenario)}
                         disabled={creating === scenario.id}
-                        className={
-                          'w-full text-white border-0 ' + (
-                            genre === '修仙修真' ? 'bg-emerald-600 hover:bg-emerald-500' :
-                            genre === '末日生存' ? 'bg-orange-600 hover:bg-orange-500' :
-                            genre === '悬疑解谜' ? 'bg-purple-600 hover:bg-purple-500' :
-                            genre === '科幻未来' ? 'bg-cyan-600 hover:bg-cyan-500' :
-                            genre === '武侠江湖' ? 'bg-red-600 hover:bg-red-500' :
-                            genre === '都市异能' ? 'bg-blue-600 hover:bg-blue-500' :
-                            genre === '奇幻冒险' ? 'bg-amber-600 hover:bg-amber-500' :
-                            'bg-zinc-600 hover:bg-zinc-500'
-                          )
-                        }
+                        className={cn(
+                          'w-full text-white border-0 transition-all duration-200',
+                          'hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]',
+                          genre === '修仙修真' ? 'bg-emerald-600 hover:bg-emerald-500 hover:shadow-emerald-500/25' :
+                          genre === '末日生存' ? 'bg-orange-600 hover:bg-orange-500 hover:shadow-orange-500/25' :
+                          genre === '悬疑解谜' ? 'bg-purple-600 hover:bg-purple-500 hover:shadow-purple-500/25' :
+                          genre === '科幻未来' ? 'bg-cyan-600 hover:bg-cyan-500 hover:shadow-cyan-500/25' :
+                          genre === '武侠江湖' ? 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/25' :
+                          genre === '都市异能' ? 'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/25' :
+                          genre === '奇幻冒险' ? 'bg-amber-600 hover:bg-amber-500 hover:shadow-amber-500/25' :
+                          'bg-zinc-600 hover:bg-zinc-500 hover:shadow-zinc-500/25'                        )}
                       >
                         {creating === scenario.id ? (
                           <span className="flex items-center gap-1.5">
@@ -531,7 +552,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                           <span className="flex items-center gap-1.5">
                             <PlayCircle className="w-4 h-4" />
                             开始冒险
-                            <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-50" />
+                            <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-50 group-hover:translate-x-0.5 transition-transform" />
                           </span>
                         )}
                       </Button>
@@ -548,8 +569,8 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Edit3 className="w-4 h-4 text-blue-400" />
-              <h2 className="text-lg font-semibold text-zinc-200">我的创作</h2>
-              <span className="text-xs text-zinc-600 ml-auto">{myScenarios.length} 个场景</span>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">我的创作</h2>
+              <span className="text-xs text-[var(--text-muted)] ml-auto">{myScenarios.length} 个场景</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {myScenarios.map((scenario) => {
@@ -559,27 +580,34 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                   <Card
                     key={scenario.id}
                     onClick={() => router.push('/admin')}
-                    className="bg-zinc-900/50 border-zinc-700/30 hover:border-blue-500/30 cursor-pointer transition-all duration-200 group overflow-hidden"
+                    className={cn(
+                      'bg-[var(--bg-secondary)] border-[var(--border)] cursor-pointer transition-all duration-200 group overflow-hidden',
+                      'hover:border-blue-500/30 hover:shadow-xl hover:-translate-y-0.5',
+                      'shadow-blue-500/5 hover:shadow-blue-500/15'
+                    )}
                   >
                     <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600/20 to-blue-400/20" />
+                    <div className="absolute -bottom-4 -right-4 text-6xl opacity-[0.03] pointer-events-none select-none">
+                      ✎
+                    </div>
                     <CardHeader className="pb-2 pt-4 px-4">
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${gc.bg} ${gc.text} ${gc.border} border`}>
                           {genre}
                         </span>
-                        <Badge variant="outline" className={`text-xs ${(scenario as any).is_published ? 'border-emerald-600 text-emerald-400' : 'border-zinc-600 text-zinc-500'}`}>
+                        <Badge variant="outline" className={`text-xs ${(scenario as any).is_published ? 'border-emerald-600 text-emerald-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>
                           {(scenario as any).is_published ? '已发布' : '草稿'}
                         </Badge>
                       </div>
-                      <CardTitle className="text-sm text-white mt-1 group-hover:text-blue-300 transition-colors truncate">
+                      <CardTitle className="text-sm text-[var(--text-primary)] mt-1 group-hover:text-blue-300 transition-colors truncate">
                         {scenario.title}
                       </CardTitle>
-                      <CardDescription className="text-zinc-500 text-xs line-clamp-1">
+                      <CardDescription className="text-[var(--text-muted)] text-xs line-clamp-1">
                         {scenario.description || '点击编辑'}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-4 pb-3">
-                      <div className="flex items-center gap-2 text-xs text-zinc-600">
+                      <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                         <Edit3 className="w-3 h-3" />
                         点击进入管理后台编辑
                       </div>
@@ -597,13 +625,13 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         setShowCreateDialog(o)
         if (o) { setAiStep('choose'); setAiPrompt('') }
       }}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 text-white max-w-md">
+        <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-400" />
               创建新场景
             </DialogTitle>
-            <DialogDescription className="text-zinc-400 text-sm">
+            <DialogDescription className="text-[var(--text-secondary)] text-sm">
               {aiStep === 'prompt' ? '输入你的场景创意，AI 将自动生成完整场景' : '选择一种方式开始创作你的文字冒险世界'}
             </DialogDescription>
           </DialogHeader>
@@ -613,30 +641,30 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               <>
                 <button
                   onClick={() => { setShowCreateDialog(false); router.push('/admin') }}
-                  className="w-full p-4 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-amber-500/40 hover:bg-zinc-800 transition-all text-left group"
+                  className="w-full p-4 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-amber-500/40 hover:bg-[var(--bg-secondary)] transition-all text-left group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
                       <Edit3 className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-white group-hover:text-amber-300 transition-colors">从零开始创作</div>
-                      <div className="text-xs text-zinc-500 mt-0.5">使用表单编辑器，逐步填写世界观、剧情和规则</div>
+                      <div className="text-sm font-medium text-[var(--text-primary)] group-hover:text-amber-300 transition-colors">从零开始创作</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">使用表单编辑器，逐步填写世界观、剧情和规则</div>
                     </div>
                   </div>
                 </button>
 
                 <button
                   onClick={() => setAiStep('prompt')}
-                  className="w-full p-4 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-purple-500/40 hover:bg-zinc-800 transition-all text-left group"
+                  className="w-full p-4 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-purple-500/40 hover:bg-[var(--bg-secondary)] transition-all text-left group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
                       <Wand2 className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">AI 智能生成</div>
-                      <div className="text-xs text-zinc-500 mt-0.5">输入关键词，AI 自动生成完整的游戏场景</div>
+                      <div className="text-sm font-medium text-[var(--text-primary)] group-hover:text-purple-300 transition-colors">AI 智能生成</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">输入关键词，AI 自动生成完整的游戏场景</div>
                     </div>
                   </div>
                 </button>
@@ -646,20 +674,20 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
             {aiStep === 'prompt' && (
               <div className="space-y-3 animate-in fade-in slide-in-from-right-1 duration-200 fill-mode-both">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1.5 block">
+                  <label className="text-xs text-[var(--text-secondary)] mb-1.5 block">
                     描述你想要的场景（题材、风格、创意方向）
                   </label>
                   <Textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     placeholder="例如：都市修仙题材，程序员穿越到修真世界用代码破解功法"
-                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 min-h-[100px] text-sm"
+                    className="bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] min-h-[100px] text-sm"
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setAiStep('choose')}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     返回
@@ -681,13 +709,27 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mx-auto mb-4">
                   <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
                 </div>
-                <p className="text-zinc-300 font-medium">AI 正在生成场景...</p>
-                <p className="text-xs text-zinc-500 mt-1">正在根据你的创意构思世界观、剧情和规则</p>
+                <p className="text-[var(--text-primary)] font-medium">AI 正在生成场景...</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">正在根据你的创意构思世界观、剧情和规则</p>
               </div>
             )}
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 卡片入场动画 */}
+      <style>{`
+        @keyframes fadeSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   )
 }
