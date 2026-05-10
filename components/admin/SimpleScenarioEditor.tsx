@@ -177,6 +177,7 @@ export function SimpleScenarioEditor({ scenario, onSave, onCancel, open, saving,
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [aiGenerating, setAiGenerating] = useState<string | null>(null)
+  const [generatingImage, setGeneratingImage] = useState(false)
 
   // 从 system_prompt 中提取各字段（用于编辑已有场景时回填）
   function extractFromPrompt(prompt: string | undefined, field: string): string {
@@ -336,6 +337,32 @@ ${prompt}
       toast.error('网络错误')
     }
     setAiGenerating(null)
+  }
+
+  // AI 生成场景背景图
+  const generateBackgroundImage = async () => {
+    const promptText = form.title
+      ? `文字冒险游戏场景配图。场景名称：${form.title}，描述：${form.description || ''}，世界观：${form.worldSetting ? form.worldSetting.slice(0, 200) : ''}，风格：${form.atmosphere || '奇幻'}。请根据以上内容生成一张氛围背景图，16:9 横版构图，适合作为游戏聊天界面背景，不要文字。`
+      : '一张奇幻风格的风景画，适合作为文字冒险游戏的聊天背景，16:9 横版构图，没有文字。'
+
+    setGeneratingImage(true)
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText, size: '1024x576' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        setForm(prev => ({ ...prev, background_image_url: data.url }))
+        toast.success('图片已生成，可点击保存永久存储')
+      } else {
+        toast.error('生成失败', { description: data.error || '请检查 API 配置' })
+      }
+    } catch {
+      toast.error('网络错误', { description: '图片生成请求失败' })
+    }
+    setGeneratingImage(false)
   }
 
   const handleSave = async () => {
@@ -582,6 +609,18 @@ ${prompt}
                   <Upload className="w-4 h-4" />
                   上传图片
                 </label>
+                <button
+                  type="button"
+                  onClick={generateBackgroundImage}
+                  disabled={generatingImage}
+                  className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg border border-zinc-700 hover:border-purple-500/40 hover:bg-purple-500/5 transition-all text-zinc-500 hover:text-purple-400 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generatingImage
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Sparkles className="w-4 h-4" />
+                  }
+                  {generatingImage ? '生成中...' : 'AI 生成图片'}
+                </button>
               </div>
               <Input
                 value={form.background_image_url}

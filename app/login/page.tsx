@@ -88,7 +88,7 @@ export default function LoginPage() {
       triggerShake()
     } else {
       toast.success('登录成功')
-      router.push('/game')
+      router.push('/')
       router.refresh()
     }
     setLoading(false)
@@ -125,7 +125,7 @@ export default function LoginPage() {
           password: registerForm.password,
         })
         toast.success('注册成功！正在进入游戏...')
-        router.push('/game')
+        router.push('/')
         router.refresh()
       }
     } catch {

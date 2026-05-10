@@ -28,11 +28,11 @@ export function AdminDashboard({ username, isAdmin = false }: AdminDashboardProp
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/game')}
+            onClick={() => router.push('/')}
             className="text-zinc-400 hover:text-white px-2 sm:px-3"
           >
             <ArrowLeft className="w-4 h-4 mr-0 sm:mr-1" />
-            <span className="hidden sm:inline">返回游戏</span>
+            <span className="hidden sm:inline">返回首页</span>
           </Button>
           <div className="flex items-center gap-2">
             <Sword className="w-4 h-4 text-amber-400" />

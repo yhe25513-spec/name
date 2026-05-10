@@ -12,7 +12,7 @@ import { apiFetch } from '@/lib/api-client'
 interface AIConfig {
   id: string
   name: string
-  provider: 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'custom'
+  provider: 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'siliconflow' | 'ollama' | 'custom'
   model: string
   api_key: string
   api_base_url?: string
@@ -28,6 +28,7 @@ const PROVIDER_LABELS: Record<AIProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   openrouter: 'OpenRouter',
+  siliconflow: 'SiliconFlow（图片生成）',
   ollama: 'Ollama',
   custom: '自定义',
 }
@@ -37,6 +38,7 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: 'gpt-3.5-turbo',
   anthropic: 'claude-3-sonnet-20240229',
   openrouter: 'meta-llama/llama-3.1-70b-instruct',
+  siliconflow: 'Qwen/Qwen-Image',
   ollama: 'dolphin-mistral',
   custom: 'custom-model',
 }
@@ -204,6 +206,7 @@ export function AIConfigsTab() {
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
             <option value="openrouter">OpenRouter</option>
+            <option value="siliconflow">SiliconFlow（图片生成•国内可用）</option>
             <option value="ollama">Ollama（本地）</option>
             <option value="custom">自定义（OpenAI兼容）</option>
           </select>
@@ -212,11 +215,11 @@ export function AIConfigsTab() {
         {/* 模型 */}
         <div>
           <label className="text-sm text-zinc-400 mb-1.5 block">模型</label>
-          {form.provider === 'custom' || form.provider === 'ollama' ? (
+          {form.provider === 'custom' || form.provider === 'ollama' || form.provider === 'siliconflow' ? (
             <Input
               value={form.model || ''}
               onChange={(e) => setForm({ ...form, model: e.target.value })}
-              placeholder={form.provider === 'ollama' ? "例如：dolphin-mistral、llama3.2、qwen2.5" : "输入模型名称"}
+              placeholder={form.provider === 'ollama' ? "例如：dolphin-mistral、llama3.2、qwen2.5" : form.provider === 'siliconflow' ? "Qwen/Qwen-Image、Kwai-Kolors/Kolors、Tongyi-MAI/Z-Image" : "输入模型名称"}
               className="bg-zinc-800 border-zinc-700 text-white"
             />
           ) : (

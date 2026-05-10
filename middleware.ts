@@ -31,14 +31,14 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // 未登录访问游戏或管理页面 → 重定向到登录页
-  if (!user && (pathname.startsWith('/game') || pathname.startsWith('/admin'))) {
+  // 未登录访问需要登录的页面 → 重定向到登录页
+  if (!user && (pathname === '/' || pathname.startsWith('/game') || pathname.startsWith('/admin') || pathname.startsWith('/create'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // 已登录访问登录页 → 重定向到游戏页
+  // 已登录访问登录页 → 重定向到首页
   if (user && pathname === '/login') {
-    return NextResponse.redirect(new URL('/game', request.url))
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   // 管理页面只需要登录（权限控制在页面和 API 层处理）
@@ -51,5 +51,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/game/:path*', '/admin/:path*', '/login'],
+  matcher: ['/', '/game/:path*', '/admin/:path*', '/create/:path*', '/login'],
 }

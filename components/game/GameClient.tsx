@@ -103,16 +103,12 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     })
   }
 
-  // 从 localStorage 加载背景图片、主题、字体、自定义主题
+  // 从 localStorage 加载背景图片（每个玩家独立）、主题、字体、自定义主题
   useEffect(() => {
     const saved = localStorage.getItem('game-bg-image')
     if (saved) {
       setBgImageUrl(saved)
       analyzeImageBrightness(saved).then(setBgBrightness)
-    } else if (scenario.background_image_url) {
-      // 场景自带背景图，自动设为聊天背景（用户未手动设置时）
-      setBgImageUrl(scenario.background_image_url)
-      analyzeImageBrightness(scenario.background_image_url).then(setBgBrightness)
     }
     const savedTheme = localStorage.getItem('game-theme')
     if (savedTheme) setThemeId(savedTheme)
@@ -523,11 +519,11 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push('/game')}
+          onClick={() => router.push('/')}
           className="text-[var(--text-muted)] hover:text-[var(--text-primary)] h-8 px-2"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
-          返回
+          首页
         </Button>
 
         {/* 氛围指示器 */}

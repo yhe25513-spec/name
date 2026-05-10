@@ -24,7 +24,7 @@ export interface GameScenario {
 export interface AIConfig {
   id: string
   name: string
-  provider: 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'custom'
+  provider: 'deepseek' | 'openai' | 'anthropic' | 'openrouter' | 'siliconflow' | 'custom'
   model: string
   api_key: string
   api_base_url?: string
