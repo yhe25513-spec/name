@@ -432,7 +432,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 pb-16 space-y-8 relative z-10">
+      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-20 sm:pb-16 space-y-6 sm:space-y-8 relative z-10">
         {/* 快捷操作 */}
         <div className="flex flex-col sm:flex-row gap-3">
           <button
@@ -472,7 +472,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               <h2 className="text-base font-medium text-[var(--text-primary)] tracking-tight">继续游戏</h2>
               <span className="text-xs text-[var(--text-muted)] ml-auto">{localSaves.length} 个存档</span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {localSaves.map((save) => {
                 const scenarioTitle = (save.scenario as unknown as { title: string })?.title || '未知场景'
                 const genre = detectGenre(scenarioTitle, '')
@@ -482,60 +482,109 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 const hpColor = hpPercent > 60 ? 'bg-emerald-500' : hpPercent > 30 ? 'bg-amber-500' : 'bg-red-500'
                 const isLowHp = hpPercent <= 30
 
+                // 获取场景背景图（复用已有的亮度分析）
+                const scenarioData = scenarios.find(s => s.id === save.scenario_id)
+                const bgImg = scenarioData?.background_image_url
+                const bri = bgImg && scenarioData?.id ? imageBrightness[scenarioData.id] : undefined
+                const isLight = bri !== undefined && bri > 0.55
+                const hasImg = !!bgImg
+                const imgT = isLight ? 'text-zinc-900' : 'text-white'
+                const imgTsec = isLight ? 'text-zinc-700' : 'text-zinc-200'
+                const imgTmuted = isLight ? 'text-zinc-500' : 'text-zinc-400'
+
                 return (
                   <Card
                     key={save.id}
                     onClick={() => router.push(`/game/${save.id}`)}
                     className={cn(
-                      'relative bg-[var(--bg-secondary)] border-[var(--border)] cursor-pointer transition-all duration-200 group overflow-hidden',
+                      'relative border-[var(--border)] cursor-pointer transition-all duration-200 group overflow-hidden',
                       'hover:border-[var(--accent)]/30 hover:shadow-xl hover:-translate-y-0.5',
-                      gc.glow
+                      gc.glow,
+                      !hasImg && 'bg-[var(--bg-secondary)]'
                     )}
+                    style={hasImg ? {
+                      backgroundImage: `url(${bgImg})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    } : {}}
                   >
-                    {/* 顶部分隔色条 */}
-                    <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${gc.gradient}`} />
-                    {/* 流派背景图标 */}
-                    <div className="absolute -bottom-4 -right-4 text-6xl opacity-[0.04] pointer-events-none select-none">
-                      {gc.icon}
-                    </div>
+                    {/* 背景图片叠加层 */}
+                    {hasImg && (
+                      <div className={cn(
+                        'absolute inset-0',
+                        isLight ? 'bg-white/50' : 'bg-gradient-to-b from-black/50 via-black/40 to-black/75'
+                      )} />
+                    )}
+                    {/* 无背景图时的渐变占位 */}
+                    {!hasImg && (
+                      <>
+                        <div className={`absolute inset-0 bg-gradient-to-br ${gc.gradient} opacity-[0.07]`} />
+                        <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${gc.gradient}`} />
+                        <div className="absolute -bottom-3 -right-3 text-6xl opacity-[0.04] pointer-events-none select-none">
+                          {gc.icon}
+                        </div>
+                      </>
+                    )}
                     <button
                       onClick={(e) => deleteSave(save.id, e)}
                       disabled={deleting === save.id}
                       className="absolute top-3 right-3 p-2 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors z-10 sm:opacity-0 sm:group-hover:opacity-100 active:scale-90"
                       title="删除存档"
+                      style={hasImg ? { color: isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)' } : {}}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <CardHeader className="pb-2 pt-4 px-4 pr-10">
+                    <CardHeader className="pb-2 pt-4 px-4 pr-10 relative z-10">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${gc.bg} ${gc.text} ${gc.border} border`}>
                           {genre}
                         </span>
                       </div>
-                      <CardTitle className="text-sm text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors truncate pr-2">
+                      <CardTitle className={cn(
+                        'text-sm font-semibold group-hover:text-[var(--accent)] transition-colors truncate pr-2',
+                        hasImg ? '' : 'text-[var(--text-primary)]'
+                      )}
+                        style={hasImg ? { color: imgT } : {}}>
                         {scenarioTitle}
                       </CardTitle>
-                      <CardDescription className="flex items-center gap-1 text-[var(--text-muted)] text-xs">
+                      <CardDescription className="flex items-center gap-1 text-xs mt-1"
+                        style={hasImg ? { color: imgTmuted } : { color: 'var(--text-muted)' }}>
                         <Clock className="w-3 h-3 inline" />
                         <span className={cn(
-                          save.updated_at && Date.now() - new Date(save.updated_at).getTime() < 3600000 ? 'text-[var(--text-primary)]' : ''
-                        )}>
+                          save.updated_at && Date.now() - new Date(save.updated_at).getTime() < 3600000
+                            ? (hasImg ? '' : 'text-[var(--text-primary)]')
+                            : ''
+                        )}
+                          style={hasImg && save.updated_at && Date.now() - new Date(save.updated_at).getTime() < 3600000
+                            ? { color: isLight ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)' }
+                            : {}
+                          }>
                           {formatTime(save.updated_at)}
                         </span>
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4">
+                    <CardContent className="px-4 pb-4 relative z-10">
                       <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs border-[var(--border)] text-[var(--text-secondary)]">
+                        <Badge variant="outline" className="text-xs"
+                          style={hasImg ? {
+                            borderColor: isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)',
+                            color: imgTsec,
+                            backgroundColor: isLight ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
+                          } : {
+                            borderColor: 'var(--border)',
+                            color: 'var(--text-secondary)',
+                          }}>
                           第 {save.turn_count} 回合
                         </Badge>
                       </div>
                       {/* HP 条 */}
                       <div className="flex items-center gap-2">
-                        <span className={cn('text-xs w-6', isLowHp ? 'text-red-400 font-semibold' : 'text-[var(--text-muted)]')}>
+                        <span className={cn('text-xs w-6 font-medium', isLowHp && 'text-red-400')}
+                          style={!isLowHp && hasImg ? { color: imgTmuted } : !isLowHp && !hasImg ? { color: 'var(--text-muted)' } : {}}>
                           {isLowHp ? '⚠' : 'HP'}
                         </span>
-                        <div className="flex-1 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+                          style={{ backgroundColor: hasImg ? 'rgba(0,0,0,0.3)' : 'var(--bg-primary)' }}>
                           <div
                             className={cn('h-full rounded-full transition-all duration-300', hpColor, isLowHp && 'animate-pulse')}
                             style={{
@@ -544,7 +593,8 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                             }}
                           />
                         </div>
-                        <span className={cn('text-xs w-10 text-right', isLowHp ? 'text-red-400 font-semibold' : 'text-[var(--text-muted)]')}>
+                        <span className={cn('text-xs w-10 text-right font-medium', isLowHp && 'text-red-400')}
+                          style={!isLowHp && hasImg ? { color: imgTsec } : !isLowHp && !hasImg ? { color: 'var(--text-muted)' } : {}}>
                           {hp.hp || 0}/{hp.maxHp || 100}
                         </span>
                       </div>
@@ -568,12 +618,12 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
           </div>
 
           {/* 流派筛选 */}
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin">
+          <div className="flex gap-1.5 sm:gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin -mx-3 sm:mx-0 px-3 sm:px-0">
             {allGenres.map((genre) => (
               <button
                 key={genre}
                 onClick={() => setGenreFilter(genre)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                className={`flex-shrink-0 px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-all ${
                   genreFilter === genre
                     ? 'bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/40'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
@@ -625,7 +675,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               )}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {categorized.map((scenario, index) => {
                 const genre = (scenario as any)._genre || '其他'
                 const gc = getGenre(genre)
@@ -763,7 +813,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">我的创作</h2>
               <span className="text-xs text-[var(--text-muted)] ml-auto">{myScenarios.length} 个场景</span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {myScenarios.map((scenario) => {
                 const genre = detectGenre(scenario.title, scenario.description)
                 const gc = getGenre(genre)
