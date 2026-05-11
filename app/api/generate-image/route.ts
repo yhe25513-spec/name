@@ -37,14 +37,14 @@ export async function POST(req: NextRequest) {
   if (!isAdmin) {
     // 查询今日已生成数量（使用 admin client 绕过 RLS）
     const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-    const { count, error: countError } = await adminSupabase
+    const { data: logs, error: countError } = await adminSupabase
       .from('image_generation_logs')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('user_id', user.id)
       .gte('created_at', today)
       .lte('created_at', today + 'T23:59:59.999Z')
 
-    if (!countError && count !== null && count >= 2) {
+    if (!countError && logs && logs.length >= 2) {
       return NextResponse.json(
         { error: '今日图片生成次数达到上限，明天再来吧' },
         { status: 429 }
