@@ -25,26 +25,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '缺少提示词' }, { status: 400 })
   }
 
-  // 检查管理员权限 / 每日限额（普通用户每天 2 张）
+  // 从 profiles 表读取角色 + 每日计数（使用普通 client，已验证可用）
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, daily_image_count, daily_image_date')
     .eq('id', user.id)
     .single()
   const isAdmin = profile?.role === 'admin'
-  const adminSupabase = await createAdminClient()
 
   if (!isAdmin) {
-    // 查询今日已生成数量（使用 admin client 绕过 RLS）
-    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-    const { data: logs, error: countError } = await adminSupabase
-      .from('image_generation_logs')
-      .select('id')
-      .eq('user_id', user.id)
-      .gte('created_at', today)
-      .lte('created_at', today + 'T23:59:59.999Z')
-
-    if (!countError && logs && logs.length >= 2) {
+    const today = new Date().toISOString().slice(0, 10)
+    const count = profile?.daily_image_date === today ? (profile?.daily_image_count || 0) : 0
+    if (count >= 2) {
       return NextResponse.json(
         { error: '今日图片生成次数达到上限，明天再来吧' },
         { status: 429 }
@@ -52,7 +44,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 获取 API key 和模型名：优先环境变量，降级到 ai_configs
+  const adminSupabase = await createAdminClient()
+
+  // 获取 API key 和模型名
   let apiKey = process.env.SILICONFLOW_API_KEY || ''
   let modelName = ''
 
@@ -84,15 +78,14 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 先插入日志占位（此时图片尚未生成），确保计数准确
-  let logId: string | null = null
+  // 先更新计数（保证后续请求读到正确的值），如果图片生成失败再回滚
+  const today = new Date().toISOString().slice(0, 10)
   if (!isAdmin) {
-    const { data: inserted } = await adminSupabase
-      .from('image_generation_logs')
-      .insert({ user_id: user.id, prompt })
-      .select('id')
-      .single()
-    logId = inserted?.id || null
+    const newCount = profile?.daily_image_date === today ? (profile?.daily_image_count || 0) + 1 : 1
+    await adminSupabase.from('profiles').update({
+      daily_image_count: newCount,
+      daily_image_date: today,
+    }).eq('id', user.id)
   }
 
   try {
@@ -117,9 +110,13 @@ export async function POST(req: NextRequest) {
     clearTimeout(timeout)
 
     if (!response.ok) {
-      // API 失败 → 删除刚才插入的日志
-      if (logId) {
-        await adminSupabase.from('image_generation_logs').delete().eq('id', logId)
+      // API 失败 → 回滚计数
+      if (!isAdmin) {
+        const rollbackCount = profile?.daily_image_date === today ? (profile?.daily_image_count || 0) : 0
+        await adminSupabase.from('profiles').update({
+          daily_image_count: rollbackCount,
+          daily_image_date: profile?.daily_image_date || '',
+        }).eq('id', user.id)
       }
       const errText = await response.text()
       return NextResponse.json(
@@ -132,9 +129,13 @@ export async function POST(req: NextRequest) {
     const imageUrl = data.data?.[0]?.url
 
     if (!imageUrl) {
-      // 无 URL → 删除日志
-      if (logId) {
-        await adminSupabase.from('image_generation_logs').delete().eq('id', logId)
+      // 无 URL → 回滚计数
+      if (!isAdmin) {
+        const rollbackCount = profile?.daily_image_date === today ? (profile?.daily_image_count || 0) : 0
+        await adminSupabase.from('profiles').update({
+          daily_image_count: rollbackCount,
+          daily_image_date: profile?.daily_image_date || '',
+        }).eq('id', user.id)
       }
       return NextResponse.json(
         { error: 'AI 返回了空结果' },
@@ -142,16 +143,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 更新日志中的图片 URL
-    if (logId) {
-      await adminSupabase.from('image_generation_logs').update({ image_url: imageUrl }).eq('id', logId)
-    }
-
     return NextResponse.json({ url: imageUrl })
   } catch (err) {
-    // 异常 → 删除日志
-    if (logId) {
-      await adminSupabase.from('image_generation_logs').delete().eq('id', logId)
+    // 异常 → 回滚计数
+    if (!isAdmin) {
+      const rollbackCount = profile?.daily_image_date === today ? (profile?.daily_image_count || 0) : 0
+      await adminSupabase.from('profiles').update({
+        daily_image_count: rollbackCount,
+        daily_image_date: profile?.daily_image_date || '',
+      }).eq('id', user.id)
     }
     const msg = err instanceof Error ? err.message : '未知错误'
     return NextResponse.json({ error: `图片生成失败: ${msg}` }, { status: 500 })
