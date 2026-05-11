@@ -6,25 +6,39 @@ export interface Theme {
   css: Record<string, string>
 }
 
+/**
+ * 每个主题的 CSS 变量说明：
+ *
+ * 基础色：
+ *   --bg-primary      主背景色（最底层）
+ *   --bg-secondary    次级背景（面板、侧栏）
+ *   --bg-card         卡片背景
+ *   --text-primary    主文字色
+ *   --text-secondary  次要文字
+ *   --text-muted      弱化文字
+ *   --accent          强调色（按钮、链接、高亮）
+ *   --accent-soft     强调色半透明（悬停态、轻背景）
+ *   --border          边框色
+ *
+ * 纹理与氛围：
+ *   --texture         CSS background 值，作为主内容区纹理叠加层
+ *   --texture-opacity 纹理不透明度 (0~1)
+ *   --glow-color      氛围辉光颜色（HP条、选中态等）
+ *
+ * 聊天气泡（用户消息）：
+ *   --bubble-radius   圆角
+ *   --bubble-shadow   阴影
+ *
+ * AI 叙事装饰：
+ *   --ai-bar-color    左侧装饰条颜色
+ *
+ * 界面元素：
+ *   --bar-default     默认进度条底色
+ *   --hp-bar-fill     HP 条填充色
+ */
+
 export const THEMES: Theme[] = [
-  {
-    id: 'linear',
-    name: 'Linear',
-    icon: '💠',
-    description: '深黑画布，薰衣草紫点缀，精准极简',
-    css: {
-      '--bg-primary': '#010102',
-      '--bg-secondary': '#0f1011',
-      '--bg-card': '#141516',
-      '--text-primary': '#f7f8f8',
-      '--text-secondary': '#d0d6e0',
-      '--text-muted': '#8a8f98',
-      '--accent': '#5e6ad2',
-      '--accent-soft': 'rgba(94,106,210,0.12)',
-      '--border': '#23252a',
-      '--bar-default': '#34343a',
-    },
-  },
+  // ─── 暗夜（经典暗色，琥珀点缀） ───
   {
     id: 'dark',
     name: '暗夜',
@@ -41,8 +55,19 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(245,158,11,0.1)',
       '--border': 'rgba(39,39,42,0.5)',
       '--bar-default': '#52525b',
+      // 纹理：細微噪点
+      '--texture': 'repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 4px 4px',
+      '--texture-opacity': '0.5',
+      '--glow-color': 'rgba(245,158,11,0.15)',
+      // 气泡
+      '--bubble-radius': '16px 16px 4px 16px',
+      '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.2)',
+      '--ai-bar-color': 'var(--accent)',
+      '--hp-bar-fill': 'linear-gradient(90deg, #f59e0b, #fbbf24)',
     },
   },
+
+  // ─── 羊皮古卷（暖棕底、米白字） ───
   {
     id: 'parchment',
     name: '羊皮古卷',
@@ -59,8 +84,22 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(217,119,6,0.12)',
       '--border': 'rgba(68,64,60,0.5)',
       '--bar-default': '#78716c',
+      // 纹理：羊皮纸横纹 + 顶部暖光
+      '--texture': `
+        repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(217,119,6,0.015) 3px, rgba(217,119,6,0.015) 4px) 0px 0px / 100% 4px,
+        radial-gradient(ellipse at 50% 0%, rgba(217,119,6,0.08) 0%, transparent 60%) 0px 0px / 100% 100%
+      `,
+      '--texture-opacity': '0.6',
+      '--glow-color': 'rgba(217,119,6,0.12)',
+      // 气泡：不规则圆角，仿纸张质感
+      '--bubble-radius': '4px 16px 16px 16px',
+      '--bubble-shadow': '2px 2px 6px rgba(0,0,0,0.25)',
+      '--ai-bar-color': '#d97706',
+      '--hp-bar-fill': 'linear-gradient(90deg, #d97706, #f59e0b)',
     },
   },
+
+  // ─── 赛博霓虹 ───
   {
     id: 'cyber',
     name: '赛博霓虹',
@@ -77,8 +116,24 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(34,211,238,0.1)',
       '--border': 'rgba(30,30,63,0.5)',
       '--bar-default': '#3730a3',
+      // 纹理：网格 + 扫描线 + 霓虹辉光
+      '--texture': `
+        linear-gradient(90deg, rgba(34,211,238,0.04) 1px, transparent 1px) 0px 0px / 28px 28px,
+        linear-gradient(0deg, rgba(34,211,238,0.04) 1px, transparent 1px) 0px 0px / 28px 28px,
+        repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(139,92,246,0.025) 3px, rgba(139,92,246,0.025) 4px) 0px 0px / 100% 4px,
+        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.10) 0%, transparent 50%) 0px 0px / 100% 100%
+      `,
+      '--texture-opacity': '0.7',
+      '--glow-color': 'rgba(34,211,238,0.12)',
+      // 气泡：直角 + 发光边缘
+      '--bubble-radius': '4px',
+      '--bubble-shadow': '0 0 12px rgba(34,211,238,0.15)',
+      '--ai-bar-color': '#22d3ee',
+      '--hp-bar-fill': 'linear-gradient(90deg, #22d3ee, #818cf8)',
     },
   },
+
+  // ─── 深林幽光 ───
   {
     id: 'forest',
     name: '深林幽光',
@@ -95,8 +150,23 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(52,211,153,0.1)',
       '--border': 'rgba(38,58,42,0.5)',
       '--bar-default': '#365e3a',
+      // 纹理：有机光斑 + 细微噪点
+      '--texture': `
+        radial-gradient(circle at 20% 30%, rgba(52,211,153,0.05) 0%, transparent 40%) 0px 0px / 100% 100%,
+        radial-gradient(circle at 80% 70%, rgba(52,211,153,0.025) 0%, transparent 30%) 0px 0px / 100% 100%,
+        repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 6px 6px
+      `,
+      '--texture-opacity': '0.6',
+      '--glow-color': 'rgba(52,211,153,0.12)',
+      // 气泡：超圆角 + 毛玻璃
+      '--bubble-radius': '20px',
+      '--bubble-shadow': '0 4px 12px rgba(0,0,0,0.2), 0 0 0 1px rgba(52,211,153,0.08)',
+      '--ai-bar-color': '#34d399',
+      '--hp-bar-fill': 'linear-gradient(90deg, #34d399, #10b981)',
     },
   },
+
+  // ─── 暗血史诗 ───
   {
     id: 'crimson',
     name: '暗血史诗',
@@ -113,8 +183,23 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(251,191,36,0.1)',
       '--border': 'rgba(58,26,26,0.5)',
       '--bar-default': '#7f1d1d',
+      // 纹理：暗红晕染 + 裂纹感
+      '--texture': `
+        radial-gradient(ellipse at 30% 20%, rgba(220,38,38,0.06) 0%, transparent 50%) 0px 0px / 100% 100%,
+        radial-gradient(ellipse at 70% 80%, rgba(251,191,36,0.025) 0%, transparent 40%) 0px 0px / 100% 100%,
+        repeating-conic-gradient(rgba(220,38,38,0.015) 0% 25%, transparent 0% 50%) 8px 8px / 16px 16px
+      `,
+      '--texture-opacity': '0.6',
+      '--glow-color': 'rgba(220,38,38,0.15)',
+      // 气泡：尖角 + 金属质感阴影
+      '--bubble-radius': '12px 4px 12px 4px',
+      '--bubble-shadow': '0 0 8px rgba(220,38,38,0.2)',
+      '--ai-bar-color': '#fbbf24',
+      '--hp-bar-fill': 'linear-gradient(90deg, #dc2626, #fbbf24)',
     },
   },
+
+  // ─── 雪境 ───
   {
     id: 'snow',
     name: '雪境',
@@ -131,8 +216,51 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(96,165,250,0.1)',
       '--border': 'rgba(63,63,70,0.5)',
       '--bar-default': '#52525b',
+      // 纹理：霜晶菱形纹 + 冷光
+      '--texture': `
+        radial-gradient(circle at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 30%) 0px 0px / 100% 100%,
+        radial-gradient(circle at 70% 60%, rgba(255,255,255,0.02) 0%, transparent 25%) 0px 0px / 100% 100%,
+        repeating-linear-gradient(45deg, transparent 0px, transparent 8px, rgba(255,255,255,0.015) 8px, rgba(255,255,255,0.015) 9px) 0px 0px / 100% 100%
+      `,
+      '--texture-opacity': '0.5',
+      '--glow-color': 'rgba(96,165,250,0.1)',
+      // 气泡：清爽直角
+      '--bubble-radius': '8px',
+      '--bubble-shadow': '0 2px 4px rgba(0,0,0,0.15)',
+      '--ai-bar-color': '#60a5fa',
+      '--hp-bar-fill': 'linear-gradient(90deg, #60a5fa, #818cf8)',
     },
   },
+
+  // ─── Linear（深黑画布，薰衣草紫点缀） ───
+  {
+    id: 'linear',
+    name: 'Linear',
+    icon: '💠',
+    description: '深黑画布，薰衣草紫点缀，精准极简',
+    css: {
+      '--bg-primary': '#010102',
+      '--bg-secondary': '#0f1011',
+      '--bg-card': '#141516',
+      '--text-primary': '#f7f8f8',
+      '--text-secondary': '#d0d6e0',
+      '--text-muted': '#8a8f98',
+      '--accent': '#5e6ad2',
+      '--accent-soft': 'rgba(94,106,210,0.12)',
+      '--border': '#23252a',
+      '--bar-default': '#34343a',
+      // 纹理：细微点阵网格
+      '--texture': 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.025) 1px, transparent 0) 0px 0px / 24px 24px',
+      '--texture-opacity': '0.4',
+      '--glow-color': 'rgba(94,106,210,0.12)',
+      '--bubble-radius': '12px',
+      '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.25)',
+      '--ai-bar-color': '#5e6ad2',
+      '--hp-bar-fill': 'linear-gradient(90deg, #5e6ad2, #818cf8)',
+    },
+  },
+
+  // ─── 晨光（暖白明亮） ───
   {
     id: 'dawn',
     name: '晨光',
@@ -149,8 +277,21 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(217,119,6,0.08)',
       '--border': 'rgba(214,211,209,0.6)',
       '--bar-default': '#d6d3d1',
+      // 纹理：柔光放射
+      '--texture': `
+        radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.05) 0%, transparent 60%) 0px 0px / 100% 100%,
+        radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.025) 0%, transparent 40%) 0px 0px / 100% 100%
+      `,
+      '--texture-opacity': '0.5',
+      '--glow-color': 'rgba(217,119,6,0.1)',
+      '--bubble-radius': '16px',
+      '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.06)',
+      '--ai-bar-color': '#d97706',
+      '--hp-bar-fill': 'linear-gradient(90deg, #d97706, #f59e0b)',
     },
   },
+
+  // ─── 石板（中性灰蓝） ───
   {
     id: 'slate',
     name: '石板',
@@ -167,6 +308,17 @@ export const THEMES: Theme[] = [
       '--accent-soft': 'rgba(129,140,248,0.1)',
       '--border': 'rgba(51,65,85,0.5)',
       '--bar-default': '#475569',
+      // 纹理：岩石颗粒感
+      '--texture': `
+        repeating-conic-gradient(rgba(255,255,255,0.015) 0% 25%, transparent 0% 50%) 0px 0px / 8px 8px,
+        radial-gradient(ellipse at 50% 20%, rgba(129,140,248,0.04) 0%, transparent 50%) 0px 0px / 100% 100%
+      `,
+      '--texture-opacity': '0.5',
+      '--glow-color': 'rgba(129,140,248,0.12)',
+      '--bubble-radius': '10px',
+      '--bubble-shadow': '0 2px 6px rgba(0,0,0,0.2)',
+      '--ai-bar-color': '#818cf8',
+      '--hp-bar-fill': 'linear-gradient(90deg, #818cf8, #a78bfa)',
     },
   },
 ]
@@ -243,6 +395,13 @@ export function buildCustomThemeCss(colors: CustomThemeColors): Record<string, s
     '--accent-soft': ac.soft,
     '--border': ac.border,
     '--bar-default': bg.textMuted,
+    '--texture': 'repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 4px 4px',
+    '--texture-opacity': '0.5',
+    '--glow-color': 'rgba(255,255,255,0.06)',
+    '--bubble-radius': '16px 16px 4px 16px',
+    '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.2)',
+    '--ai-bar-color': ac.accent,
+    '--hp-bar-fill': `linear-gradient(90deg, ${ac.accent}, ${ac.accent})`,
   }
 }
 

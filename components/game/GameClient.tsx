@@ -512,6 +512,15 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         />
       )}
 
+      {/* 主题纹理叠加 */}
+      <div
+        className="pointer-events-none absolute inset-0 z-[3]"
+        style={{
+          background: 'var(--texture, none)',
+          opacity: 'var(--texture-opacity, 0.5)',
+        }}
+      />
+
       {/* 顶栏 */}
       <div className="relative z-10 flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]/80 backdrop-blur-sm flex-shrink-0">
         <Button

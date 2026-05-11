@@ -36,7 +36,7 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
   }
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-950 p-3 space-y-2">
+    <div className="border-t px-3 py-3 space-y-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
       {/* 快捷选项 */}
       {quickOptions.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -45,10 +45,22 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
               key={i}
               onClick={() => handleOptionClick(option)}
               disabled={isLoading}
-              className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 bg-zinc-800/50 text-zinc-300
-                hover:border-amber-500/50 hover:text-amber-300 hover:bg-amber-500/10
-                disabled:opacity-40 disabled:cursor-not-allowed
-                transition-all duration-150"
+              className="text-xs px-3 py-2 sm:py-1.5 rounded-full border transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                borderColor: 'var(--border)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-secondary)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent)'
+                e.currentTarget.style.color = 'var(--accent)'
+                e.currentTarget.style.backgroundColor = 'var(--accent-soft)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.color = 'var(--text-secondary)'
+                e.currentTarget.style.backgroundColor = 'var(--bg-card)'
+              }}
             >
               {option}
             </button>
@@ -66,23 +78,33 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
           placeholder="输入你的行动（Enter 发送，Shift+Enter 换行）"
           disabled={isLoading}
           rows={1}
-          className="flex-1 min-h-[44px] max-h-32 resize-none
-            bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500
-            focus:border-amber-500/50 focus:ring-0
-            text-sm leading-relaxed
-            disabled:opacity-50"
+          className="flex-1 min-h-[44px] max-h-32 resize-none text-sm leading-relaxed disabled:opacity-50 placeholder:text-[var(--text-muted)]"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-primary)',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent)'
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+          }}
         />
-        <Button
+        <button
           onClick={handleSubmit}
           disabled={isLoading || !input.trim()}
-          size="icon"
-          className="h-11 w-11 flex-shrink-0 bg-amber-500 hover:bg-amber-400 text-black disabled:opacity-40"
+          className="h-11 w-11 flex-shrink-0 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 active:scale-90"
+          style={{
+            backgroundColor: 'var(--accent)',
+            color: '#000',
+          }}
         >
           {isLoading
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : <Send className="w-4 h-4" />
           }
-        </Button>
+        </button>
       </div>
     </div>
   )

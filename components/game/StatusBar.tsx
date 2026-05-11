@@ -13,29 +13,31 @@ interface StatusBarProps {
 export function StatusBar({ state, scenarioTitle }: StatusBarProps) {
   const [expanded, setExpanded] = useState(false)
   const hpPercent = Math.round((state.hp / state.maxHp) * 100)
-  const hpColor = hpPercent > 60 ? 'bg-emerald-500' : hpPercent > 30 ? 'bg-amber-500' : 'bg-red-500'
 
   return (
-    <div className="bg-zinc-900 border-b border-zinc-800">
+    <div style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
       {/* 主状态行 */}
       <div className="flex items-center gap-3 px-4 py-2">
-        <span className="text-amber-400 font-semibold text-sm truncate flex-1">{scenarioTitle}</span>
+        <span className="text-sm font-semibold truncate flex-1" style={{ color: 'var(--accent)' }}>{scenarioTitle}</span>
 
         {/* HP */}
         <div className="flex items-center gap-1.5">
           <Heart className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-          <div className="w-20 h-2 bg-zinc-700 rounded-full overflow-hidden">
+          <div className="w-20 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
             <div
-              className={`h-full rounded-full transition-all ${hpColor}`}
-              style={{ width: `${hpPercent}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${hpPercent}%`,
+                background: 'var(--hp-bar-fill, var(--accent))',
+              }}
             />
           </div>
-          <span className="text-xs text-zinc-300 tabular-nums">{state.hp}/{state.maxHp}</span>
+          <span className="text-xs tabular-nums font-medium" style={{ color: 'var(--text-secondary)' }}>{state.hp}/{state.maxHp}</span>
         </div>
 
         {/* 位置 */}
         {state.location && (
-          <div className="hidden sm:flex items-center gap-1 text-xs text-zinc-400">
+          <div className="hidden sm:flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
             <MapPin className="w-3 h-3" />
             <span className="truncate max-w-24">{state.location}</span>
           </div>
@@ -44,7 +46,10 @@ export function StatusBar({ state, scenarioTitle }: StatusBarProps) {
         {/* 展开按钮（移动端） */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="transition-colors active:scale-90"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
@@ -52,10 +57,10 @@ export function StatusBar({ state, scenarioTitle }: StatusBarProps) {
 
       {/* 展开的详细信息 */}
       {expanded && (
-        <div className="px-4 pb-3 space-y-2 border-t border-zinc-800/50 pt-2">
+        <div className="px-4 pb-3 space-y-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
           {/* 位置（移动端） */}
           {state.location && (
-            <div className="sm:hidden flex items-center gap-1 text-xs text-zinc-400">
+            <div className="sm:hidden flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               <MapPin className="w-3 h-3" />
               <span>{state.location}</span>
             </div>
@@ -65,7 +70,12 @@ export function StatusBar({ state, scenarioTitle }: StatusBarProps) {
           {Object.keys(state.attributes).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(state.attributes).map(([key, val]) => (
-                <Badge key={key} variant="outline" className="text-xs border-zinc-600 text-zinc-300 bg-zinc-800/50">
+                <Badge key={key} variant="outline" className="text-xs"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-card)',
+                  }}>
                   {key}: {val}
                 </Badge>
               ))}
@@ -75,10 +85,15 @@ export function StatusBar({ state, scenarioTitle }: StatusBarProps) {
           {/* 背包 */}
           {state.inventory.length > 0 && (
             <div className="flex items-start gap-2">
-              <Package className="w-3.5 h-3.5 text-zinc-500 mt-0.5 flex-shrink-0" />
+              <Package className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
               <div className="flex flex-wrap gap-1">
                 {state.inventory.map((item, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs bg-zinc-800 text-zinc-300 border-zinc-700">
+                  <Badge key={i} variant="secondary" className="text-xs"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-secondary)',
+                      borderColor: 'var(--border)',
+                    }}>
                     {item}
                   </Badge>
                 ))}

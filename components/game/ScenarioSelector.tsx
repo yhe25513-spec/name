@@ -959,56 +959,77 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
 
       {/* 外观设置弹窗 */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-sm">
+        <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] sm:max-w-sm max-w-[96vw] rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-sm flex items-center gap-2">
               <Settings className="w-4 h-4 text-[var(--accent)]" />
               外观设置
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
+          <div className="space-y-4 pt-2 max-h-[75vh] overflow-y-auto px-1">
             {/* —— 主题风格 —— */}
             <div>
               <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
                 主题风格
               </p>
-              <div className="grid grid-cols-3 gap-2">
-                {THEMES.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setThemeId(t.id)}
-                    className={cn(
-                      'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
-                      themeId === t.id
-                        ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm'
-                        : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-stone-600 hover:bg-stone-800/50'
-                    )}
-                  >
-                    <span className="text-lg">{t.icon}</span>
-                    <span className={cn(
-                      'text-[10px] font-medium',
-                      themeId === t.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
-                    )}>
-                      {t.name}
-                    </span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {THEMES.map((t) => {
+                  const isSelected = themeId === t.id
+                  const previewCss = t.css
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setThemeId(t.id)}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all duration-200 text-center',
+                        isSelected
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] shadow-sm ring-1 ring-[var(--accent)]/30'
+                          : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--text-muted)]'
+                      )}
+                    >
+                      {/* 主题色预览小方块 */}
+                      <div className="w-full h-8 rounded-md overflow-hidden flex items-end justify-end p-1"
+                        style={{ backgroundColor: previewCss['--bg-primary'] }}
+                      >
+                        <div className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: previewCss['--accent'] }}
+                        />
+                      </div>
+                      <span className={cn(
+                        'text-xs font-medium',
+                        isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
+                      )}>
+                        {t.icon} {t.name}
+                      </span>
+                      <span className="text-[9px] leading-tight text-[var(--text-muted)] line-clamp-1">
+                        {t.description}
+                      </span>
+                    </button>
+                  )
+                })}
                 {/* 自定义 */}
                 <button
                   onClick={() => setThemeId('custom')}
                   className={cn(
-                    'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
+                    'flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all duration-200 text-center',
                     themeId === 'custom'
-                      ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm'
-                      : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-stone-600 hover:bg-stone-800/50'
+                      ? 'border-[var(--accent)] bg-[var(--accent-soft)] shadow-sm ring-1 ring-[var(--accent)]/30'
+                      : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--text-muted)]'
                   )}
                 >
-                  <span className="text-lg">🎨</span>
+                  <div className="w-full h-8 rounded-md overflow-hidden flex items-center justify-center gap-0.5"
+                    style={{ backgroundColor: 'var(--bg-primary)' }}
+                  >
+                    <span className="text-[10px] opacity-70">🎨</span>
+                  </div>
                   <span className={cn(
-                    'text-[10px] font-medium',
-                    themeId === 'custom' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
+                    'text-xs font-medium',
+                    themeId === 'custom' ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
                   )}>
                     自定义
+                  </span>
+                  <span className="text-[9px] leading-tight text-[var(--text-muted)] line-clamp-1">
+                    选择色阶和强调色
                   </span>
                 </button>
               </div>

@@ -52,7 +52,9 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
   return (
     <div className={cn(
       'flex-1 overflow-y-auto relative',
-      'scrollbar-thin scrollbar-track-zinc-900 scrollbar-thumb-zinc-800'
+      'scrollbar-thin',
+        '[&::-webkit-scrollbar-track]:bg-[var(--bg-primary)]',
+        '[&::-webkit-scrollbar-thumb]:bg-[var(--border)]'
     )}>
       <div
         className="absolute inset-0 pointer-events-none"
@@ -128,12 +130,14 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
                 <div className="flex items-center gap-2 max-w-[75%]">
                   <div
                     className={cn(
-                      'text-xs sm:text-sm leading-relaxed px-4 py-2 rounded-2xl rounded-tr-sm border',
+                      'text-xs sm:text-sm leading-relaxed px-4 py-2 border',
                     )}
                     style={{
                       backgroundColor: 'var(--accent-soft)',
                       color: 'var(--text-primary)',
                       borderColor: 'var(--accent)',
+                      borderRadius: 'var(--bubble-radius)',
+                      boxShadow: 'var(--bubble-shadow)',
                     }}
                   >
                     {msg.content}
