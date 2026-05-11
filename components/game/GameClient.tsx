@@ -67,7 +67,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   const [bgInputUrl, setBgInputUrl] = useState('')
   const [bgOpacity, setBgOpacity] = useState(0.30)
   const [bgBrightness, setBgBrightness] = useState(0.5) // 0=暗 1=亮
-  const [themeId, setThemeId] = useState('linear')
+  const [themeId, setThemeId] = useState('dark')
   const [fontId, setFontId] = useState('sans')
   const [customThemeColors, setCustomThemeColors] = useState<{ bgShade: 'dark' | 'medium' | 'light'; accentColor: 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue' }>({
     bgShade: 'dark',

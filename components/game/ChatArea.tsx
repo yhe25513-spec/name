@@ -113,7 +113,7 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
                   {/* 叙事文本 */}
                   <div
                     className={cn(
-                      'text-sm sm:text-base leading-[1.85] whitespace-pre-wrap',
+                      'text-sm sm:text-base leading-[1.9] whitespace-pre-wrap',
                       'first-letter:text-2xl first-letter:font-bold first-letter:mr-0.5',
                       'selection:bg-[var(--accent-soft)] selection:text-[var(--text-primary)]',
                       hasBgImage && 'drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]',
@@ -186,7 +186,7 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
                 {streamingText ? (
                   <div
                     className={cn(
-                      'text-sm sm:text-base leading-[1.85] whitespace-pre-wrap',
+                      'text-sm sm:text-base leading-[1.9] whitespace-pre-wrap',
                       'selection:bg-[var(--accent-soft)] selection:text-[var(--text-primary)]',
                       hasBgImage && 'drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]',
                     )}

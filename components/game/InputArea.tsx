@@ -55,18 +55,19 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
               disabled={isLoading}
               className="text-xs px-4 py-2 sm:py-1.5 rounded-full transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
               style={{
-                background: 'linear-gradient(180deg, rgba(20,241,198,0.18), rgba(20,241,198,0.08))',
-                border: '1px solid rgba(94,234,212,0.28)',
+                background: 'linear-gradient(180deg, var(--accent-soft), rgba(20,241,198,0.04))',
+                border: '1px solid var(--accent2)',
+                borderColor: 'color-mix(in srgb, var(--accent2) 28%, transparent)',
                 color: 'var(--text-primary)',
-                boxShadow: 'inset 0 1px rgba(255,255,255,0.08), 0 0 20px rgba(20,241,198,0.08)',
+                boxShadow: 'inset 0 1px rgba(255,255,255,0.08), var(--glow)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 0 30px rgba(20,241,198,0.18), inset 0 1px rgba(255,255,255,0.1)'
+                e.currentTarget.style.boxShadow = 'var(--btn-glow), inset 0 1px rgba(255,255,255,0.1)'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0px)'
-                e.currentTarget.style.boxShadow = 'inset 0 1px rgba(255,255,255,0.08), 0 0 20px rgba(20,241,198,0.08)'
+                e.currentTarget.style.boxShadow = 'inset 0 1px rgba(255,255,255,0.08), var(--glow)'
               }}
             >
               {option}
@@ -106,9 +107,9 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
           disabled={isLoading || !input.trim()}
           className="h-11 w-11 flex-shrink-0 rounded-lg flex items-center justify-center transition-all duration-200 disabled:opacity-40 active:scale-90 hover:scale-105"
           style={{
-            background: 'linear-gradient(135deg, var(--accent), rgba(20,241,198,0.7))',
-            color: '#000',
-            boxShadow: '0 0 20px rgba(20,241,198,0.2)',
+            background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
+            color: '#070b14',
+            boxShadow: 'var(--glow)',
           }}
         >
           {isLoading

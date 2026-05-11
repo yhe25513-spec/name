@@ -14,7 +14,6 @@ interface SidePanelProps {
 
 export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelProps) {
   const hpPercent = Math.round((state.hp / state.maxHp) * 100)
-  const hpColor = hpPercent > 60 ? 'bg-emerald-500' : hpPercent > 30 ? 'bg-amber-500' : 'bg-red-500'
 
   return (
     <div
@@ -50,8 +49,8 @@ export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelPro
             </div>
             <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
               <div
-                className={cn('h-full rounded-full transition-all duration-700 ease-out', hpColor)}
-                style={{ width: `${hpPercent}%` }}
+                className="h-full rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${hpPercent}%`, background: 'var(--hp-bar-fill, var(--accent))' }}
               />
             </div>
           </div>
