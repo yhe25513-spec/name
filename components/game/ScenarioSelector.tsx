@@ -501,10 +501,10 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                     <button
                       onClick={(e) => deleteSave(save.id, e)}
                       disabled={deleting === save.id}
-                      className="absolute top-3 right-3 p-1.5 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--bg-card)] transition-colors z-10 opacity-0 group-hover:opacity-100"
+                      className="absolute top-3 right-3 p-2 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors z-10 sm:opacity-0 sm:group-hover:opacity-100 active:scale-90"
                       title="删除存档"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                     <CardHeader className="pb-2 pt-4 px-4 pr-10">
                       <div className="flex items-center gap-2 mb-1">
