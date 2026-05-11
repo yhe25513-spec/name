@@ -56,14 +56,12 @@ export async function POST(req: NextRequest) {
   let apiKey = process.env.SILICONFLOW_API_KEY || ''
   let modelName = ''
 
-  // 先尝试从环境变量直接获取完整配置
   if (apiKey) {
     modelName = process.env.SILICONFLOW_MODEL || 'Qwen/Qwen-Image'
   }
 
   if (!apiKey) {
     try {
-      const adminSupabase = await createAdminClient()
       const { data: config } = await adminSupabase
         .from('ai_configs')
         .select('api_key, model')
@@ -84,6 +82,17 @@ export async function POST(req: NextRequest) {
       { error: '未配置 SiliconFlow API Key。请在 .env.local 中设置 SILICONFLOW_API_KEY，或在 AI 配置中创建 provider 为 siliconflow 的配置' },
       { status: 400 }
     )
+  }
+
+  // 先插入日志占位（此时图片尚未生成），确保计数准确
+  let logId: string | null = null
+  if (!isAdmin) {
+    const { data: inserted } = await adminSupabase
+      .from('image_generation_logs')
+      .insert({ user_id: user.id, prompt })
+      .select('id')
+      .single()
+    logId = inserted?.id || null
   }
 
   try {
@@ -108,6 +117,10 @@ export async function POST(req: NextRequest) {
     clearTimeout(timeout)
 
     if (!response.ok) {
+      // API 失败 → 删除刚才插入的日志
+      if (logId) {
+        await adminSupabase.from('image_generation_logs').delete().eq('id', logId)
+      }
       const errText = await response.text()
       return NextResponse.json(
         { error: `图片生成失败 (${response.status})`, detail: errText },
@@ -119,25 +132,27 @@ export async function POST(req: NextRequest) {
     const imageUrl = data.data?.[0]?.url
 
     if (!imageUrl) {
+      // 无 URL → 删除日志
+      if (logId) {
+        await adminSupabase.from('image_generation_logs').delete().eq('id', logId)
+      }
       return NextResponse.json(
         { error: 'AI 返回了空结果' },
         { status: 502 }
       )
     }
 
-    // 记录生成日志（不阻塞返回）
-    if (!isAdmin) {
-      void adminSupabase.from('image_generation_logs').insert({
-        user_id: user.id,
-        prompt,
-        image_url: imageUrl,
-      })
+    // 更新日志中的图片 URL
+    if (logId) {
+      await adminSupabase.from('image_generation_logs').update({ image_url: imageUrl }).eq('id', logId)
     }
 
-    // SiliconFlow 返回的 URL 有时效，需要下载后永久存储到 Supabase
-    // 先返回 URL，由客户端决定是否保存
     return NextResponse.json({ url: imageUrl })
   } catch (err) {
+    // 异常 → 删除日志
+    if (logId) {
+      await adminSupabase.from('image_generation_logs').delete().eq('id', logId)
+    }
     const msg = err instanceof Error ? err.message : '未知错误'
     return NextResponse.json({ error: `图片生成失败: ${msg}` }, { status: 500 })
   }
