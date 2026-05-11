@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (!countError && count !== null && count >= 2) {
       return NextResponse.json(
-        { error: '普通用户每天只能生成 2 张图片，明天再来吧' },
+        { error: '今日图片生成次数达到上限，明天再来吧' },
         { status: 429 }
       )
     }
