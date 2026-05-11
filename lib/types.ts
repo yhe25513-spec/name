@@ -44,6 +44,11 @@ export interface GameState {
   location?: string
   gamePhase?: string
   turn?: number
+  playerName?: string
+  realm?: string
+  spiritRoot?: string
+  exp?: number
+  maxExp?: number
 }
 
 export interface ConversationMessage {
