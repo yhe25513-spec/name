@@ -517,11 +517,11 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/game')}
           className="text-[var(--text-muted)] hover:text-[var(--text-primary)] h-8 px-2"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
-          首页
+          返回
         </Button>
 
         {/* 氛围指示器 */}

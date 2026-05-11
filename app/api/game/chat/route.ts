@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       .from('ai_configs')
       .select('*')
       .eq('is_default', true)
-      .single()
+      .maybeSingle()
 
     if (defaultConfig) {
       aiConfig = {
@@ -82,6 +82,25 @@ export async function POST(req: NextRequest) {
         api_base_url: defaultConfig.api_base_url,
         temperature: defaultConfig.temperature,
         max_tokens: defaultConfig.max_tokens,
+      }
+    }
+  }
+
+  // 仍无配置，尝试任意一个 ai_config
+  if (!aiConfig) {
+    const { data: anyConfig } = await supabase
+      .from('ai_configs')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
+    if (anyConfig) {
+      aiConfig = {
+        provider: anyConfig.provider,
+        model: anyConfig.model,
+        api_key: anyConfig.api_key,
+        api_base_url: anyConfig.api_base_url,
+        temperature: anyConfig.temperature,
+        max_tokens: anyConfig.max_tokens,
       }
     }
   }
@@ -126,6 +145,8 @@ export async function POST(req: NextRequest) {
           baseUrl = 'https://openrouter.ai/api/v1'
         } else if (aiConfig.provider === 'ollama') {
           baseUrl = 'http://localhost:11434'
+        } else if (aiConfig.provider === 'siliconflow') {
+          baseUrl = 'https://api.siliconflow.cn/v1'
         }
       }
       stream = await streamOpenAIChat(

@@ -47,6 +47,19 @@ export async function POST(req: NextRequest) {
   if (error || !supabase || !user) return NextResponse.json({ error }, { status: 403 })
 
   const body = await req.json()
+
+  // 如果未指定 AI 配置，自动关联默认配置
+  if (!body.ai_config_id) {
+    const { data: defaultConfig } = await supabase
+      .from('ai_configs')
+      .select('id')
+      .eq('is_default', true)
+      .maybeSingle()
+    if (defaultConfig) {
+      body.ai_config_id = defaultConfig.id
+    }
+  }
+
   const { data, error: insertError } = await supabase
     .from('game_scenarios')
     .insert({ ...body, created_by: user.id })
