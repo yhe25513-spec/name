@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ImageIcon, Video, Sparkles, ArrowLeft, Download, RotateCcw, Loader2, Clock, Trash2 } from 'lucide-react'
+import { ImageIcon, Video, Sparkles, ArrowLeft, Download, RotateCcw, Loader2, Clock, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Mode = 'image' | 'video'
@@ -69,6 +69,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const [resultUrl, setResultUrl] = useState('')
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
+  const [showLimitDialog, setShowLimitDialog] = useState(false)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
@@ -202,6 +203,10 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
             timestamp: Date.now(),
           })
           toast.success('图片生成成功')
+        } else if (res.status === 429) {
+          // 每日上限 — 弹窗提示
+          setShowLimitDialog(true)
+          setGenerating(false)
         } else {
           const detail = data.detail ? ` (${data.detail})` : ''
           toast.error('生成失败', { description: `${data.error}${detail}` })
@@ -578,6 +583,31 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           </div>
         )}
       </main>
+
+      {/* 每日限额弹窗 */}
+      {showLimitDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-7 h-7 text-amber-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                今日次数已用完
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6">
+                今日图片生成次数已达到上限，明天再来吧
+              </p>
+              <button
+                onClick={() => setShowLimitDialog(false)}
+                className="w-full py-2.5 rounded-xl bg-[var(--accent)] text-white font-medium text-sm hover:opacity-90 transition-opacity"
+              >
+                我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
