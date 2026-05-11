@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
   // 如果仍然没有配置，使用 admin_config 作为最后回退
   if (!aiConfig) {
-    const { data: adminConfig } = await supabase.from('admin_config').select('*').single()
+    const { data: adminConfig } = await supabase.from('admin_config').select('*').maybeSingle()
     aiConfig = {
       provider: adminConfig?.provider || 'deepseek',
       model: adminConfig?.model || 'deepseek-chat',

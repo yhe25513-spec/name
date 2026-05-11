@@ -25,6 +25,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '缺少提示词' }, { status: 400 })
   }
 
+  // 检查管理员权限 / 每日限额（普通用户每天 2 张）
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  const isAdmin = profile?.role === 'admin'
+  const adminSupabase = await createAdminClient()
+
+  if (!isAdmin) {
+    // 查询今日已生成数量（使用 admin client 绕过 RLS）
+    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    const { count, error: countError } = await adminSupabase
+      .from('image_generation_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', today)
+      .lte('created_at', today + 'T23:59:59.999Z')
+
+    if (!countError && count !== null && count >= 2) {
+      return NextResponse.json(
+        { error: '普通用户每天只能生成 2 张图片，明天再来吧' },
+        { status: 429 }
+      )
+    }
+  }
+
   // 获取 API key 和模型名：优先环境变量，降级到 ai_configs
   let apiKey = process.env.SILICONFLOW_API_KEY || ''
   let modelName = ''
@@ -96,6 +123,15 @@ export async function POST(req: NextRequest) {
         { error: 'AI 返回了空结果' },
         { status: 502 }
       )
+    }
+
+    // 记录生成日志（不阻塞返回）
+    if (!isAdmin) {
+      void adminSupabase.from('image_generation_logs').insert({
+        user_id: user.id,
+        prompt,
+        image_url: imageUrl,
+      })
     }
 
     // SiliconFlow 返回的 URL 有时效，需要下载后永久存储到 Supabase
