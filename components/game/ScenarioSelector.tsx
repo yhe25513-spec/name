@@ -64,7 +64,7 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
   const [aiStep, setAiStep] = useState<'choose' | 'prompt' | 'generating'>('choose')
   const [aiPrompt, setAiPrompt] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const [themeId, setThemeId] = useState('dark')
+  const [themeId, setThemeId] = useState('linear')
   const [fontId, setFontId] = useState('serif')
   const [customThemeColors, setCustomThemeColors] = useState<CustomThemeColors>({
     bgShade: 'dark', accentColor: 'amber',
@@ -358,55 +358,49 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
 
   return (
     <div className="min-h-screen flex flex-col" style={{
-      backgroundColor: '#161210',
-      color: '#e8e0d0',
-      '--bg-primary': '#161210',
-      '--bg-secondary': '#1e1a16',
-      '--bg-card': 'rgba(30,26,22,0.65)',
-      '--text-primary': '#e8e0d0',
-      '--text-secondary': '#b8a890',
-      '--text-muted': '#7a7060',
-      '--accent': '#c43a31',
-      '--accent-soft': 'rgba(196,58,49,0.12)',
-      '--border': 'rgba(62,56,48,0.5)',
-      '--bar-default': '#5a5245',
+      backgroundColor: '#010102',
+      color: '#f7f8f8',
+      '--bg-primary': '#010102',
+      '--bg-secondary': '#0f1011',
+      '--bg-card': '#141516',
+      '--text-primary': '#f7f8f8',
+      '--text-secondary': '#d0d6e0',
+      '--text-muted': '#8a8f98',
+      '--accent': '#5e6ad2',
+      '--accent-soft': 'rgba(94,106,210,0.12)',
+      '--border': '#23252a',
+      '--bar-default': '#34343a',
     } as React.CSSProperties}>
-      {/* 墨色纹理背景 */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/3 w-[500px] h-[400px] bg-gradient-to-b from-red-950/15 via-transparent to-transparent blur-[120px]" />
-        <div className="absolute bottom-0 right-1/3 w-[400px] h-[300px] bg-gradient-to-t from-amber-950/10 via-transparent to-transparent blur-[100px]" />
-        <div className="absolute inset-0 opacity-[0.02]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
-        }} />
-      </div>
+      {/* 纯色背景——Linear 风格无纹理 */}
+      <div className="fixed inset-0 pointer-events-none bg-[#010102]" />
 
       {/* 顶部导航 */}
-      <header className="relative border-b border-stone-800/50 bg-stone-950/60 backdrop-blur-md sticky top-0 z-20">
+      <header className="relative border-b border-[var(--border)] bg-[var(--bg-secondary)]/80 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-1.5 text-stone-500 hover:text-stone-300 transition-colors mr-1"
+            className="flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mr-1"
             title="返回首页"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm hidden sm:inline">首页</span>
           </button>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-red-950/40 border border-red-900/40 flex items-center justify-center">
-              <Sword className="w-4 h-4 text-red-400/80" />
+            <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
+              <Sword className="w-4 h-4 m-auto" style={{ color: 'var(--accent)' }} />
             </div>
-            <span className="font-medium text-stone-300 hidden sm:inline tracking-wide">文字冒险</span>
+            <span className="font-medium text-[var(--text-primary)] hidden sm:inline tracking-tight">文字冒险</span>
           </div>
 
           {/* 搜索 */}
           <div className="flex-1 max-w-md mx-auto">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-600" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索场景..."
-                className="w-full pl-9 h-9 bg-stone-900/60 border-stone-800 text-stone-300 text-sm placeholder:text-stone-600 rounded-lg focus:border-red-900/50"
+                className="w-full pl-9 h-9 bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] rounded-lg focus:border-[var(--accent)]/50"
               />
             </div>
           </div>
@@ -414,7 +408,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => setShowSettings(true)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-stone-500 hover:text-stone-300 hover:bg-stone-800/50 transition-all"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all"
               title="外观设置"
             >
               <Settings className="w-4 h-4" />
@@ -423,7 +417,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               onClick={() => router.push('/admin')}
               variant="outline"
               size="sm"
-              className="border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-600 hidden sm:inline-flex"
+              className="border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 hidden sm:inline-flex"
             >
               <Edit3 className="w-4 h-4 mr-1.5" />
               {isAdmin ? '管理' : '创作'}
@@ -432,11 +426,11 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               onClick={handleLogout}
               variant="ghost"
               size="sm"
-              className="text-stone-500 hover:text-stone-300"
+              className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
               <LogOut className="w-4 h-4" />
             </Button>
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-stone-600 ml-1 pl-3 border-l border-stone-800">
+            <div className="hidden sm:flex items-center gap-1.5 text-sm text-[var(--text-muted)] ml-1 pl-3 border-l border-[var(--border)]">
               <User className="w-3.5 h-3.5" />
               <span className="truncate max-w-[100px]">{username}</span>
             </div>
@@ -449,9 +443,9 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={() => setShowCreateDialog(true)}
-            className="group relative overflow-hidden px-5 py-2.5 rounded-lg text-sm font-medium text-stone-200 transition-all duration-300 hover:shadow-lg hover:shadow-red-900/20"
+            className="group relative overflow-hidden px-5 py-2.5 rounded-md text-sm font-medium text-white transition-all duration-200 hover:shadow-lg"
             style={{
-              background: 'linear-gradient(135deg, #991b1b, #7f1d1d)',
+              backgroundColor: 'var(--accent)',
             }}
           >
             <span className="relative z-10 flex items-center gap-2">
@@ -459,12 +453,12 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               创建新场景
             </span>
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-              background: 'linear-gradient(135deg, #b91c1c, #991b1b)',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1), transparent)',
             }} />
           </button>
           <button
             onClick={() => router.push('/admin')}
-            className="px-4 py-2.5 rounded-lg text-sm text-stone-400 border border-stone-800 hover:text-stone-200 hover:border-stone-600 transition-all sm:hidden"
+            className="px-4 py-2.5 rounded-lg text-sm text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/50 transition-all sm:hidden"
           >
             <Edit3 className="w-4 h-4 mr-1.5 inline" />
             {isAdmin ? '管理后台' : '我的创作'}
@@ -475,10 +469,10 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         {localSaves.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-5 h-5 rounded bg-red-950/40 border border-red-900/30 flex items-center justify-center">
-                <Clock className="w-3 h-3 text-red-400/70" />
+              <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
+                <Clock className="w-3 h-3" style={{ color: 'var(--accent)' }} />
               </div>
-              <h2 className="text-base font-medium text-stone-300 tracking-wide">继续游戏</h2>
+              <h2 className="text-base font-medium text-[var(--text-primary)] tracking-tight">继续游戏</h2>
               <span className="text-xs text-[var(--text-muted)] ml-auto">{localSaves.length} 个存档</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -520,7 +514,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                           {genre}
                         </span>
                       </div>
-                      <CardTitle className="text-sm text-[var(--text-primary)] group-hover:text-amber-300 transition-colors truncate pr-2">
+                      <CardTitle className="text-sm text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors truncate pr-2">
                         {scenarioTitle}
                       </CardTitle>
                       <CardDescription className="text-[var(--text-muted)] text-xs">
@@ -555,10 +549,10 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         {/* 探索新世界 */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-5 h-5 rounded bg-emerald-950/40 border border-emerald-900/30 flex items-center justify-center">
-              <Gamepad2 className="w-3 h-3 text-emerald-400/70" />
+            <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
+              <Gamepad2 className="w-3 h-3" style={{ color: 'var(--accent)' }} />
             </div>
-            <h2 className="text-base font-medium text-stone-300 tracking-wide">
+            <h2 className="text-base font-medium text-[var(--text-primary)] tracking-tight">
               {localSaves.length > 0 ? '探索新世界' : '开始冒险'}
             </h2>
           </div>
@@ -571,8 +565,8 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 onClick={() => setGenreFilter(genre)}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                   genreFilter === genre
-                    ? 'bg-red-950/40 text-red-400 border border-red-900/40'
-                    : 'bg-stone-900/60 text-stone-500 border border-stone-800 hover:bg-stone-800/60 hover:text-stone-300'
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/40'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
                 }`}
               >
                 {genre}
@@ -592,7 +586,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               {!searchQuery && (
                 <Button
                   onClick={() => router.push('/admin')}
-                  className="bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20"
+                  className="text-white border-0" style={{ backgroundColor: 'var(--accent)' }}
                 >
                   <PlusCircle className="w-4 h-4 mr-1.5" />
                   创建第一个场景
@@ -668,7 +662,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                         <CardTitle className={cn(
                           'text-lg font-bold leading-snug line-clamp-2 transition-colors duration-200',
                           hasImg ? imgT : 'text-[var(--text-primary)]',
-                          hasImg ? '' : 'group-hover:text-amber-300'
+                          hasImg ? '' : 'group-hover:text-[var(--accent)]'
                         )}>
                           {scenario.title}
                         </CardTitle>
@@ -735,7 +729,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         {myScenarios.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <Edit3 className="w-4 h-4 text-blue-400" />
+              <Edit3 className="w-4 h-4" style={{ color: 'var(--accent)' }} />
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">我的创作</h2>
               <span className="text-xs text-[var(--text-muted)] ml-auto">{myScenarios.length} 个场景</span>
             </div>
@@ -749,11 +743,10 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                     onClick={() => router.push('/admin')}
                     className={cn(
                       'bg-[var(--bg-secondary)] border-[var(--border)] cursor-pointer transition-all duration-200 group overflow-hidden',
-                      'hover:border-blue-500/30 hover:shadow-xl hover:-translate-y-0.5',
-                      'shadow-blue-500/5 hover:shadow-blue-500/15'
+                      'hover:border-[var(--accent)]/30 hover:shadow-xl hover:-translate-y-0.5'
                     )}
                   >
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600/20 to-blue-400/20" />
+                    <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'linear-gradient(90deg, var(--accent), transparent)' }} />
                     <div className="absolute -bottom-4 -right-4 text-6xl opacity-[0.03] pointer-events-none select-none">
                       ✎
                     </div>
@@ -766,7 +759,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                           {(scenario as any).is_published ? '已发布' : '草稿'}
                         </Badge>
                       </div>
-                      <CardTitle className="text-sm text-[var(--text-primary)] mt-1 group-hover:text-blue-300 transition-colors truncate">
+                      <CardTitle className="text-sm text-[var(--text-primary)] mt-1 group-hover:text-[var(--accent)] transition-colors truncate">
                         {scenario.title}
                       </CardTitle>
                       <CardDescription className="text-[var(--text-muted)] text-xs line-clamp-1">
@@ -795,7 +788,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+              <Sparkles className="w-5 h-5" style={{ color: 'var(--accent)' }} />
               创建新场景
             </DialogTitle>
             <DialogDescription className="text-[var(--text-secondary)] text-sm">
@@ -808,14 +801,14 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               <>
                 <button
                   onClick={() => { setShowCreateDialog(false); router.push('/admin') }}
-                  className="w-full p-4 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-amber-500/40 hover:bg-[var(--bg-secondary)] transition-all text-left group"
+                  className="w-full p-4 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)]/40 hover:bg-[var(--bg-secondary)] transition-all text-left group"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <Edit3 className="w-5 h-5 text-amber-400" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
+                      <Edit3 className="w-5 h-5" style={{ color: 'var(--accent)' }} />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-[var(--text-primary)] group-hover:text-amber-300 transition-colors">从零开始创作</div>
+                      <div className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">从零开始创作</div>
                       <div className="text-xs text-[var(--text-muted)] mt-0.5">使用表单编辑器，逐步填写世界观、剧情和规则</div>
                     </div>
                   </div>
@@ -862,7 +855,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                   <Button
                     onClick={handleAIGenerate}
                     disabled={!aiPrompt.trim()}
-                    className="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white font-semibold shadow-lg shadow-purple-500/20"
+                    className="flex-1 text-white font-semibold border-0" style={{ backgroundColor: 'var(--accent)' }}
                   >
                     <Wand2 className="w-4 h-4 mr-1.5" />
                     AI 智能生成

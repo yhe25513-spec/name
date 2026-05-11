@@ -8,6 +8,24 @@ export interface Theme {
 
 export const THEMES: Theme[] = [
   {
+    id: 'linear',
+    name: 'Linear',
+    icon: '💠',
+    description: '深黑画布，薰衣草紫点缀，精准极简',
+    css: {
+      '--bg-primary': '#010102',
+      '--bg-secondary': '#0f1011',
+      '--bg-card': '#141516',
+      '--text-primary': '#f7f8f8',
+      '--text-secondary': '#d0d6e0',
+      '--text-muted': '#8a8f98',
+      '--accent': '#5e6ad2',
+      '--accent-soft': 'rgba(94,106,210,0.12)',
+      '--border': '#23252a',
+      '--bar-default': '#34343a',
+    },
+  },
+  {
     id: 'dark',
     name: '暗夜',
     icon: '🌙',
