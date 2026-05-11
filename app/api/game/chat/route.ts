@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { streamGameChat } from '@/lib/deepseek'
 import { streamOpenAIChat } from '@/lib/openai'
 import { ConversationMessage, GameScenario, GameState } from '@/lib/types'
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 })
   }
 
+  // 使用 admin client 读取 ai_configs（RLS 保护 API key，普通用户不可见）
+  const adminSupabase = await createAdminClient()
+
   // 获取 AI 配置 - 优先使用场景的专属配置
   let aiConfig: {
     provider: string
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   if (scenario.ai_config_id) {
     // 使用场景绑定的 AI 配置
-    const { data: customConfig } = await supabase
+    const { data: customConfig } = await adminSupabase
       .from('ai_configs')
       .select('*')
       .eq('id', scenario.ai_config_id)
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
 
   // 如果没有场景配置或获取失败，使用默认配置
   if (!aiConfig) {
-    const { data: defaultConfig } = await supabase
+    const { data: defaultConfig } = await adminSupabase
       .from('ai_configs')
       .select('*')
       .eq('is_default', true)
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   // 仍无配置，尝试任意一个 ai_config
   if (!aiConfig) {
-    const { data: anyConfig } = await supabase
+    const { data: anyConfig } = await adminSupabase
       .from('ai_configs')
       .select('*')
       .limit(1)
