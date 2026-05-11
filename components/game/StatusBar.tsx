@@ -15,7 +15,12 @@ export function StatusBar({ state, scenarioTitle }: StatusBarProps) {
   const hpPercent = Math.round((state.hp / state.maxHp) * 100)
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+    <div style={{
+      backgroundColor: 'var(--glass-bg)',
+      backdropFilter: 'blur(var(--glass-blur, 20px))',
+      WebkitBackdropFilter: 'blur(var(--glass-blur, 20px))',
+      borderBottom: '1px solid var(--glass-border)',
+    }}>
       {/* 主状态行 */}
       <div className="flex items-center gap-3 px-4 py-2">
         <span className="text-sm font-semibold truncate flex-1" style={{ color: 'var(--accent)' }}>{scenarioTitle}</span>

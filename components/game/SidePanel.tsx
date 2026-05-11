@@ -15,27 +15,27 @@ interface SidePanelProps {
 export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelProps) {
   const hpPercent = Math.round((state.hp / state.maxHp) * 100)
   const hpColor = hpPercent > 60 ? 'bg-emerald-500' : hpPercent > 30 ? 'bg-amber-500' : 'bg-red-500'
-  const hpGlow = hpPercent > 60 ? 'shadow-emerald-500/20' : hpPercent > 30 ? 'shadow-amber-500/20' : 'shadow-red-500/20'
 
   return (
     <div
-      className={cn(
-        'w-64 flex-shrink-0 border-l flex flex-col',
-        hasBgImage ? 'backdrop-blur-md' : 'backdrop-blur-sm',
-      )}
+      className="w-64 flex-shrink-0 flex flex-col relative"
       style={{
-        backgroundColor: 'var(--bg-secondary)',
-        borderColor: 'var(--border)',
+        backgroundColor: 'var(--glass-bg)',
+        backdropFilter: `blur(var(--glass-blur, 20px))`,
+        WebkitBackdropFilter: `blur(var(--glass-blur, 20px))`,
+        borderLeft: '1px solid var(--glass-border)',
+        boxShadow: 'var(--panel-shadow)',
       }}
     >
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
           {/* 生命值 */}
           <div
-            className={cn('rounded-xl p-3.5 border shadow-sm', hpGlow)}
+            className='rounded-xl p-3.5 border'
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border)',
+              boxShadow: 'var(--card-shadow)',
             }}
           >
             <div className="flex items-center justify-between mb-2">
@@ -64,6 +64,7 @@ export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelPro
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderColor: 'var(--border)',
+                  boxShadow: 'var(--card-shadow)',
                 }}
               >
                 <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--accent)' }} />
@@ -75,6 +76,7 @@ export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelPro
               style={{
                 backgroundColor: 'var(--bg-card)',
                 borderColor: 'var(--border)',
+                boxShadow: 'var(--card-shadow)',
               }}
             >
               <Swords className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />

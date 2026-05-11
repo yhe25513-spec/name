@@ -56,10 +56,16 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
         '[&::-webkit-scrollbar-track]:bg-[var(--bg-primary)]',
         '[&::-webkit-scrollbar-thumb]:bg-[var(--border)]'
     )}>
+      {/* 玻璃拟态背景 */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom, var(--bg-secondary) 0%, transparent 40%, var(--bg-primary) 85%)',
+          backgroundColor: 'var(--glass-bg)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          borderRight: '1px solid var(--glass-border)',
+          maskImage: 'linear-gradient(to bottom, black 0%, transparent 15%, black 50%, transparent 85%, black 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 15%, black 50%, transparent 85%, black 100%)',
         }}
       />
 

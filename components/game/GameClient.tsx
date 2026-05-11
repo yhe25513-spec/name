@@ -487,6 +487,18 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         )}
       />
 
+      {/* 全局氛围光效 */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background: [
+            'radial-gradient(circle at 20% 20%, var(--glow-accent, rgba(20,241,198,0.08)), transparent 40%)',
+            'radial-gradient(circle at 80% 0%, rgba(59,130,246,0.06), transparent 35%)',
+            'radial-gradient(circle at 50% 100%, rgba(20,241,198,0.03), transparent 30%)',
+          ].join(','),
+        }}
+      />
+
       {/* 自定义背景图片 */}
       {bgImageUrl && (
         <div
@@ -522,7 +534,13 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       />
 
       {/* 顶栏 */}
-      <div className="relative z-10 flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]/80 backdrop-blur-sm flex-shrink-0">
+      <div className="relative z-10 flex items-center gap-2 px-3 py-2 flex-shrink-0"
+        style={{
+          backgroundColor: 'var(--glass-bg)',
+          backdropFilter: 'blur(var(--glass-blur, 20px))',
+          WebkitBackdropFilter: 'blur(var(--glass-blur, 20px))',
+          borderBottom: '1px solid var(--glass-border)',
+        }}>
         <Button
           variant="ghost"
           size="sm"

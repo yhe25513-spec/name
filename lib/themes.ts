@@ -7,75 +7,84 @@ export interface Theme {
 }
 
 /**
- * 每个主题的 CSS 变量说明：
+ * CSS 变量体系：
  *
- * 基础色：
- *   --bg-primary      主背景色（最底层）
- *   --bg-secondary    次级背景（面板、侧栏）
- *   --bg-card         卡片背景
- *   --text-primary    主文字色
- *   --text-secondary  次要文字
- *   --text-muted      弱化文字
- *   --accent          强调色（按钮、链接、高亮）
- *   --accent-soft     强调色半透明（悬停态、轻背景）
- *   --border          边框色
+ * 背景层级（三层）：
+ *   --bg-primary / --bg-main    页面最底层（最深）
+ *   --bg-secondary / --bg-panel  面板层（侧栏、输入区）
+ *   --bg-card                    卡片层（最高、最亮）
  *
- * 纹理与氛围：
- *   --texture         CSS background 值，作为主内容区纹理叠加层
- *   --texture-opacity 纹理不透明度 (0~1)
- *   --glow-color      氛围辉光颜色（HP条、选中态等）
+ * 文字层级：
+ *   --text-primary   主文字
+ *   --text-secondary 次要
+ *   --text-muted     弱化
  *
- * 聊天气泡（用户消息）：
- *   --bubble-radius   圆角
- *   --bubble-shadow   阴影
+ * 玻璃拟态：
+ *   --glass-bg       半透明背景
+ *   --glass-blur     模糊强度
+ *   --glass-border   描边色
  *
- * AI 叙事装饰：
- *   --ai-bar-color    左侧装饰条颜色
+ * 阴影：
+ *   --card-shadow    卡片阴影
+ *   --panel-shadow   面板阴影
  *
- * 界面元素：
- *   --bar-default     默认进度条底色
- *   --hp-bar-fill     HP 条填充色
+ * 强调：
+ *   --accent         主强调色
+ *   --accent-soft    半透明态
+ *   --border         边框
+ *   --glow-accent    辉光
+ *   --hp-bar-fill    HP 条渐变
+ *   --ai-bar-color   叙事装饰条色
+ *
+ * 气泡：
+ *   --bubble-radius  圆角
+ *   --bubble-shadow  阴影
+ *
+ * 纹理：
+ *   --texture        CSS background
+ *   --texture-opacity 不透明度
  */
 
 export const THEMES: Theme[] = [
-  // ─── 暗夜（经典暗色，琥珀点缀） ───
+  // ─── 暗夜 ───
   {
     id: 'dark',
     name: '暗夜',
     icon: '🌙',
-    description: '经典暗色，琥珀点缀',
+    description: '深蓝画布，青绿点缀，星空感',
     css: {
-      '--bg-primary': '#09090b',
-      '--bg-secondary': '#18181b',
-      '--bg-card': 'rgba(24,24,27,0.6)',
-      '--text-primary': '#e4e4e7',
-      '--text-secondary': '#a1a1aa',
-      '--text-muted': '#71717a',
-      '--accent': '#f59e0b',
-      '--accent-soft': 'rgba(245,158,11,0.1)',
-      '--border': 'rgba(39,39,42,0.5)',
-      '--bar-default': '#52525b',
-      // 纹理：細微噪点
-      '--texture': 'repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 4px 4px',
-      '--texture-opacity': '0.5',
-      '--glow-color': 'rgba(245,158,11,0.15)',
-      // 气泡
+      '--bg-primary': '#070b14', '--bg-main': '#070b14',
+      '--bg-secondary': '#111827', '--bg-panel': '#111827',
+      '--bg-card': '#172033',
+      '--text-primary': '#f3f6ff',
+      '--text-secondary': '#94a3b8',
+      '--text-muted': '#64748b',
+      '--accent': '#14f1c6',
+      '--accent-soft': 'rgba(20,241,198,0.1)',
+      '--border': '#2a3b57',
+      '--glass-bg': 'rgba(17,24,39,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.06)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.3)',
+      '--glow-accent': 'rgba(20,241,198,0.08)',
+      '--texture': 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.02) 1px, transparent 0) 0px 0px / 24px 24px',
       '--bubble-radius': '16px 16px 4px 16px',
       '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.2)',
-      '--ai-bar-color': 'var(--accent)',
-      '--hp-bar-fill': 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+      '--ai-bar-color': '#14f1c6',
+      '--hp-bar-fill': 'linear-gradient(90deg, #14f1c6, #5eead4)',
     },
   },
 
-  // ─── 羊皮古卷（暖棕底、米白字） ───
+  // ─── 羊皮古卷 ───
   {
     id: 'parchment',
     name: '羊皮古卷',
     icon: '📜',
     description: '暖棕底、米白字，古籍韵味',
     css: {
-      '--bg-primary': '#1c1917',
-      '--bg-secondary': '#292524',
+      '--bg-primary': '#1c1917', '--bg-main': '#1c1917',
+      '--bg-secondary': '#292524', '--bg-panel': '#292524',
       '--bg-card': 'rgba(41,35,33,0.65)',
       '--text-primary': '#f5f0e8',
       '--text-secondary': '#d6c9b8',
@@ -83,15 +92,13 @@ export const THEMES: Theme[] = [
       '--accent': '#d97706',
       '--accent-soft': 'rgba(217,119,6,0.12)',
       '--border': 'rgba(68,64,60,0.5)',
-      '--bar-default': '#78716c',
-      // 纹理：羊皮纸横纹 + 顶部暖光
-      '--texture': `
-        repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(217,119,6,0.015) 3px, rgba(217,119,6,0.015) 4px) 0px 0px / 100% 4px,
-        radial-gradient(ellipse at 50% 0%, rgba(217,119,6,0.08) 0%, transparent 60%) 0px 0px / 100% 100%
-      `,
-      '--texture-opacity': '0.6',
-      '--glow-color': 'rgba(217,119,6,0.12)',
-      // 气泡：不规则圆角，仿纸张质感
+      '--glass-bg': 'rgba(41,37,36,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.05)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.3)',
+      '--glow-accent': 'rgba(217,119,6,0.08)',
+      '--texture': 'repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(217,119,6,0.015) 3px, rgba(217,119,6,0.015) 4px) 0px 0px / 100% 4px,radial-gradient(ellipse at 50% 0%, rgba(217,119,6,0.08) 0%, transparent 60%) 0px 0px / 100% 100%',
       '--bubble-radius': '4px 16px 16px 16px',
       '--bubble-shadow': '2px 2px 6px rgba(0,0,0,0.25)',
       '--ai-bar-color': '#d97706',
@@ -106,8 +113,8 @@ export const THEMES: Theme[] = [
     icon: '💠',
     description: '紫蓝底色、青蓝文字，赛博朋克',
     css: {
-      '--bg-primary': '#0b0b1a',
-      '--bg-secondary': '#141428',
+      '--bg-primary': '#0b0b1a', '--bg-main': '#0b0b1a',
+      '--bg-secondary': '#141428', '--bg-panel': '#141428',
       '--bg-card': 'rgba(20,20,40,0.65)',
       '--text-primary': '#e0e0ff',
       '--text-secondary': '#8888cc',
@@ -115,17 +122,13 @@ export const THEMES: Theme[] = [
       '--accent': '#22d3ee',
       '--accent-soft': 'rgba(34,211,238,0.1)',
       '--border': 'rgba(30,30,63,0.5)',
-      '--bar-default': '#3730a3',
-      // 纹理：网格 + 扫描线 + 霓虹辉光
-      '--texture': `
-        linear-gradient(90deg, rgba(34,211,238,0.04) 1px, transparent 1px) 0px 0px / 28px 28px,
-        linear-gradient(0deg, rgba(34,211,238,0.04) 1px, transparent 1px) 0px 0px / 28px 28px,
-        repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(139,92,246,0.025) 3px, rgba(139,92,246,0.025) 4px) 0px 0px / 100% 4px,
-        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.10) 0%, transparent 50%) 0px 0px / 100% 100%
-      `,
-      '--texture-opacity': '0.7',
-      '--glow-color': 'rgba(34,211,238,0.12)',
-      // 气泡：直角 + 发光边缘
+      '--glass-bg': 'rgba(20,20,40,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.06)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.5), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.35)',
+      '--glow-accent': 'rgba(34,211,238,0.1)',
+      '--texture': 'linear-gradient(90deg, rgba(34,211,238,0.04) 1px, transparent 1px) 0px 0px / 28px 28px,linear-gradient(0deg, rgba(34,211,238,0.04) 1px, transparent 1px) 0px 0px / 28px 28px,repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(139,92,246,0.025) 3px, rgba(139,92,246,0.025) 4px) 0px 0px / 100% 4px,radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.10) 0%, transparent 50%) 0px 0px / 100% 100%',
       '--bubble-radius': '4px',
       '--bubble-shadow': '0 0 12px rgba(34,211,238,0.15)',
       '--ai-bar-color': '#22d3ee',
@@ -140,8 +143,8 @@ export const THEMES: Theme[] = [
     icon: '🌲',
     description: '墨绿底色、翠绿文字，荧光点缀',
     css: {
-      '--bg-primary': '#0e1410',
-      '--bg-secondary': '#1a241c',
+      '--bg-primary': '#0e1410', '--bg-main': '#0e1410',
+      '--bg-secondary': '#1a241c', '--bg-panel': '#1a241c',
       '--bg-card': 'rgba(26,36,28,0.65)',
       '--text-primary': '#d1f0d1',
       '--text-secondary': '#8fbc8f',
@@ -149,16 +152,13 @@ export const THEMES: Theme[] = [
       '--accent': '#34d399',
       '--accent-soft': 'rgba(52,211,153,0.1)',
       '--border': 'rgba(38,58,42,0.5)',
-      '--bar-default': '#365e3a',
-      // 纹理：有机光斑 + 细微噪点
-      '--texture': `
-        radial-gradient(circle at 20% 30%, rgba(52,211,153,0.05) 0%, transparent 40%) 0px 0px / 100% 100%,
-        radial-gradient(circle at 80% 70%, rgba(52,211,153,0.025) 0%, transparent 30%) 0px 0px / 100% 100%,
-        repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 6px 6px
-      `,
-      '--texture-opacity': '0.6',
-      '--glow-color': 'rgba(52,211,153,0.12)',
-      // 气泡：超圆角 + 毛玻璃
+      '--glass-bg': 'rgba(26,36,28,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.05)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.3)',
+      '--glow-accent': 'rgba(52,211,153,0.08)',
+      '--texture': 'radial-gradient(circle at 20% 30%, rgba(52,211,153,0.05) 0%, transparent 40%) 0px 0px / 100% 100%,radial-gradient(circle at 80% 70%, rgba(52,211,153,0.025) 0%, transparent 30%) 0px 0px / 100% 100%,repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 6px 6px',
       '--bubble-radius': '20px',
       '--bubble-shadow': '0 4px 12px rgba(0,0,0,0.2), 0 0 0 1px rgba(52,211,153,0.08)',
       '--ai-bar-color': '#34d399',
@@ -173,8 +173,8 @@ export const THEMES: Theme[] = [
     icon: '⚔',
     description: '暗红底色、金红文字，史诗战场',
     css: {
-      '--bg-primary': '#140a0a',
-      '--bg-secondary': '#241212',
+      '--bg-primary': '#140a0a', '--bg-main': '#140a0a',
+      '--bg-secondary': '#241212', '--bg-panel': '#241212',
       '--bg-card': 'rgba(36,18,18,0.65)',
       '--text-primary': '#f0d1d1',
       '--text-secondary': '#cc8888',
@@ -182,16 +182,13 @@ export const THEMES: Theme[] = [
       '--accent': '#fbbf24',
       '--accent-soft': 'rgba(251,191,36,0.1)',
       '--border': 'rgba(58,26,26,0.5)',
-      '--bar-default': '#7f1d1d',
-      // 纹理：暗红晕染 + 裂纹感
-      '--texture': `
-        radial-gradient(ellipse at 30% 20%, rgba(220,38,38,0.06) 0%, transparent 50%) 0px 0px / 100% 100%,
-        radial-gradient(ellipse at 70% 80%, rgba(251,191,36,0.025) 0%, transparent 40%) 0px 0px / 100% 100%,
-        repeating-conic-gradient(rgba(220,38,38,0.015) 0% 25%, transparent 0% 50%) 8px 8px / 16px 16px
-      `,
-      '--texture-opacity': '0.6',
-      '--glow-color': 'rgba(220,38,38,0.15)',
-      // 气泡：尖角 + 金属质感阴影
+      '--glass-bg': 'rgba(36,18,18,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.05)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.5), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.35)',
+      '--glow-accent': 'rgba(220,38,38,0.1)',
+      '--texture': 'radial-gradient(ellipse at 30% 20%, rgba(220,38,38,0.06) 0%, transparent 50%) 0px 0px / 100% 100%,radial-gradient(ellipse at 70% 80%, rgba(251,191,36,0.025) 0%, transparent 40%) 0px 0px / 100% 100%,repeating-conic-gradient(rgba(220,38,38,0.015) 0% 25%, transparent 0% 50%) 8px 8px / 16px 16px',
       '--bubble-radius': '12px 4px 12px 4px',
       '--bubble-shadow': '0 0 8px rgba(220,38,38,0.2)',
       '--ai-bar-color': '#fbbf24',
@@ -206,8 +203,8 @@ export const THEMES: Theme[] = [
     icon: '❄',
     description: '灰白底色、深灰文字，清冷简约',
     css: {
-      '--bg-primary': '#1a1b1e',
-      '--bg-secondary': '#25262b',
+      '--bg-primary': '#1a1b1e', '--bg-main': '#1a1b1e',
+      '--bg-secondary': '#25262b', '--bg-panel': '#25262b',
       '--bg-card': 'rgba(37,38,43,0.65)',
       '--text-primary': '#e4e4e7',
       '--text-secondary': '#a1a1aa',
@@ -215,16 +212,13 @@ export const THEMES: Theme[] = [
       '--accent': '#60a5fa',
       '--accent-soft': 'rgba(96,165,250,0.1)',
       '--border': 'rgba(63,63,70,0.5)',
-      '--bar-default': '#52525b',
-      // 纹理：霜晶菱形纹 + 冷光
-      '--texture': `
-        radial-gradient(circle at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 30%) 0px 0px / 100% 100%,
-        radial-gradient(circle at 70% 60%, rgba(255,255,255,0.02) 0%, transparent 25%) 0px 0px / 100% 100%,
-        repeating-linear-gradient(45deg, transparent 0px, transparent 8px, rgba(255,255,255,0.015) 8px, rgba(255,255,255,0.015) 9px) 0px 0px / 100% 100%
-      `,
-      '--texture-opacity': '0.5',
-      '--glow-color': 'rgba(96,165,250,0.1)',
-      // 气泡：清爽直角
+      '--glass-bg': 'rgba(37,38,43,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.05)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.3)',
+      '--glow-accent': 'rgba(96,165,250,0.08)',
+      '--texture': 'radial-gradient(circle at 30% 40%, rgba(255,255,255,0.03) 0%, transparent 30%) 0px 0px / 100% 100%,radial-gradient(circle at 70% 60%, rgba(255,255,255,0.02) 0%, transparent 25%) 0px 0px / 100% 100%,repeating-linear-gradient(45deg, transparent 0px, transparent 8px, rgba(255,255,255,0.015) 8px, rgba(255,255,255,0.015) 9px) 0px 0px / 100% 100%',
       '--bubble-radius': '8px',
       '--bubble-shadow': '0 2px 4px rgba(0,0,0,0.15)',
       '--ai-bar-color': '#60a5fa',
@@ -232,15 +226,15 @@ export const THEMES: Theme[] = [
     },
   },
 
-  // ─── Linear（深黑画布，薰衣草紫点缀） ───
+  // ─── Linear ───
   {
     id: 'linear',
     name: 'Linear',
     icon: '💠',
     description: '深黑画布，薰衣草紫点缀，精准极简',
     css: {
-      '--bg-primary': '#010102',
-      '--bg-secondary': '#0f1011',
+      '--bg-primary': '#010102', '--bg-main': '#010102',
+      '--bg-secondary': '#0f1011', '--bg-panel': '#0f1011',
       '--bg-card': '#141516',
       '--text-primary': '#f7f8f8',
       '--text-secondary': '#d0d6e0',
@@ -248,11 +242,13 @@ export const THEMES: Theme[] = [
       '--accent': '#5e6ad2',
       '--accent-soft': 'rgba(94,106,210,0.12)',
       '--border': '#23252a',
-      '--bar-default': '#34343a',
-      // 纹理：细微点阵网格
+      '--glass-bg': 'rgba(15,16,17,0.75)',
+      '--glass-blur': '24px',
+      '--glass-border': 'rgba(255,255,255,0.04)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.5), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.35)',
+      '--glow-accent': 'rgba(94,106,210,0.1)',
       '--texture': 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.025) 1px, transparent 0) 0px 0px / 24px 24px',
-      '--texture-opacity': '0.4',
-      '--glow-color': 'rgba(94,106,210,0.12)',
       '--bubble-radius': '12px',
       '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.25)',
       '--ai-bar-color': '#5e6ad2',
@@ -260,15 +256,15 @@ export const THEMES: Theme[] = [
     },
   },
 
-  // ─── 晨光（暖白明亮） ───
+  // ─── 晨光 ───
   {
     id: 'dawn',
     name: '晨光',
     icon: '🌤',
     description: '暖白明亮底色，柔和舒适',
     css: {
-      '--bg-primary': '#fafaf9',
-      '--bg-secondary': '#f5f5f4',
+      '--bg-primary': '#fafaf9', '--bg-main': '#fafaf9',
+      '--bg-secondary': '#f5f5f4', '--bg-panel': '#f5f5f4',
       '--bg-card': 'rgba(245,245,244,0.85)',
       '--text-primary': '#1c1917',
       '--text-secondary': '#57534e',
@@ -276,14 +272,13 @@ export const THEMES: Theme[] = [
       '--accent': '#d97706',
       '--accent-soft': 'rgba(217,119,6,0.08)',
       '--border': 'rgba(214,211,209,0.6)',
-      '--bar-default': '#d6d3d1',
-      // 纹理：柔光放射
-      '--texture': `
-        radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.05) 0%, transparent 60%) 0px 0px / 100% 100%,
-        radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.025) 0%, transparent 40%) 0px 0px / 100% 100%
-      `,
-      '--texture-opacity': '0.5',
-      '--glow-color': 'rgba(217,119,6,0.1)',
+      '--glass-bg': 'rgba(255,255,255,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(0,0,0,0.06)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.1), inset 0 1px rgba(255,255,255,0.6)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.08)',
+      '--glow-accent': 'rgba(217,119,6,0.06)',
+      '--texture': 'radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.05) 0%, transparent 60%) 0px 0px / 100% 100%,radial-gradient(ellipse at 80% 80%, rgba(251,146,60,0.025) 0%, transparent 40%) 0px 0px / 100% 100%',
       '--bubble-radius': '16px',
       '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.06)',
       '--ai-bar-color': '#d97706',
@@ -291,15 +286,15 @@ export const THEMES: Theme[] = [
     },
   },
 
-  // ─── 石板（中性灰蓝） ───
+  // ─── 石板 ───
   {
     id: 'slate',
     name: '石板',
     icon: '🪨',
     description: '中性灰蓝，冷静专注',
     css: {
-      '--bg-primary': '#0f172a',
-      '--bg-secondary': '#1e293b',
+      '--bg-primary': '#0f172a', '--bg-main': '#0f172a',
+      '--bg-secondary': '#1e293b', '--bg-panel': '#1e293b',
       '--bg-card': 'rgba(30,41,59,0.65)',
       '--text-primary': '#e2e8f0',
       '--text-secondary': '#94a3b8',
@@ -307,14 +302,13 @@ export const THEMES: Theme[] = [
       '--accent': '#818cf8',
       '--accent-soft': 'rgba(129,140,248,0.1)',
       '--border': 'rgba(51,65,85,0.5)',
-      '--bar-default': '#475569',
-      // 纹理：岩石颗粒感
-      '--texture': `
-        repeating-conic-gradient(rgba(255,255,255,0.015) 0% 25%, transparent 0% 50%) 0px 0px / 8px 8px,
-        radial-gradient(ellipse at 50% 20%, rgba(129,140,248,0.04) 0%, transparent 50%) 0px 0px / 100% 100%
-      `,
-      '--texture-opacity': '0.5',
-      '--glow-color': 'rgba(129,140,248,0.12)',
+      '--glass-bg': 'rgba(30,41,59,0.72)',
+      '--glass-blur': '20px',
+      '--glass-border': 'rgba(255,255,255,0.05)',
+      '--card-shadow': '0 10px 40px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.03)',
+      '--panel-shadow': '0 4px 20px rgba(0,0,0,0.3)',
+      '--glow-accent': 'rgba(129,140,248,0.08)',
+      '--texture': 'repeating-conic-gradient(rgba(255,255,255,0.015) 0% 25%, transparent 0% 50%) 0px 0px / 8px 8px,radial-gradient(ellipse at 50% 20%, rgba(129,140,248,0.04) 0%, transparent 50%) 0px 0px / 100% 100%',
       '--bubble-radius': '10px',
       '--bubble-shadow': '0 2px 6px rgba(0,0,0,0.2)',
       '--ai-bar-color': '#818cf8',
@@ -323,7 +317,7 @@ export const THEMES: Theme[] = [
   },
 ]
 
-// 字体选项（使用 layout.tsx 中定义的 CSS 变量）
+// 字体选项
 export interface FontOption {
   id: string
   name: string
@@ -334,7 +328,7 @@ export const FONTS: FontOption[] = [
   { id: 'serif', name: '阅读宋体', cssVar: 'var(--font-noto-serif), Georgia, "Noto Serif SC", serif' },
   { id: 'kai', name: '楷体', cssVar: '"STKaiti", "KaiTi", var(--font-noto-serif), serif' },
   { id: 'masz', name: '行草', cssVar: 'var(--font-masz), "STKaiti", cursive' },
-  { id: 'sans', name: '屏显黑体', cssVar: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", sans-serif' },
+  { id: 'sans', name: '屏显黑体', cssVar: '"PingFang SC", "HarmonyOS Sans SC", "Source Han Sans SC", ui-sans-serif, system-ui, -apple-system, sans-serif' },
 ]
 
 // 自定义主题选项
@@ -343,35 +337,33 @@ export interface CustomThemeColors {
   accentColor: 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue'
 }
 
-// 背景色阶预设
 const BG_SHADES: Record<string, { bg: string; bgSec: string; bgCard: string; text: string; textSec: string; textMuted: string }> = {
   dark: {
-    bg: '#09090b',
-    bgSec: '#18181b',
-    bgCard: 'rgba(24,24,27,0.6)',
-    text: '#e4e4e7',
-    textSec: '#a1a1aa',
-    textMuted: '#71717a',
+    bg: '#070b14',
+    bgSec: '#111827',
+    bgCard: '#172033',
+    text: '#f3f6ff',
+    textSec: '#94a3b8',
+    textMuted: '#64748b',
   },
   medium: {
-    bg: '#27272a',
-    bgSec: '#3f3f46',
-    bgCard: 'rgba(63,63,70,0.6)',
-    text: '#e4e4e7',
-    textSec: '#a1a1aa',
-    textMuted: '#71717a',
+    bg: '#1e293b',
+    bgSec: '#334155',
+    bgCard: '#475569',
+    text: '#f1f5f9',
+    textSec: '#cbd5e1',
+    textMuted: '#94a3b8',
   },
   light: {
-    bg: '#fafaf9',
-    bgSec: '#f5f5f4',
-    bgCard: 'rgba(245,245,244,0.85)',
-    text: '#1c1917',
-    textSec: '#57534e',
-    textMuted: '#a8a29e',
+    bg: '#f8fafc',
+    bgSec: '#f1f5f9',
+    bgCard: 'rgba(255,255,255,0.85)',
+    text: '#0f172a',
+    textSec: '#475569',
+    textMuted: '#94a3b8',
   },
 }
 
-// 强调色预设
 const ACCENTS: Record<string, { accent: string; soft: string; border: string }> = {
   amber: { accent: '#f59e0b', soft: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)' },
   cyan: { accent: '#22d3ee', soft: 'rgba(34,211,238,0.1)', border: 'rgba(34,211,238,0.2)' },
@@ -387,6 +379,8 @@ export function buildCustomThemeCss(colors: CustomThemeColors): Record<string, s
   return {
     '--bg-primary': bg.bg,
     '--bg-secondary': bg.bgSec,
+    '--bg-main': bg.bg,
+    '--bg-panel': bg.bgSec,
     '--bg-card': bg.bgCard,
     '--text-primary': bg.text,
     '--text-secondary': bg.textSec,
@@ -394,10 +388,13 @@ export function buildCustomThemeCss(colors: CustomThemeColors): Record<string, s
     '--accent': ac.accent,
     '--accent-soft': ac.soft,
     '--border': ac.border,
-    '--bar-default': bg.textMuted,
-    '--texture': 'repeating-conic-gradient(rgba(255,255,255,0.008) 0% 25%, transparent 0% 50%) 0px 0px / 4px 4px',
-    '--texture-opacity': '0.5',
-    '--glow-color': 'rgba(255,255,255,0.06)',
+    '--glass-bg': 'rgba(17,24,39,0.72)',
+    '--glass-blur': '20px',
+    '--glass-border': 'rgba(255,255,255,0.06)',
+    '--card-shadow': '0 10px 40px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.03)',
+    '--panel-shadow': '0 4px 20px rgba(0,0,0,0.3)',
+    '--glow-accent': 'rgba(255,255,255,0.06)',
+    '--texture': 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.02) 1px, transparent 0) 0px 0px / 24px 24px',
     '--bubble-radius': '16px 16px 4px 16px',
     '--bubble-shadow': '0 2px 8px rgba(0,0,0,0.2)',
     '--ai-bar-color': ac.accent,
