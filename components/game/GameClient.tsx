@@ -15,7 +15,7 @@ import { ArrowLeft, Save, CheckCircle, ImageIcon, X, Sparkles } from 'lucide-rea
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
-import { THEMES, getTheme, FONTS, buildCustomThemeCss } from '@/lib/themes'
+import { getTheme, FONTS, buildCustomThemeCss } from '@/lib/themes'
 
 interface GameClientProps {
   initialSave: GameSave
@@ -120,23 +120,21 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     }
   }, [])
 
-  // 主题变化时持久化
+  // 监听外部主题/字体变化（从场景选择器或同页设置）
   useEffect(() => {
-    localStorage.setItem('game-theme', themeId)
-    window.dispatchEvent(new Event('theme-change'))
-  }, [themeId])
-
-  // 字体变化时持久化
-  useEffect(() => {
-    localStorage.setItem('game-font', fontId)
-    window.dispatchEvent(new Event('theme-change'))
-  }, [fontId])
-
-  // 自定义主题变化时持久化
-  useEffect(() => {
-    localStorage.setItem('game-custom-theme', JSON.stringify(customThemeColors))
-    window.dispatchEvent(new Event('theme-change'))
-  }, [customThemeColors])
+    const handler = () => {
+      const savedTheme = localStorage.getItem('game-theme')
+      if (savedTheme) setThemeId(savedTheme)
+      const savedFont = localStorage.getItem('game-font')
+      if (savedFont) setFontId(savedFont)
+      const savedCustom = localStorage.getItem('game-custom-theme')
+      if (savedCustom) {
+        try { setCustomThemeColors(JSON.parse(savedCustom)) } catch { /* ignore */ }
+      }
+    }
+    window.addEventListener('theme-change', handler)
+    return () => window.removeEventListener('theme-change', handler)
+  }, [])
 
   // 图片 URL 变化时重新分析亮度
   useEffect(() => {
@@ -560,7 +558,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
                 )}
               >
                 <ImageIcon className="w-3.5 h-3.5 mr-1" />
-                背景
+                聊天背景
               </Button>
             }
           />
@@ -568,140 +566,10 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
             <DialogHeader>
               <DialogTitle className="text-sm flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[var(--accent)]" />
-                外观设置
+                聊天背景
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
-              {/* —— 主题选择 —— */}
-              <div>
-                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
-                  聊天主题
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {THEMES.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setThemeId(t.id)}
-                      className={cn(
-                        'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
-                        themeId === t.id
-                          ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm shadow-[var(--accent)]/10'
-                          : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-zinc-600 hover:bg-zinc-800/50'
-                      )}
-                    >
-                      <span className="text-lg">{t.icon}</span>
-                      <span className={cn(
-                        'text-[10px] font-medium',
-                        themeId === t.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
-                      )}>
-                        {t.name}
-                      </span>
-                    </button>
-                  ))}
-                  {/* 自定义 */}
-                  <button
-                    onClick={() => setThemeId('custom')}
-                    className={cn(
-                      'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
-                      themeId === 'custom'
-                        ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm shadow-[var(--accent)]/10'
-                        : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-zinc-600 hover:bg-zinc-800/50'
-                    )}
-                  >
-                    <span className="text-lg">🎨</span>
-                    <span className={cn(
-                      'text-[10px] font-medium',
-                      themeId === 'custom' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
-                    )}>
-                      自定义
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* —— 自定义主题 —— */}
-              {themeId === 'custom' && (
-                <div className="space-y-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
-                  <div>
-                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-semibold">背景色阶</p>
-                    <div className="flex gap-1.5">
-                      {(['dark', 'medium', 'light'] as const).map((shade) => (
-                        <button
-                          key={shade}
-                          onClick={() => setCustomThemeColors(prev => ({ ...prev, bgShade: shade }))}
-                          className={cn(
-                            'flex-1 text-[11px] py-1.5 rounded-md border transition-all',
-                            customThemeColors.bgShade === shade
-                              ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-[var(--accent)]'
-                              : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-600'
-                          )}
-                        >
-                          {shade === 'dark' ? '暗色' : shade === 'medium' ? '中调' : '亮色'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-semibold">强调色</p>
-                    <div className="flex gap-1.5">
-                      {[
-                        { id: 'amber', label: '琥珀' },
-                        { id: 'cyan', label: '青蓝' },
-                        { id: 'emerald', label: '翠绿' },
-                        { id: 'purple', label: '紫韵' },
-                        { id: 'gold', label: '赤金' },
-                        { id: 'blue', label: '湛蓝' },
-                      ].map((ac) => (
-                        <button
-                          key={ac.id}
-                          onClick={() => setCustomThemeColors(prev => ({ ...prev, accentColor: ac.id as 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue' }))}
-                          className={cn(
-                            'flex-1 text-[11px] py-1.5 rounded-md border transition-all',
-                            customThemeColors.accentColor === ac.id
-                              ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-[var(--accent)]'
-                              : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-600'
-                          )}
-                        >
-                          {ac.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* —— 字体选择 —— */}
-              <div>
-                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
-                  字体样式
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {FONTS.map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setFontId(f.id)}
-                      className={cn(
-                        'flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border transition-all duration-200',
-                        fontId === f.id
-                          ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm shadow-[var(--accent)]/10'
-                          : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-zinc-600 hover:bg-zinc-800/50'
-                      )}
-                    >
-                      <span className="text-xs font-medium" style={fontId === f.id ? { color: 'var(--accent)' } : { color: 'var(--text-secondary)' }}>
-                        {f.name}
-                      </span>
-                      <span className="text-[10px] text-[var(--text-muted)]">Aa 天地玄黄</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 分割 */}
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-[var(--border)]" />
-                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest">背景图片</span>
-                <div className="h-px flex-1 bg-[var(--border)]" />
-              </div>
 
               {/* 本地上传 */}
               <div className="relative">

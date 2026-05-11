@@ -161,10 +161,10 @@ export interface FontOption {
 }
 
 export const FONTS: FontOption[] = [
-  { id: 'sans', name: '默认黑体', cssVar: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", sans-serif' },
-  { id: 'serif', name: '宋体', cssVar: 'Georgia, "Noto Serif SC", serif' },
-  { id: 'kai', name: '站酷小魏', cssVar: '"STKaiti", "KaiTi", serif' },
-  { id: 'display', name: '黄油体', cssVar: 'sans-serif' },
+  { id: 'serif', name: '阅读宋体', cssVar: 'var(--font-noto-serif), Georgia, "Noto Serif SC", serif' },
+  { id: 'kai', name: '楷体', cssVar: '"STKaiti", "KaiTi", var(--font-noto-serif), serif' },
+  { id: 'masz', name: '行草', cssVar: 'var(--font-masz), "STKaiti", cursive' },
+  { id: 'sans', name: '屏显黑体', cssVar: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", sans-serif' },
 ]
 
 // 自定义主题选项

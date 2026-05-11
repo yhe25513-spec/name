@@ -14,6 +14,8 @@ import { Sword, Clock, PlayCircle, PlusCircle, Settings, LogOut, User, Trash2, S
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { THEMES, getTheme, FONTS, buildCustomThemeCss } from '@/lib/themes'
+import type { CustomThemeColors } from '@/lib/themes'
 
 interface ScenarioSelectorProps {
   saves: GameSave[]
@@ -61,9 +63,41 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [aiStep, setAiStep] = useState<'choose' | 'prompt' | 'generating'>('choose')
   const [aiPrompt, setAiPrompt] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
+  const [themeId, setThemeId] = useState('dark')
+  const [fontId, setFontId] = useState('serif')
+  const [customThemeColors, setCustomThemeColors] = useState<CustomThemeColors>({
+    bgShade: 'dark', accentColor: 'amber',
+  })
 
   // 同步 props 变化
   useEffect(() => { setLocalSaves(saves) }, [saves])
+
+  // 从 localStorage 加载主题/字体
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('game-theme')
+    if (savedTheme) setThemeId(savedTheme)
+    const savedFont = localStorage.getItem('game-font')
+    if (savedFont) setFontId(savedFont)
+    const savedCustom = localStorage.getItem('game-custom-theme')
+    if (savedCustom) {
+      try { setCustomThemeColors(JSON.parse(savedCustom)) } catch { /* ignore */ }
+    }
+  }, [])
+
+  // 主题持久化
+  useEffect(() => {
+    localStorage.setItem('game-theme', themeId)
+    window.dispatchEvent(new Event('theme-change'))
+  }, [themeId])
+  useEffect(() => {
+    localStorage.setItem('game-font', fontId)
+    window.dispatchEvent(new Event('theme-change'))
+  }, [fontId])
+  useEffect(() => {
+    localStorage.setItem('game-custom-theme', JSON.stringify(customThemeColors))
+    window.dispatchEvent(new Event('theme-change'))
+  }, [customThemeColors])
 
   // 分析图片亮度，智能选择文字颜色
   const [imageBrightness, setImageBrightness] = useState<Record<string, number>>({})
@@ -323,44 +357,73 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
   const allGenres = ['全部', ...Object.keys(GENRE_COLORS).filter(g => (genreCounts[g] || 0) > 0)]
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen flex flex-col" style={{
+      backgroundColor: '#161210',
+      color: '#e8e0d0',
+      '--bg-primary': '#161210',
+      '--bg-secondary': '#1e1a16',
+      '--bg-card': 'rgba(30,26,22,0.65)',
+      '--text-primary': '#e8e0d0',
+      '--text-secondary': '#b8a890',
+      '--text-muted': '#7a7060',
+      '--accent': '#c43a31',
+      '--accent-soft': 'rgba(196,58,49,0.12)',
+      '--border': 'rgba(62,56,48,0.5)',
+      '--bar-default': '#5a5245',
+    } as React.CSSProperties}>
+      {/* 墨色纹理背景 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/3 w-[500px] h-[400px] bg-gradient-to-b from-red-950/15 via-transparent to-transparent blur-[120px]" />
+        <div className="absolute bottom-0 right-1/3 w-[400px] h-[300px] bg-gradient-to-t from-amber-950/10 via-transparent to-transparent blur-[100px]" />
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+        }} />
+      </div>
+
       {/* 顶部导航 */}
-      <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)]/80 backdrop-blur-sm sticky top-0 z-20">
+      <header className="relative border-b border-stone-800/50 bg-stone-950/60 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mr-1"
+            className="flex items-center gap-1.5 text-stone-500 hover:text-stone-300 transition-colors mr-1"
             title="返回首页"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm hidden sm:inline">返回首页</span>
+            <span className="text-sm hidden sm:inline">首页</span>
           </button>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-              <Sword className="w-4 h-4 text-amber-400" />
+            <div className="w-8 h-8 rounded-lg bg-red-950/40 border border-red-900/40 flex items-center justify-center">
+              <Sword className="w-4 h-4 text-red-400/80" />
             </div>
-            <span className="font-bold text-[var(--text-primary)] hidden sm:inline">文字冒险</span>
+            <span className="font-medium text-stone-300 hidden sm:inline tracking-wide">文字冒险</span>
           </div>
 
           {/* 搜索 */}
           <div className="flex-1 max-w-md mx-auto">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-600" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索场景..."
-                className="w-full pl-9 h-9 bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] rounded-lg"
+                className="w-full pl-9 h-9 bg-stone-900/60 border-stone-800 text-stone-300 text-sm placeholder:text-stone-600 rounded-lg focus:border-red-900/50"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-stone-500 hover:text-stone-300 hover:bg-stone-800/50 transition-all"
+              title="外观设置"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
             <Button
               onClick={() => router.push('/admin')}
               variant="outline"
               size="sm"
-              className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]/30 hidden sm:inline-flex"
+              className="border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-600 hidden sm:inline-flex"
             >
               <Edit3 className="w-4 h-4 mr-1.5" />
               {isAdmin ? '管理' : '创作'}
@@ -369,11 +432,11 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
               onClick={handleLogout}
               variant="ghost"
               size="sm"
-              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+              className="text-stone-500 hover:text-stone-300"
             >
               <LogOut className="w-4 h-4" />
             </Button>
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-[var(--text-muted)] ml-1 pl-3 border-l border-[var(--border)]">
+            <div className="hidden sm:flex items-center gap-1.5 text-sm text-stone-600 ml-1 pl-3 border-l border-stone-800">
               <User className="w-3.5 h-3.5" />
               <span className="truncate max-w-[100px]">{username}</span>
             </div>
@@ -381,33 +444,41 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-8 relative z-10">
         {/* 快捷操作 */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button
+          <button
             onClick={() => setShowCreateDialog(true)}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-semibold shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-200"
+            className="group relative overflow-hidden px-5 py-2.5 rounded-lg text-sm font-medium text-stone-200 transition-all duration-300 hover:shadow-lg hover:shadow-red-900/20"
+            style={{
+              background: 'linear-gradient(135deg, #991b1b, #7f1d1d)',
+            }}
           >
-            <Sparkles className="w-4 h-4 mr-2" />
-            创建新场景
-          </Button>
-          <Button
+            <span className="relative z-10 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              创建新场景
+            </span>
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
+              background: 'linear-gradient(135deg, #b91c1c, #991b1b)',
+            }} />
+          </button>
+          <button
             onClick={() => router.push('/admin')}
-            variant="outline"
-            size="sm"
-            className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:hidden"
+            className="px-4 py-2.5 rounded-lg text-sm text-stone-400 border border-stone-800 hover:text-stone-200 hover:border-stone-600 transition-all sm:hidden"
           >
-            <Edit3 className="w-4 h-4 mr-1.5" />
+            <Edit3 className="w-4 h-4 mr-1.5 inline" />
             {isAdmin ? '管理后台' : '我的创作'}
-          </Button>
+          </button>
         </div>
 
         {/* 继续游戏 */}
         {localSaves.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-amber-400" />
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">继续游戏</h2>
+              <div className="w-5 h-5 rounded bg-red-950/40 border border-red-900/30 flex items-center justify-center">
+                <Clock className="w-3 h-3 text-red-400/70" />
+              </div>
+              <h2 className="text-base font-medium text-stone-300 tracking-wide">继续游戏</h2>
               <span className="text-xs text-[var(--text-muted)] ml-auto">{localSaves.length} 个存档</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -484,8 +555,10 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
         {/* 探索新世界 */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <Gamepad2 className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+            <div className="w-5 h-5 rounded bg-emerald-950/40 border border-emerald-900/30 flex items-center justify-center">
+              <Gamepad2 className="w-3 h-3 text-emerald-400/70" />
+            </div>
+            <h2 className="text-base font-medium text-stone-300 tracking-wide">
               {localSaves.length > 0 ? '探索新世界' : '开始冒险'}
             </h2>
           </div>
@@ -498,8 +571,8 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 onClick={() => setGenreFilter(genre)}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                   genreFilter === genre
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/40 shadow-sm shadow-[var(--accent)]/10'
-                    : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-red-950/40 text-red-400 border border-red-900/40'
+                    : 'bg-stone-900/60 text-stone-500 border border-stone-800 hover:bg-stone-800/60 hover:text-stone-300'
                 }`}
               >
                 {genre}
@@ -807,6 +880,143 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 <p className="text-xs text-[var(--text-muted)] mt-1">正在根据你的创意构思世界观、剧情和规则</p>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 外观设置弹窗 */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Settings className="w-4 h-4 text-[var(--accent)]" />
+              外观设置
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
+            {/* —— 主题风格 —— */}
+            <div>
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
+                主题风格
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {THEMES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setThemeId(t.id)}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
+                      themeId === t.id
+                        ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm'
+                        : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-stone-600 hover:bg-stone-800/50'
+                    )}
+                  >
+                    <span className="text-lg">{t.icon}</span>
+                    <span className={cn(
+                      'text-[10px] font-medium',
+                      themeId === t.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
+                    )}>
+                      {t.name}
+                    </span>
+                  </button>
+                ))}
+                {/* 自定义 */}
+                <button
+                  onClick={() => setThemeId('custom')}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all duration-200',
+                    themeId === 'custom'
+                      ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm'
+                      : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-stone-600 hover:bg-stone-800/50'
+                  )}
+                >
+                  <span className="text-lg">🎨</span>
+                  <span className={cn(
+                    'text-[10px] font-medium',
+                    themeId === 'custom' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
+                  )}>
+                    自定义
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* —— 自定义主题 —— */}
+            {themeId === 'custom' && (
+              <div className="space-y-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
+                <div>
+                  <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-semibold">背景色阶</p>
+                  <div className="flex gap-1.5">
+                    {(['dark', 'medium', 'light'] as const).map((shade) => (
+                      <button
+                        key={shade}
+                        onClick={() => setCustomThemeColors(prev => ({ ...prev, bgShade: shade }))}
+                        className={cn(
+                          'flex-1 text-[11px] py-1.5 rounded-md border transition-all',
+                          customThemeColors.bgShade === shade
+                            ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-[var(--accent)]'
+                            : 'border-[var(--border)] text-[var(--text-muted)] hover:border-stone-600'
+                        )}
+                      >
+                        {shade === 'dark' ? '暗色' : shade === 'medium' ? '中调' : '亮色'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-semibold">强调色</p>
+                  <div className="flex gap-1.5">
+                    {[
+                      { id: 'amber', label: '琥珀' },
+                      { id: 'cyan', label: '青蓝' },
+                      { id: 'emerald', label: '翠绿' },
+                      { id: 'purple', label: '紫韵' },
+                      { id: 'gold', label: '赤金' },
+                      { id: 'blue', label: '湛蓝' },
+                    ].map((ac) => (
+                      <button
+                        key={ac.id}
+                        onClick={() => setCustomThemeColors(prev => ({ ...prev, accentColor: ac.id as 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue' }))}
+                        className={cn(
+                          'flex-1 text-[11px] py-1.5 rounded-md border transition-all',
+                          customThemeColors.accentColor === ac.id
+                            ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-[var(--accent)]'
+                            : 'border-[var(--border)] text-[var(--text-muted)] hover:border-stone-600'
+                        )}
+                      >
+                        {ac.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* —— 字体选择 —— */}
+            <div>
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2.5 font-semibold">
+                字体样式
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {FONTS.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setFontId(f.id)}
+                    className={cn(
+                      'flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border transition-all duration-200',
+                      fontId === f.id
+                        ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] shadow-sm'
+                        : 'border-[var(--border)] bg-[var(--bg-card)] hover:border-stone-600 hover:bg-stone-800/50'
+                    )}
+                  >
+                    <span className="text-xs font-medium" style={fontId === f.id ? { color: 'var(--accent)' } : { color: 'var(--text-secondary)' }}>
+                      {f.name}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-muted)]">Aa 天地玄黄</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

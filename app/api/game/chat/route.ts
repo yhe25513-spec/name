@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         aiConfig.temperature,
         aiConfig.max_tokens
       )
-    } else if (['openai', 'anthropic', 'openrouter', 'ollama', 'custom'].includes(aiConfig.provider)) {
+    } else if (['openai', 'anthropic', 'openrouter', 'ollama', 'siliconflow', 'custom'].includes(aiConfig.provider)) {
       // 确定 base URL
       let baseUrl = aiConfig.api_base_url
       if (!baseUrl) {
