@@ -53,7 +53,7 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
               key={i}
               onClick={() => handleOptionClick(option)}
               disabled={isLoading}
-              className="text-xs px-4 py-2 sm:py-1.5 rounded-full transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+              className="text-xs px-4 py-2 sm:py-1.5 rounded-full transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex items-center gap-2"
               style={{
                 background: 'linear-gradient(180deg, var(--accent-soft), rgba(20,241,198,0.04))',
                 border: '1px solid var(--accent2)',
@@ -70,6 +70,10 @@ export function InputArea({ onSubmit, isLoading, quickOptions }: InputAreaProps)
                 e.currentTarget.style.boxShadow = 'inset 0 1px rgba(255,255,255,0.08), var(--glow)'
               }}
             >
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold flex-shrink-0"
+                style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                {i + 1}
+              </span>
               {option}
             </button>
           ))}

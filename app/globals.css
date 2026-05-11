@@ -131,3 +131,38 @@
     @apply font-sans;
   }
 }
+
+/* 氛围背景光 — body::before / ::after */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(20,241,198,.10), transparent 38%),
+    radial-gradient(circle at 85% 5%, rgba(59,130,246,.10), transparent 32%),
+    radial-gradient(circle at 50% 90%, rgba(94,234,212,.06), transparent 45%),
+    radial-gradient(circle at 30% 60%, rgba(139,92,246,.05), transparent 50%);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(20,241,198,.04) 0%, transparent 60%);
+}
+
+/* 打字弹跳动画 */
+@keyframes typing-bounce {
+  0%, 100% { opacity: .3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-5px); }
+}
+
+/* 粒子漂浮 */
+@keyframes particle-float {
+  0% { opacity: .8; transform: translateY(0) translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-160px) translateX(24px) scale(0); }
+}

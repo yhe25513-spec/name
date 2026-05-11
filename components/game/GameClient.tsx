@@ -74,6 +74,8 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     accentColor: 'amber',
   })
   const hasStartedRef = useRef(false)
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const [mobileDrawerTab, setMobileDrawerTab] = useState<'stats'|'inventory'>('stats')
 
   // Canvas 采样分析图片平均亮度（WCAG 相对亮度加权）
   function analyzeImageBrightness(url: string): Promise<number> {
@@ -311,6 +313,43 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       setIsStreaming(false)
     }
   }, [isStreaming, messages, state, turnCount, saveId, scenario, isSandbox])
+
+  // 键盘快捷键
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileDrawerOpen(false)
+      if (isStreaming || quickOptions.length === 0) return
+      const n = parseInt(e.key)
+      if (n >= 1 && n <= 9 && n <= quickOptions.length) {
+        const option = quickOptions[n - 1]
+        if (option) handleOptionClick(option)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isStreaming, quickOptions])
+
+  function handleOptionClick(option: string) {
+    sendMessage(option)
+  }
+
+  // 粒子特效
+  function spawnParticles(x: number, y: number) {
+    for (let i = 0; i < 10; i++) {
+      const p = document.createElement('div')
+      p.className = 'fixed pointer-events-none z-50 w-1 h-1 rounded-full'
+      p.style.cssText = `
+        left: ${x + (Math.random() - 0.5) * 120}px;
+        top: ${y + (Math.random() - 0.5) * 40}px;
+        background: var(--accent);
+        opacity: 0.8;
+        animation: particle-float ${2 + Math.random() * 3}s ease-out forwards;
+        animation-delay: ${Math.random() * 0.4}s;
+      `
+      document.body.appendChild(p)
+      setTimeout(() => p.remove(), 4000)
+    }
+  }
 
   // 第一回合自动触发开场
   useEffect(() => {
@@ -746,6 +785,141 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         <div className="hidden lg:block">
           <SidePanel state={state} turnCount={turnCount} hasBgImage={!!bgImageUrl} />
         </div>
+      </div>
+
+      {/* 移动端底部 Tab 栏 */}
+      <nav className="lg:hidden flex-shrink-0 relative z-20 flex items-center justify-around pb-[env(safe-area-inset-bottom,0px)]"
+        style={{
+          backgroundColor: 'var(--glass-bg)',
+          backdropFilter: 'blur(var(--glass-blur, 20px))',
+          WebkitBackdropFilter: 'blur(var(--glass-blur, 20px))',
+          borderTop: '1px solid var(--glass-border)',
+        }}>
+        {[
+          { label: '冒险', icon: '📜', action: () => router.push('/game') },
+          { label: '状态', icon: '👤', action: () => { setMobileDrawerTab('stats'); setMobileDrawerOpen(true) } },
+          { label: '故事', icon: '📖', action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+          { label: '背包', icon: '🎒', action: () => { setMobileDrawerTab('inventory'); setMobileDrawerOpen(true) } },
+          { label: '选项', icon: '⚡', action: () => document.querySelector('.flex.flex-wrap.gap-1\\.5')?.scrollIntoView({ behavior: 'smooth' }) },
+        ].map((tab, i) => (
+          <button
+            key={i}
+            onClick={tab.action}
+            className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors active:scale-90"
+            style={{ color: 'var(--text-sub)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-sub)' }}
+          >
+            <span className="text-lg">{tab.icon}</span>
+            <span className="text-[10px]">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* 移动端抽屉遮罩 */}
+      <div
+        className={cn(
+          'lg:hidden fixed inset-0 z-30 bg-black/50 transition-opacity duration-300',
+          mobileDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+        onClick={() => setMobileDrawerOpen(false)}
+      />
+
+      {/* 移动端抽屉面板 */}
+      <div
+        className={cn(
+          'lg:hidden fixed bottom-0 left-0 right-0 z-40 max-h-[70vh] overflow-y-auto rounded-t-2xl transition-transform duration-300 ease-out',
+          mobileDrawerOpen ? 'translate-y-0' : 'translate-y-full'
+        )}
+        style={{
+          backgroundColor: 'var(--bg-panel)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          border: '1px solid var(--glass-border)',
+          boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-9 h-1 rounded-full" style={{ backgroundColor: 'var(--border)' }} />
+        </div>
+        <div className="p-4">
+          {mobileDrawerTab === 'stats' ? (
+            <div className="space-y-3">
+              <div className="rounded-xl p-3.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--card-shadow)' }}>
+                <div className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>角色状态</div>
+                <StatRow label="姓名" value={state.playerName || '—'} />
+                <StatRow label="境界" value={state.realm || '—'} accent />
+                <StatRow label="灵根" value={state.spiritRoot || '—'} />
+                <StatBarRow label="HP" value={state.hp} max={state.maxHp} cls="hp" />
+                <StatBarRow label="EXP" value={state.exp || 0} max={state.maxExp || 100} cls="exp" />
+              </div>
+              {Object.keys(state.attributes).length > 0 && (
+                <div className="rounded-xl p-3.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--card-shadow)' }}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>属性</div>
+                  {Object.entries(state.attributes).map(([key, val]) => (
+                    <StatRow key={key} label={key} value={String(val)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl p-3.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--card-shadow)' }}>
+              <div className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>背包</div>
+              {state.inventory.length === 0 ? (
+                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>空无一物</p>
+              ) : (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {state.inventory.map((item, i) => {
+                    const isRare = item.includes('丹') || item.includes('符')
+                    const isEpic = item.includes('破境') || item.includes('护身')
+                    return (
+                      <div key={i} className="aspect-square rounded-md flex items-center justify-center text-sm relative"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: isEpic ? '1px solid rgba(139,92,246,.35)' : isRare ? '1px solid rgba(59,130,246,.25)' : '1px solid var(--border)',
+                          boxShadow: isEpic ? '0 0 10px rgba(139,92,246,.15)' : isRare ? '0 0 8px rgba(59,130,246,.1)' : 'none',
+                        }}>
+                        <span className="text-xs text-center leading-tight px-0.5" style={{ color: 'var(--text-primary)' }}>
+                          {item.length > 3 ? item.slice(0, 3) : item}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* 抽屉内小组件 */
+function StatRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="text-xs font-semibold" style={{ color: accent ? 'var(--accent)' : 'var(--text-primary)' }}>{value}</span>
+    </div>
+  )
+}
+
+function StatBarRow({ label, value, max, cls }: { label: string; value: number; max: number; cls: string }) {
+  const pct = Math.round((value / max) * 100)
+  const fills: Record<string, string> = {
+    hp: 'linear-gradient(90deg, #14f1c6, #5eead4)',
+    exp: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
+  }
+  return (
+    <div className="mt-3">
+      <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
+        <span>{label}</span><span>{value}/{max}</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <div className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: fills[cls] || 'var(--accent)', boxShadow: `0 0 8px ${cls === 'hp' ? 'rgba(20,241,198,.3)' : 'rgba(245,158,11,.3)'}` }} />
       </div>
     </div>
   )

@@ -68,6 +68,14 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
           WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 15%, black 50%, transparent 85%, black 100%)',
         }}
       />
+      {/* 故事纹理覆盖 */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.008) 2px, rgba(255,255,255,.008) 4px)',
+          opacity: 0.5,
+        }}
+      />
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-1">
         {/* 开场占位 */}
@@ -199,9 +207,12 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 py-2" style={{ color: 'var(--text-muted)' }}>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span className="text-xs tracking-wider">编织叙事中</span>
+                  <div className="flex items-center gap-2 py-2" style={{ color: 'var(--text-muted)' }}>
+                    <span className="flex gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full animate-[typing-bounce_0.7s_infinite_ease-in-out]" style={{ backgroundColor: 'var(--accent)' }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-[typing-bounce_0.7s_0.15s_infinite_ease-in-out]" style={{ backgroundColor: 'var(--accent)' }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-[typing-bounce_0.7s_0.3s_infinite_ease-in-out]" style={{ backgroundColor: 'var(--accent)' }} />
+                    </span>
                   </div>
                 )}
               </div>

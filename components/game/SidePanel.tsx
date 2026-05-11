@@ -1,10 +1,8 @@
 'use client'
 
 import { GameState } from '@/lib/types'
-import { Heart, Package, MapPin, Swords, Star, Shield } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Heart, Package, MapPin, Swords, Star } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
 
 interface SidePanelProps {
   state: GameState
@@ -17,7 +15,7 @@ export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelPro
 
   return (
     <div
-      className="w-64 flex-shrink-0 flex flex-col relative"
+      className="w-80 flex-shrink-0 flex flex-col relative"
       style={{
         backgroundColor: 'var(--glass-bg)',
         backdropFilter: `blur(var(--glass-blur, 20px))`,
@@ -122,35 +120,38 @@ export function SidePanel({ state, turnCount, hasBgImage = false }: SidePanelPro
             {state.inventory.length === 0 ? (
               <p className="text-[11px] italic px-0.5" style={{ color: 'var(--text-muted)' }}>空无一物</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {state.inventory.map((item, i) => (
-                  <Badge
-                    key={i}
-                    variant="outline"
-                    className={cn(
-                      'text-[10px] transition-all duration-150 cursor-default',
-                      'hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)]',
-                    )}
-                    style={{
-                      borderColor: 'var(--border)',
-                      color: 'var(--text-secondary)',
-                      backgroundColor: 'var(--bg-card)',
-                    }}
-                  >
-                    {item}
-                  </Badge>
-                ))}
+              <div className="grid grid-cols-4 gap-1.5">
+                {state.inventory.map((item, i) => {
+                  const isRare = item.includes('丹') || item.includes('符')
+                  const isEpic = item.includes('破境') || item.includes('护身')
+                  return (
+                    <div
+                      key={i}
+                      className="aspect-square rounded-md flex items-center justify-center text-lg cursor-default transition-all duration-200 hover:scale-105 relative"
+                      style={{
+                        backgroundColor: 'var(--bg-card)',
+                        border: isEpic ? '1px solid rgba(139,92,246,.35)' : isRare ? '1px solid rgba(59,130,246,.25)' : '1px solid var(--border)',
+                        boxShadow: isEpic ? '0 0 10px rgba(139,92,246,.15)' : isRare ? '0 0 8px rgba(59,130,246,.1)' : 'none',
+                      }}
+                      title={item}
+                    >
+                      <span className="text-xs text-center leading-tight px-0.5" style={{ color: 'var(--text-primary)' }}>
+                        {item.length > 3 ? item.slice(0, 3) : item}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
 
           {/* 底部回合标记 */}
-          <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-center gap-2">
-              <Shield className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-              <span className="text-[10px] tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>第 {turnCount} 回合</span>
-              <Shield className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-            </div>
+          <div className="pt-2 text-center" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="text-[10px] tracking-widest uppercase mb-2" style={{ color: 'var(--text-muted)' }}>回合数</div>
+            <div className="text-4xl font-bold tabular-nums" style={{
+              color: 'var(--accent)',
+              textShadow: '0 0 20px var(--glow-accent), 0 0 40px var(--glow-accent)',
+            }}>{String(turnCount).padStart(2, '0')}</div>
           </div>
         </div>
       </ScrollArea>
