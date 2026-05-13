@@ -132,6 +132,182 @@
   }
 }
 
+/* ============================================================
+   GAME UI DESIGN SYSTEM — app-shell / tokens / panels
+   ============================================================ */
+
+/* Layout tokens */
+:root {
+  --game-topbar-h: 64px;
+  --game-sidebar-w: 240px;
+  --game-status-w: 340px;
+  --game-space-1: 8px;
+  --game-space-2: 12px;
+  --game-space-3: 16px;
+  --game-space-4: 24px;
+  --game-space-5: 32px;
+  --game-radius-sm: 10px;
+  --game-radius-md: 14px;
+  --game-radius-lg: 18px;
+  --game-radius-xl: 22px;
+}
+
+/* Game app-shell grid — 无 padding/gap，用内部 border 分割 */
+.game-shell {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: var(--game-sidebar-w) 1fr var(--game-status-w);
+  grid-template-rows: var(--game-topbar-h) 1fr;
+  position: relative;
+  z-index: 1;
+}
+
+/* Scenario hall — 3‑column centered layout */
+.game-shell--hall {
+  --game-status-w: 280px;
+  grid-template-columns: var(--game-sidebar-w) 1fr var(--game-status-w);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Game panels — shared glass surface */
+.game-panel {
+  background: var(--glass-bg, rgba(17,24,39,.72));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+  border: 1px solid var(--glass-border, rgba(255,255,255,.06));
+  border-radius: var(--game-radius-md, 14px);
+  box-shadow: var(--shadow, 0 10px 40px rgba(0,0,0,.45));
+}
+
+/* Story panel — visual focus with accent glow */
+.game-panel-story {
+  composes: game-panel;
+  border-color: rgba(20,241,198,.12);
+  box-shadow: 0 0 40px rgba(20,241,198,.06), var(--shadow, 0 10px 40px rgba(0,0,0,.45));
+}
+
+/* Sidebar */
+.game-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  border-right: 1px solid var(--glass-border, rgba(255,255,255,.06));
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--game-space-2);
+}
+
+/* Main content */
+.game-main {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--game-space-2);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Hall page — needs scroll because no internal scroll container */
+.game-main--scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Status panel */
+.game-status {
+  grid-column: 3;
+  grid-row: 2;
+  border-left: 1px solid var(--glass-border, rgba(255,255,255,.06));
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--game-space-2);
+  padding: var(--game-space-3);
+}
+
+/* Adventure card */
+.game-adventure-card {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--game-radius-lg, 18px);
+  background: var(--glass-bg, rgba(17,24,39,.72));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+  border: 1px solid var(--glass-border, rgba(255,255,255,.06));
+  box-shadow: var(--card-shadow, 0 10px 40px rgba(0,0,0,.45)), inset 0 1px rgba(255,255,255,.03);
+  cursor: pointer;
+  transition: all .28s ease-out;
+}
+.game-adventure-card:hover {
+  border-color: rgba(255,255,255,.12);
+  transform: translateY(-1px);
+}
+.game-adventure-card.active {
+  border-color: var(--accent, #14f1c6);
+  box-shadow: 0 0 30px rgba(20,241,198,.15), var(--card-shadow, 0 10px 40px rgba(0,0,0,.45));
+}
+
+/* HUD panel */
+.game-hud-panel {
+  background: var(--glass-bg, rgba(17,24,39,.72));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+  border: 1px solid var(--glass-border, rgba(255,255,255,.06));
+  border-radius: var(--game-radius-lg, 18px);
+  box-shadow: var(--card-shadow, 0 10px 40px rgba(0,0,0,.45));
+  padding: var(--game-space-3, 16px);
+}
+
+/* Scrollbar — dark minimal */
+.game-scrollbar::-webkit-scrollbar { width: 4px }
+.game-scrollbar::-webkit-scrollbar-track { background: transparent }
+.game-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px }
+
+/* Mobile bottom tab — hidden by default, shown on mobile */
+.game-bottom-tab {
+  display: none;
+}
+
+/* Mobile drawer — hidden by default */
+.game-drawer-overlay {
+  display: none;
+}
+.game-drawer {
+  display: none;
+}
+
+/* ============================================================
+   MOBILE (≤768px)
+   ============================================================ */
+@media (max-width: 768px) {
+  .game-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    height: 100vh;
+  }
+  .game-sidebar { display: none }
+  .game-status { display: none }
+  .game-main { flex: 1; gap: 0 }
+  .game-bottom-tab { display: flex }
+  .game-drawer-overlay { display: block }
+  .game-drawer { display: block }
+}
+
+@media (min-width: 769px) {
+  .game-bottom-tab { display: none !important }
+  .game-drawer-overlay { display: none !important }
+  .game-drawer { display: none !important }
+}
+
 /* 氛围背景光 — body::before / ::after */
 body::before {
   content: "";
@@ -165,4 +341,16 @@ body::after {
 @keyframes particle-float {
   0% { opacity: .8; transform: translateY(0) translateX(0) scale(1); }
   100% { opacity: 0; transform: translateY(-160px) translateX(24px) scale(0); }
+}
+
+/* Portal card glow pulse */
+@keyframes portal-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--glow-accent, rgba(20,241,198,0.08)); }
+  50% { box-shadow: 0 0 24px var(--glow-accent, rgba(20,241,198,0.2)); }
+}
+
+/* Shimmer decoration */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }

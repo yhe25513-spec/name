@@ -8,6 +8,8 @@ import { StatusBar } from './StatusBar'
 import { ChatArea } from './ChatArea'
 import { InputArea } from './InputArea'
 import { SidePanel } from './SidePanel'
+import { Sidebar } from './Sidebar'
+import { Topbar } from './Topbar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -15,7 +17,8 @@ import { ArrowLeft, Save, CheckCircle, ImageIcon, X, Sparkles } from 'lucide-rea
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
-import { getTheme, FONTS, buildCustomThemeCss } from '@/lib/themes'
+import { getTheme, FONTS, buildCustomThemeCss, THEMES } from '@/lib/themes'
+import type { CustomThemeColors } from '@/lib/themes'
 
 interface GameClientProps {
   initialSave: GameSave
@@ -63,16 +66,16 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [bgImageUrl, setBgImageUrl] = useState('')
-  const [showBgDialog, setShowBgDialog] = useState(false)
+  const [showGameSettings, setShowGameSettings] = useState(false)
   const [bgInputUrl, setBgInputUrl] = useState('')
   const [bgOpacity, setBgOpacity] = useState(0.30)
   const [bgBrightness, setBgBrightness] = useState(0.5) // 0=暗 1=亮
-  const [themeId, setThemeId] = useState('dark')
-  const [fontId, setFontId] = useState('sans')
-  const [customThemeColors, setCustomThemeColors] = useState<{ bgShade: 'dark' | 'medium' | 'light'; accentColor: 'amber' | 'cyan' | 'emerald' | 'purple' | 'gold' | 'blue' }>({
+  const [customThemeColors, setCustomThemeColors] = useState<CustomThemeColors>({
     bgShade: 'dark',
     accentColor: 'amber',
   })
+  const [themeId, setThemeId] = useState('dark')
+  const [fontId, setFontId] = useState('sans')
   const hasStartedRef = useRef(false)
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [mobileDrawerTab, setMobileDrawerTab] = useState<'stats'|'inventory'>('stats')
@@ -105,12 +108,29 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     })
   }
 
-  // 从 localStorage 加载背景图片（每个玩家独立）、主题、字体、自定义主题
+  // 从 localStorage 加载存档独立的背景图片 + 主题
   useEffect(() => {
-    const saved = localStorage.getItem('game-bg-image')
-    if (saved) {
-      setBgImageUrl(saved)
-      analyzeImageBrightness(saved).then(setBgBrightness)
+    const bgKey = `game-bg-image-${saveId}`
+    // 优先加载玩家为此存档自定义的背景
+    let customBg = localStorage.getItem(bgKey)
+    // 迁移旧全局 key → 当前存档独立 key（仅一次），迁移完即删除旧 key
+    const oldGlobal = localStorage.getItem('game-bg-image')
+    if (!customBg && oldGlobal) {
+      try {
+        localStorage.setItem(bgKey, oldGlobal)
+      } catch {
+        // 超出配额则仅本次会话使用
+      }
+      customBg = oldGlobal
+      localStorage.removeItem('game-bg-image')
+    }
+    if (customBg) {
+      setBgImageUrl(customBg)
+      analyzeImageBrightness(customBg).then(setBgBrightness)
+    } else if (scenario?.background_image_url) {
+      // 没有自定义背景时，使用场景预设背景作为默认
+      setBgImageUrl(scenario.background_image_url)
+      analyzeImageBrightness(scenario.background_image_url).then(setBgBrightness)
     }
     const savedTheme = localStorage.getItem('game-theme')
     if (savedTheme) setThemeId(savedTheme)
@@ -147,21 +167,37 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
 
   function handleBgImageSave() {
     const url = bgInputUrl.trim()
+    const bgKey = `game-bg-image-${saveId}`
     if (!url) {
-      localStorage.removeItem('game-bg-image')
-      setBgImageUrl('')
+      localStorage.removeItem(bgKey)
+      // 清除后回退到场景预设背景
+      setBgImageUrl(scenario?.background_image_url || '')
+      if (scenario?.background_image_url) {
+        analyzeImageBrightness(scenario.background_image_url).then(setBgBrightness)
+      }
     } else {
-      localStorage.setItem('game-bg-image', url)
+      try {
+        localStorage.setItem(bgKey, url)
+      } catch {
+        toast.error('图片太大，无法保存到本地缓存')
+      }
       setBgImageUrl(url)
     }
-    setShowBgDialog(false)
+    setShowGameSettings(false)
   }
 
   function handleBgImageClear() {
-    localStorage.removeItem('game-bg-image')
-    setBgImageUrl('')
-    setBgInputUrl('')
-    setShowBgDialog(false)
+    const bgKey = `game-bg-image-${saveId}`
+    localStorage.removeItem(bgKey)
+    // 清除后回退到场景预设背景
+    setBgImageUrl(scenario?.background_image_url || '')
+    if (scenario?.background_image_url) {
+      analyzeImageBrightness(scenario.background_image_url).then(setBgBrightness)
+    } else {
+      setBgBrightness(0.5)
+    }
+    setBgInputUrl(scenario?.background_image_url || '')
+    setShowGameSettings(false)
   }
 
   const atmosphere = atmosphereHint || 'normal'
@@ -508,7 +544,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
 
   return (
     <div
-        className="h-screen flex flex-col relative overflow-hidden"
+        className="game-shell"
         style={{ ...currentTheme.css, backgroundColor: 'var(--bg-primary)', fontFamily: selectedFont.cssVar } as React.CSSProperties}>
       {/* 氛围边缘辉光 */}
       <div
@@ -552,6 +588,23 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         />
       )}
 
+      {/* 默认背景 — 无自定义/场景背景时的 cultuvation 主题底纹 */}
+      {!bgImageUrl && (
+        <div
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            background: [
+              'radial-gradient(ellipse at 20% 30%, rgba(20,241,198,0.05) 0%, transparent 55%)',
+              'radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.04) 0%, transparent 50%)',
+              'radial-gradient(ellipse at 50% 80%, rgba(94,234,212,0.03) 0%, transparent 45%)',
+              'radial-gradient(ellipse at 30% 60%, rgba(59,130,246,0.03) 0%, transparent 40%)',
+              'repeating-linear-gradient(0deg, transparent, transparent 38px, rgba(255,255,255,0.007) 38px, rgba(255,255,255,0.007) 39px)',
+              'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(255,255,255,0.007) 38px, rgba(255,255,255,0.007) 39px)',
+            ].join(','),
+          }}
+        />
+      )}
+
       {/* 自适应暗色叠加层 — 根据图片亮度自动调节，图片始终清晰，暗层保护文字可读 */}
       {bgImageUrl && (
         <div
@@ -572,219 +625,214 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         }}
       />
 
-      {/* 顶栏 */}
-      <div className="relative z-10 flex items-center gap-2 px-3 py-2 flex-shrink-0"
-        style={{
-          backgroundColor: 'var(--glass-bg)',
-          backdropFilter: 'blur(var(--glass-blur, 20px))',
-          WebkitBackdropFilter: 'blur(var(--glass-blur, 20px))',
-          borderBottom: '1px solid var(--glass-border)',
-        }}>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push('/game')}
-          className="text-[var(--text-muted)] hover:text-[var(--text-primary)] h-8 px-2"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          返回
-        </Button>
+      {/* 顶栏 (grid span all columns) */}
+      <Topbar
+        scenarioTitle={scenario.title}
+        avatarLetter={(state.playerName || 'Z')[0].toUpperCase()}
+        onBack={() => router.push('/game')}
+        onOpenDrawer={(tab) => { setMobileDrawerTab(tab); setMobileDrawerOpen(true) }}
+        onSettingsClick={() => { setShowGameSettings(true); setBgInputUrl(bgImageUrl) }}
+      />
 
-        {/* 氛围指示器 */}
-        <div className="hidden sm:flex items-center gap-1.5">
-          <span
-            className={cn(
-              'w-1.5 h-1.5 rounded-full transition-colors duration-500',
-              atmosphere === 'danger' && 'bg-red-400 shadow-[0_0_6px_rgba(220,38,38,0.6)]',
-              atmosphere === 'mystery' && 'bg-purple-400 shadow-[0_0_6px_rgba(147,51,234,0.6)]',
-              atmosphere === 'triumph' && 'bg-amber-400 shadow-[0_0_6px_rgba(217,119,6,0.6)]',
-              atmosphere === 'normal' && 'bg-zinc-500'
-            )}
-          />
-          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
-            {atmosphere === 'danger' && '危险'}
-            {atmosphere === 'mystery' && '神秘'}
-            {atmosphere === 'triumph' && '凯旋'}
-            {atmosphere === 'normal' && '平静'}
-          </span>
+      {/* PC 左侧边栏 — grid-column: 1 */}
+      <div className="hidden lg:block">
+        <Sidebar
+          saves={[{ id: saveId, scenario, current_state: state, turn_count: turnCount }]}
+          currentSaveId={saveId}
+          onSelect={(id) => router.push(`/game/${id}`)}
+          onNew={() => router.push('/game')}
+        />
+      </div>
+
+      {/* 主区域 — grid-column: 2 */}
+      <main className="game-main" style={{ position: 'relative', zIndex: 10 }}>
+        {/* 游戏控制栏 — 氛围 + 背景设置 + 保存 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, padding: '0 var(--game-space-1)' }}>
+          {/* 氛围指示器 */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <span
+              className={cn(
+                'w-1.5 h-1.5 rounded-full transition-colors duration-500',
+                atmosphere === 'danger' && 'bg-red-400 shadow-[0_0_6px_rgba(220,38,38,0.6)]',
+                atmosphere === 'mystery' && 'bg-purple-400 shadow-[0_0_6px_rgba(147,51,234,0.6)]',
+                atmosphere === 'triumph' && 'bg-amber-400 shadow-[0_0_6px_rgba(217,119,6,0.6)]',
+                atmosphere === 'normal' && 'bg-zinc-500'
+              )}
+            />
+            <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+              {atmosphere === 'danger' && '危险'}
+              {atmosphere === 'mystery' && '神秘'}
+              {atmosphere === 'triumph' && '凯旋'}
+              {atmosphere === 'normal' && '平静'}
+            </span>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* 游戏设置（背景 + 主题 + 字体） */}
+          <Dialog open={showGameSettings} onOpenChange={setShowGameSettings}>
+            <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+                  游戏设置
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-5 pt-2 max-h-[70vh] overflow-y-auto">
+                {/* ─── 背景图片 ─── */}
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">背景图片</h4>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input id="bg-upload" type="file" accept="image/*" className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast.error('图片太大了', { description: '请选择 5MB 以下的图片' })
+                            return
+                          }
+                          const reader = new FileReader()
+                          reader.onload = (ev) => { setBgInputUrl(ev.target?.result as string) }
+                          reader.readAsDataURL(file)
+                        }}
+                      />
+                      <label htmlFor="bg-upload"
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-[var(--border)]
+                          hover:border-[var(--accent)]/40 cursor-pointer transition-all text-xs text-[var(--text-muted)] hover:text-[var(--accent)]"
+                      >
+                        <ImageIcon className="w-4 h-4" />上传背景图片
+                      </label>
+                    </div>
+                    <Input value={bgInputUrl} onChange={e => setBgInputUrl(e.target.value)}
+                      placeholder="或输入图片 URL..."
+                      className="bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)] h-8"
+                    />
+                    {(bgImageUrl || bgInputUrl) && (
+                      <div className="relative rounded-lg overflow-hidden border border-[var(--border)] h-16">
+                        <img src={bgInputUrl || bgImageUrl} alt="预览" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[var(--text-muted)]">浓度</span>
+                      <input type="range" min="5" max="70" value={Math.round(bgOpacity * 100)}
+                        onChange={e => setBgOpacity(Number(e.target.value) / 100)}
+                        className="flex-1 h-1 bg-[var(--border)] rounded-full appearance-none cursor-pointer
+                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--accent)]"
+                      />
+                      <span className="text-xs text-[var(--text-muted)] w-8 text-right">{Math.round(bgOpacity * 100)}%</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleBgImageClear} variant="outline" size="sm"
+                        className="border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] h-7 text-[10px]"
+                      ><X className="w-3 h-3 mr-1" />清除</Button>
+                      <Button onClick={handleBgImageSave} size="sm" disabled={!bgInputUrl.trim()}
+                        className="flex-1 h-7 text-[10px] bg-[var(--accent)] text-black hover:opacity-90 disabled:opacity-40"
+                      ><Sparkles className="w-3 h-3 mr-1" />应用</Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── 主题选择 ─── */}
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">主题</h4>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {THEMES.map(theme => (
+                      <button key={theme.id}
+                        onClick={() => {
+                          setThemeId(theme.id)
+                          localStorage.setItem('game-theme', theme.id)
+                          window.dispatchEvent(new Event('theme-change'))
+                        }}
+                        className="flex flex-col items-center gap-1 p-2 rounded-lg transition-all"
+                        style={{
+                          background: themeId === theme.id ? 'var(--accent-soft)' : 'rgba(255,255,255,.04)',
+                          border: themeId === theme.id ? '1px solid var(--accent)' : '1px solid var(--glass-border)',
+                          color: themeId === theme.id ? 'var(--accent)' : 'var(--text-sub, #94a3b8)',
+                        }}
+                      >
+                        <span className="text-lg">{theme.icon}</span>
+                        <span className="text-[9px] leading-tight text-center">{theme.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ─── 字体选择 ─── */}
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">字体</h4>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {FONTS.map(font => (
+                      <button key={font.id}
+                        onClick={() => {
+                          setFontId(font.id)
+                          localStorage.setItem('game-font', font.id)
+                          window.dispatchEvent(new Event('theme-change'))
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-xs"
+                        style={{
+                          background: fontId === font.id ? 'var(--accent-soft)' : 'rgba(255,255,255,.04)',
+                          border: fontId === font.id ? '1px solid var(--accent)' : '1px solid var(--glass-border)',
+                          color: fontId === font.id ? 'var(--accent)' : 'var(--text-sub, #94a3b8)',
+                          fontFamily: font.cssVar,
+                        }}
+                      >
+                        {font.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {!isSandbox && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleManualSave}
+              disabled={saving}
+              className={cn(
+                'h-7 px-2 text-[10px] transition-colors',
+                saveSuccess ? 'text-emerald-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              )}
+            >
+              {saveSuccess
+                ? <><CheckCircle className="w-3 h-3 mr-1" />已保存</>
+                : <><Save className="w-3 h-3 mr-1" />保存</>
+              }
+            </Button>
+          )}
+          {isSandbox && (
+            <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+              沙盒模式
+            </span>
+          )}
         </div>
 
-        <div className="flex-1" />
+        <ChatArea
+          messages={messages}
+          streamingText={streamingText}
+          isStreaming={isStreaming}
+          atmosphereHint={atmosphere}
+          hasBgImage={!!bgImageUrl}
+        />
+        <InputArea
+          onSubmit={sendMessage}
+          isLoading={isStreaming}
+          quickOptions={quickOptions}
+        />
+      </main>
 
-        {/* 背景图片设置 */}
-        <Dialog open={showBgDialog} onOpenChange={setShowBgDialog}>
-          <DialogTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'h-8 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors',
-                  bgImageUrl && 'text-[var(--accent)]'
-                )}
-              >
-                <ImageIcon className="w-3.5 h-3.5 mr-1" />
-                聊天背景
-              </Button>
-            }
-          />
-          <DialogContent className="bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="text-sm flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[var(--accent)]" />
-                聊天背景
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
-
-              {/* 本地上传 */}
-              <div className="relative">
-                <input
-                  id="bg-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    if (file.size > 5 * 1024 * 1024) {
-                      toast.error('图片太大了', { description: '请选择 5MB 以下的图片' })
-                      return
-                    }
-                    const reader = new FileReader()
-                    reader.onload = (ev) => {
-                      const dataUrl = ev.target?.result as string
-                      setBgInputUrl(dataUrl)
-                    }
-                    reader.readAsDataURL(file)
-                  }}
-                />
-                <label
-                  htmlFor="bg-upload"
-                  className="flex items-center justify-center gap-2 w-full py-5 rounded-lg border-2 border-dashed border-[var(--border)]
-                    hover:border-[var(--accent)]/40 hover:bg-[var(--accent-soft)] cursor-pointer transition-all duration-200
-                    text-[var(--text-muted)] hover:text-[var(--accent)]"
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  <span className="text-xs">上传背景图片</span>
-                </label>
-              </div>
-
-              {/* URL 输入 */}
-              <Input
-                value={bgInputUrl}
-                onChange={(e) => setBgInputUrl(e.target.value)}
-                placeholder="或输入图片 URL..."
-                className="bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)]"
-              />
-
-              {/* 预览 */}
-              {(bgImageUrl || bgInputUrl) && (
-                <div className="relative rounded-lg overflow-hidden border border-[var(--border)] h-20 group">
-                  <img
-                    src={bgInputUrl || bgImageUrl}
-                    alt="背景预览"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                </div>
-              )}
-
-              {/* 图片浓度（透明度） */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--text-muted)]">图片浓度</span>
-                <input
-                  type="range"
-                  min="5"
-                  max="70"
-                  value={Math.round(bgOpacity * 100)}
-                  onChange={(e) => setBgOpacity(Number(e.target.value) / 100)}
-                  className="flex-1 h-1.5 bg-[var(--border)] rounded-full appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5
-                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-500"
-                />
-                <span className="text-xs text-[var(--text-muted)] w-8 text-right">{Math.round(bgOpacity * 100)}%</span>
-              </div>
-
-              {/* 操作按钮 */}
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleBgImageClear}
-                  variant="outline"
-                  size="sm"
-                  className="border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  <X className="w-3.5 h-3.5 mr-1" />
-                  清除
-                </Button>
-                <Button
-                  onClick={handleBgImageSave}
-                  size="sm"
-                  disabled={!bgInputUrl.trim()}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-black disabled:opacity-40"
-                >
-                  <Sparkles className="w-3.5 h-3.5 mr-1" />
-                  应用背景
-                </Button>
-            </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {!isSandbox && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleManualSave}
-            disabled={saving}
-            className={cn(
-              'h-8 px-3 text-xs transition-colors',
-              saveSuccess ? 'text-emerald-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            )}
-          >
-            {saveSuccess
-              ? <><CheckCircle className="w-3.5 h-3.5 mr-1" />已保存</>
-              : <><Save className="w-3.5 h-3.5 mr-1" />保存</>
-            }
-          </Button>
-        )}
-        {isSandbox && (
-          <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
-            沙盒模式
-          </span>
-        )}
+      {/* PC 右侧状态面板 — grid-column: 3 */}
+      <div className="hidden lg:block">
+        <SidePanel state={state} turnCount={turnCount} hasBgImage={!!bgImageUrl} scenarioBgUrl={scenario.background_image_url} scenarioTitle={scenario.title} />
       </div>
 
       {/* 移动端状态栏 */}
-      <div className="lg:hidden flex-shrink-0 relative z-10">
+      <div className="lg:hidden" style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}>
         <StatusBar state={state} scenarioTitle={scenario.title} />
-      </div>
-
-      {/* 主区域 */}
-      <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* 对话区 */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <ChatArea
-            messages={messages}
-            streamingText={streamingText}
-            isStreaming={isStreaming}
-            atmosphereHint={atmosphere}
-            hasBgImage={!!bgImageUrl}
-          />
-          <InputArea
-            onSubmit={sendMessage}
-            isLoading={isStreaming}
-            quickOptions={quickOptions}
-          />
-        </div>
-
-        {/* PC 端侧边栏 */}
-        <div className="hidden lg:block">
-          <SidePanel state={state} turnCount={turnCount} hasBgImage={!!bgImageUrl} />
-        </div>
       </div>
 
       {/* 移动端底部 Tab 栏 */}

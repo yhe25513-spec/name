@@ -77,7 +77,7 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
         }}
       />
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-1">
+      <div className="relative max-w-5xl mx-auto px-4 md:px-8 lg:px-10 py-6 space-y-1">
         {/* 开场占位 */}
         {!hasContent && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
