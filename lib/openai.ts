@@ -110,7 +110,7 @@ export async function streamOpenAIChat(
   // 转换为标准流格式（与 DeepSeek 相同）
   return response.body.pipeThrough(new TransformStream({
     transform(chunk, controller) {
-      const text = new TextDecoder('utf-8', { stream: true }).decode(chunk)
+      const text = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions).decode(chunk)
       const lines = text.split('\n').filter(l => l.trim())
 
       for (const line of lines) {

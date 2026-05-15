@@ -293,7 +293,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       }
 
       const reader = res.body!.getReader()
-      const decoder = new TextDecoder('utf-8', { stream: true })
+      const decoder = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions)
       let fullText = ''
 
       while (true) {
@@ -454,7 +454,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       }
 
       const reader = res.body!.getReader()
-      const decoder = new TextDecoder('utf-8', { stream: true })
+      const decoder = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions)
       let fullText = ''
 
       while (true) {

@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
 
     const transformStream = new TransformStream({
       async transform(chunk, controller) {
-        const text = new TextDecoder('utf-8', { stream: true }).decode(chunk)
+        const text = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions).decode(chunk)
         const lines = text.split('\n').filter((l) => l.trim())
 
         for (const line of lines) {
