@@ -77,6 +77,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   const [themeId, setThemeId] = useState('dark')
   const [fontId, setFontId] = useState('sans')
   const hasStartedRef = useRef(false)
+  const pendingCharsRef = useRef('')
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [mobileDrawerTab, setMobileDrawerTab] = useState<'stats'|'inventory'>('stats')
 
@@ -269,6 +270,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     setMessages(prev => [...prev, openingMsg])
     setIsStreaming(true)
     setStreamingText('')
+    pendingCharsRef.current = ''
 
     try {
       const openingHistory = [...messages, openingMsg]
@@ -291,7 +293,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       }
 
       const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
+      const decoder = new TextDecoder('utf-8', { stream: true })
       let fullText = ''
 
       while (true) {
@@ -309,13 +311,19 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
               const parsed = JSON.parse(data)
               if (parsed.content) {
                 fullText += parsed.content
-                setStreamingText(fullText)
+                pendingCharsRef.current += parsed.content
               }
             } catch {
               // ignore
             }
           }
         }
+      }
+
+      // 刷新打字缓冲区剩余字符
+      if (pendingCharsRef.current) {
+        setStreamingText(prev => prev + pendingCharsRef.current)
+        pendingCharsRef.current = ''
       }
 
       const aiResponse = parseAIResponse(fullText)
@@ -365,6 +373,20 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     return () => window.removeEventListener('keydown', handler)
   }, [isStreaming, quickOptions])
 
+  // 打字机效果：逐字将待输出缓冲区的内容显示到 streamingText
+  useEffect(() => {
+    if (!isStreaming) return
+    const timer = setInterval(() => {
+      if (pendingCharsRef.current.length === 0) return
+      setStreamingText(prev => {
+        const next = prev + pendingCharsRef.current[0]
+        pendingCharsRef.current = pendingCharsRef.current.slice(1)
+        return next
+      })
+    }, 15)
+    return () => clearInterval(timer)
+  }, [isStreaming])
+
   function handleOptionClick(option: string) {
     sendMessage(option)
   }
@@ -410,6 +432,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     setMessages(updatedHistory)
     setIsStreaming(true)
     setStreamingText('')
+    pendingCharsRef.current = ''
 
     try {
       const res = await apiFetch('/api/game/chat', {
@@ -431,7 +454,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       }
 
       const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
+      const decoder = new TextDecoder('utf-8', { stream: true })
       let fullText = ''
 
       while (true) {
@@ -449,13 +472,19 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
               const parsed = JSON.parse(data)
               if (parsed.content) {
                 fullText += parsed.content
-                setStreamingText(fullText)
+                pendingCharsRef.current += parsed.content
               }
             } catch {
               // ignore
             }
           }
         }
+      }
+
+      // 刷新打字缓冲区剩余字符
+      if (pendingCharsRef.current) {
+        setStreamingText(prev => prev + pendingCharsRef.current)
+        pendingCharsRef.current = ''
       }
 
       // 解析 AI 响应
