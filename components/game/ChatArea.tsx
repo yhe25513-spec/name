@@ -42,15 +42,37 @@ const ATMOSPHERE_STYLES: Record<string, { bar: string; border: string; glow: str
 
 export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint = 'normal', hasBgImage = false }: ChatAreaProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const userScrolledRef = useRef(false)
   const as = ATMOSPHERE_STYLES[atmosphereHint]
   const hasContent = messages.length > 0 || isStreaming
 
+  // 检测用户手动滚动：如果距离底部超过 120px，认为用户在手动查看历史内容
   useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const onScroll = () => {
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+      userScrolledRef.current = distFromBottom > 120
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // 新消息（完整回合）到达时，无条件滚动到底部
+  useEffect(() => {
+    userScrolledRef.current = false
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingText])
+  }, [messages])
+
+  // 流式输出中，仅当用户没有手动上滚时才自动跟随
+  useEffect(() => {
+    if (userScrolledRef.current) return
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [streamingText])
 
   return (
-    <div className={cn(
+    <div ref={containerRef} className={cn(
       'flex-1 overflow-y-auto relative',
       'scrollbar-thin',
         '[&::-webkit-scrollbar-track]:bg-[var(--bg-primary)]',

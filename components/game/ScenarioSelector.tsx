@@ -23,10 +23,10 @@ interface ScenarioSelectorProps {
   userId?: string
 }
 
-// 类型检测（从标题/描述中提取关键词）
-function detectGenre(title = '', description = ''): string {
-  const text = title + description
-  if (/修仙|修真|筑基|金丹|元婴|炼气|修士|灵根|功法|渡劫/.test(text)) return '修仙修真'
+// 类型检测（从标题/描述/系统提示中提取关键词）
+function detectGenre(title = '', description = '', systemPrompt = ''): string {
+  const text = title + description + systemPrompt
+  if (/修仙|修真|仙侠|筑基|金丹|元婴|炼气|化神|大乘|修士|灵根|功法|渡劫|灵气|丹药|法宝|剑修|宗门|秘境|飞升|凡人/.test(text)) return '修仙修真'
   if (/末[日世]|废土|丧尸|辐射|生存|避难所/.test(text)) return '末日生存'
   if (/悬疑|解谜|侦探|推理|调查|线索|真相|阴谋/.test(text)) return '悬疑解谜'
   if (/科幻|星[际球]|飞船|机甲|未来|机械|赛博|AI|人工智能/.test(text)) return '科幻未来'
@@ -141,7 +141,7 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
   const { categorized, genreCounts } = useMemo(() => {
     const enriched = scenarios.map(s => ({
       ...s,
-      _genre: detectGenre(s.title, s.description),
+      _genre: detectGenre(s.title, s.description, (s as any).system_prompt),
     }))
 
     const counts: Record<string, number> = { '全部': enriched.length }
@@ -358,16 +358,20 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
   // 动态主题
   const currentPageTheme = getTheme(themeId)
 
-  return (
-    <div className="game-shell game-shell--hall" style={{
-      ...currentPageTheme.css,
-      color: 'var(--text-primary)',
-      backgroundColor: 'var(--bg-primary)',
-    }}>
+  // 将主题 CSS 变量写入 document.documentElement，确保全局可用
+  useEffect(() => {
+    const root = document.documentElement
+    Object.entries(currentPageTheme.css).forEach(([key, value]) => {
+      root.style.setProperty(key, value)
+    })
+    // 清理：组件卸载时不移除，因为切换到其他主题时会被覆盖
+  }, [themeId, customThemeColors])
 
+  return (
+    <div className="game-shell game-shell--hall">
       {/* ======================== TOPBAR ======================== */}
       <header
-        className="z-30 flex items-center gap-3 px-3 sm:px-4"
+        className="sticky top-0 z-30 flex items-center gap-3 px-3 sm:px-4"
         style={{
           gridColumn: '1 / -1',
           gridRow: 1,
@@ -853,7 +857,6 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                 const gc = getGenre(genre)
                 const state = scenario.initial_state as { hp?: number; maxHp?: number } | undefined
                 const bri = scenario.id && scenario.background_image_url ? imageBrightness[scenario.id] : undefined
-                const isLight = bri !== undefined && bri > 0.55
                 const hasImg = !!scenario.background_image_url && bri !== undefined
 
                 return (
@@ -865,29 +868,24 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                       backgroundColor: 'var(--bg-card)',
                       border: '1px solid var(--glass-border)',
                       boxShadow: 'var(--panel-shadow)',
-                      ...(hasImg ? {
-                        backgroundImage: `url(${scenario.background_image_url})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      } : {}),
                     }}
                     onClick={() => startNewGame(scenario)}
                   >
-                    {hasImg && (
-                      <div className={cn(
-                        'absolute inset-0',
-                        isLight ? 'bg-white/50' : 'bg-gradient-to-b from-black/60 via-black/40 to-black/80'
-                      )} />
-                    )}
-
-                    {!hasImg && (
-                      <>
-                        {/* Emoji 缩略图区域 */}
-                        <div
-                          className="relative h-28 md:h-40 flex items-center justify-center overflow-hidden"
-                          style={{ background: gc.thumbGradient }}
-                        >
-                          {/* 动态光晕 */}
+                    {/* 缩略图区 — 有图用图，无图用渐变 */}
+                    <div
+                      className="relative h-28 md:h-40 flex items-center justify-center overflow-hidden"
+                      style={{ background: hasImg ? undefined : gc.thumbGradient }}
+                    >
+                      {hasImg ? (
+                        <>
+                          <div
+                            className="absolute inset-0 bg-cover bg-center"
+                            style={{ backgroundImage: `url(${scenario.background_image_url})` }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)] to-transparent" />
+                        </>
+                      ) : (
+                        <>
                           <div
                             className="absolute w-32 h-32 md:w-40 md:h-40 rounded-full opacity-40"
                             style={{
@@ -904,74 +902,74 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                               background: 'linear-gradient(to top, var(--bg-primary) 0%, transparent 60%)',
                             }}
                           />
-                          {/* 流派标签 */}
-                          <span
-                            className="absolute top-3 left-3 text-[10px] md:text-xs px-3 py-1 rounded-lg font-semibold z-10 backdrop-blur-md"
-                            style={{
-                              backgroundColor: 'rgba(0,0,0,0.4)',
-                              border: '1px solid var(--border)',
-                              color: 'var(--accent)',
-                            }}
-                          >
-                            {genre}
-                          </span>
-                          {/* 难度指示 */}
-                          <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
-                            {[1, 2, 3, 4, 5].map((dot) => {
-                              const hash = scenario.id ? String(scenario.id).split('').reduce((a, c) => a + c.charCodeAt(0), 0) : 0
-                              const fillIdx = (hash % 3) + 2 // 2~4
-                              return (
-                                <div
-                                  key={dot}
-                                  className="w-2 h-2 rounded-full transition-all"
-                                  style={{
-                                    backgroundColor: dot <= fillIdx ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
-                                    boxShadow: dot <= fillIdx ? '0 0 8px var(--glow-accent)' : 'none',
-                                  }}
-                                />
-                              )
-                            })}
-                          </div>
-                        </div>
+                        </>
+                      )}
+                      {/* 流派标签 */}
+                      <span
+                        className="absolute top-3 left-3 text-[10px] md:text-xs px-3 py-1 rounded-lg font-semibold z-10 backdrop-blur-md"
+                        style={{
+                          backgroundColor: 'rgba(0,0,0,0.4)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--accent)',
+                        }}
+                      >
+                        {genre}
+                      </span>
+                      {/* 难度指示 */}
+                      <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
+                        {[1, 2, 3, 4, 5].map((dot) => {
+                          const hash = scenario.id ? String(scenario.id).split('').reduce((a, c) => a + c.charCodeAt(0), 0) : 0
+                          const fillIdx = (hash % 3) + 2
+                          return (
+                            <div
+                              key={dot}
+                              className="w-2 h-2 rounded-full transition-all"
+                              style={{
+                                backgroundColor: dot <= fillIdx ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
+                                boxShadow: dot <= fillIdx ? '0 0 8px var(--glow-accent)' : 'none',
+                              }}
+                            />
+                          )
+                        })}
+                      </div>
+                    </div>
 
-                        {/* 卡片体 */}
-                        <div className="relative z-10 p-3 md:p-5">
-                          <h3
-                            className="text-sm md:text-xl font-bold leading-snug md:leading-tight line-clamp-2 transition-colors tracking-wide"
-                            style={{ color: 'var(--text-primary)' }}
-                          >
-                            {scenario.title}
-                          </h3>
-                          {scenario.description && (
-                            <p className="text-xs md:text-sm leading-relaxed line-clamp-2 mt-1 md:mt-2" style={{ color: 'var(--text-secondary)' }}>
-                              {scenario.description}
-                            </p>
+                    {/* 文字内容 */}
+                    <div className="relative z-10 p-3 md:p-5">
+                      <h3
+                        className="text-sm md:text-xl font-bold leading-snug md:leading-tight line-clamp-2 transition-colors tracking-wide"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        {scenario.title}
+                      </h3>
+                      {scenario.description && (
+                        <p className="text-xs md:text-sm leading-relaxed line-clamp-2 mt-1 md:mt-2" style={{ color: 'var(--text-secondary)' }}>
+                          {scenario.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between pt-2 md:pt-4 mt-2 md:mt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                        <div className="flex items-center gap-3">
+                          {state && (
+                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                              <span style={{ color: '#ef4444' }}>❤</span> {state.hp || 100}
+                            </span>
                           )}
-                          <div className="flex items-center justify-between pt-2 md:pt-4 mt-2 md:mt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                            <div className="flex items-center gap-3">
-                              {state && (
-                                <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                                  <span style={{ color: '#ef4444' }}>❤</span> {state.hp || 100}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                              {creating === scenario.id ? (
-                                <span className="flex items-center gap-2">
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  创建中
-                                </span>
-                              ) : (
-                                <>
-                                  开始冒险
-                                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                </>
-                              )}
-                            </div>
-                          </div>
                         </div>
-                      </>
-                    )}
+                        <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                          {creating === scenario.id ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              创建中
+                            </span>
+                          ) : (
+                            <>
+                              开始冒险
+                              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
                     {/* 悬停发光效果 */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{
@@ -1002,7 +1000,7 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
             </div>
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {myScenarios.map((scenario, index) => {
-                const genre = detectGenre(scenario.title, scenario.description)
+                const genre = detectGenre(scenario.title, scenario.description, (scenario as any).system_prompt)
                 const gc = getGenre(genre)
                 return (
                   <button

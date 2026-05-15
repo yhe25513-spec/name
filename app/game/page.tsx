@@ -18,7 +18,7 @@ export default async function GamePage() {
       .order('updated_at', { ascending: false }),
     adminSupabase
       .from('game_scenarios')
-      .select('id, title, description, initial_state, background_image_url, created_by, is_published')
+      .select('id, title, description, system_prompt, initial_state, background_image_url, created_by, is_published')
       .order('created_at', { ascending: false }),
     adminSupabase
       .from('profiles')

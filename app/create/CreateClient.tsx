@@ -51,8 +51,8 @@ const RATIO_SIZE: Record<Ratio, string> = {
 }
 
 const HISTORY_KEY = 'create-history'
-const POLL_INTERVAL = 5000
-const MAX_POLL_TIME = 300000 // 5 分钟超时
+const POLL_INTERVAL = 2000
+const MAX_POLL_TIME = 300000 // 5 分钟超时（视频 URL 10 分钟后过期）
 
 export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const router = useRouter()
@@ -65,8 +65,10 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const [style, setStyle] = useState<Style>('奇幻')
   const [ratio, setRatio] = useState<Ratio>('1:1')
   const [generating, setGenerating] = useState(false)
+  const [generatingMode, setGeneratingMode] = useState<Mode>('image')
   const [pollingStatus, setPollingStatus] = useState('')
   const [resultUrl, setResultUrl] = useState('')
+  const [resultMode, setResultMode] = useState<Mode>('image')
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [showLimitDialog, setShowLimitDialog] = useState(false)
@@ -102,26 +104,39 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     toast.success('历史已清空')
   }
 
-  // 下载文件
+  // 下载文件（通过服务端代理绕过 CORS）
   async function handleDownload(url: string) {
     try {
-      const res = await fetch(url)
+      toast.success('正在准备下载...')
+      const res = await fetch('/api/generate-video/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: '下载失败' }))
+        throw new Error(err.error)
+      }
       const blob = await res.blob()
-      const ext = blob.type.startsWith('video') ? '.mp4' : '.png'
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `ai-创作-${Date.now()}${ext}`
+      // 从 Content-Disposition 头提取文件名，或使用默认名
+      const disposition = res.headers.get('Content-Disposition')
+      const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
+      a.download = filenameMatch?.[1] || `ai-创作-${Date.now()}.mp4`
       a.click()
       URL.revokeObjectURL(a.href)
-      toast.success('已开始下载')
-    } catch {
-      toast.error('下载失败')
+      toast.success('下载完成')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '下载失败'
+      toast.error('下载失败', { description: msg })
     }
   }
 
   // 轮询视频状态
   const pollVideoStatus = useCallback((requestId: string, originalPrompt: string, currentStyle: Style) => {
     const startTime = Date.now()
+    let errorCount = 0
     setPollingStatus('已提交，等待处理...')
 
     pollRef.current = setInterval(async () => {
@@ -132,10 +147,12 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           body: JSON.stringify({ requestId }),
         })
         const data = await res.json()
-
-        if (data.status === 'succeeded' && data.video_url) {
+        // 有视频 URL 就视为成功，不依赖特定状态值
+        if (data.video_url) {
           clearInterval(pollRef.current)
-          setResultUrl(data.video_url)
+          const videoUrl = data.video_url
+          setResultUrl(videoUrl)
+          setResultMode('video')
           setGenerating(false)
           setPollingStatus('')
           saveToHistory({
@@ -143,15 +160,43 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
             mode: 'video',
             prompt: originalPrompt,
             style: currentStyle,
-            url: data.video_url,
+            url: videoUrl,
             timestamp: Date.now(),
           })
-          toast.success('视频生成成功')
-        } else if (data.status === 'failed') {
+          toast.success('视频生成成功，正在下载到本地...')
+
+          // 自动下载到用户设备
+          try {
+            const downloadRes = await fetch('/api/generate-video/download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: videoUrl }),
+            })
+            if (downloadRes.ok) {
+              const blob = await downloadRes.blob()
+              const a = document.createElement('a')
+              a.href = URL.createObjectURL(blob)
+              const disposition = downloadRes.headers.get('Content-Disposition')
+              const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
+              a.download = filenameMatch?.[1] || `ai-视频-${Date.now()}.mp4`
+              a.click()
+              URL.revokeObjectURL(a.href)
+              toast.success('视频已保存到本地')
+            } else {
+              toast.error('自动下载失败，请手动点击下载按钮', {
+                description: '链接 10 分钟后过期',
+              })
+            }
+          } catch {
+            toast.error('自动下载失败，请手动点击下载按钮', {
+              description: '链接 10 分钟后过期',
+            })
+          }
+        } else if (data.status === 'failed' || data.status === 'error') {
           clearInterval(pollRef.current)
           setGenerating(false)
           setPollingStatus('')
-          toast.error('视频生成失败', { description: data.error || '请重试' })
+          toast.error('视频生成失败', { description: data.error || data.message || '请重试' })
         } else {
           // 还在处理中
           const elapsed = Math.round((Date.now() - startTime) / 1000)
@@ -164,14 +209,22 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
             setPollingStatus(`处理中... (${Math.floor(elapsed / 60)}分${elapsed % 60}秒)`)
           }
         }
-      } catch {
-        // 网络错误则继续轮询
+        errorCount = 0 // 请求成功，重置错误计数
+      } catch (err) {
+        errorCount++
+        if (errorCount >= 5) {
+          clearInterval(pollRef.current)
+          setGenerating(false)
+          setPollingStatus('')
+          toast.error('网络异常', { description: '连续多次查询失败，请检查网络后重试' })
+        }
       }
     }, POLL_INTERVAL)
   }, [saveToHistory])
 
   // 生成图片/视频
   async function handleGenerate() {
+    if (generating) return
     if (!prompt.trim()) {
       toast.error('请输入提示词')
       promptRef.current?.focus()
@@ -179,6 +232,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     }
 
     setGenerating(true)
+    setGeneratingMode(mode)
     setResultUrl('')
     if (pollRef.current) clearInterval(pollRef.current)
 
@@ -193,6 +247,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         const data = await res.json()
         if (res.ok && data.url) {
           setResultUrl(data.url)
+          setResultMode('image')
           setGenerating(false)
           saveToHistory({
             id: Date.now().toString(),
@@ -241,9 +296,15 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
 
   // 从历史记录恢复
   function restoreFromHistory(item: HistoryItem) {
+    // 非管理员不能恢复视频记录
+    if (item.mode === 'video' && !isAdmin) {
+      toast.error('视频生成功能仅管理员可用')
+      return
+    }
     setPrompt(item.prompt)
     setStyle(item.style)
     setResultUrl(item.url)
+    setResultMode(item.mode)
     setMode(item.mode)
     setShowHistory(false)
     toast.success('已恢复')
@@ -289,7 +350,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         <div className="flex flex-col gap-1.5">
           <div className="flex p-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
             <button
-              onClick={() => setMode('image')}
+              onClick={() => { if (mode !== 'image') { setMode('image'); setResultUrl('') } }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 mode === 'image'
                   ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm border border-[var(--border)]'
@@ -300,7 +361,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
               图片生成
             </button>
             <button
-              onClick={() => isAdmin ? setMode('video') : undefined}
+              onClick={() => { if (isAdmin && mode !== 'video') { setMode('video'); setResultUrl('') } }}
               disabled={!isAdmin}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 mode === 'video'
@@ -409,7 +470,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           {generating ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              {mode === 'image' ? '生成中，约需 10-30 秒...' : pollingStatus || '提交中...'}
+              {generatingMode === 'image' ? '生成中，约需 10-30 秒...' : pollingStatus || '提交中...'}
             </>
           ) : (
             <>
@@ -426,8 +487,8 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           </p>
         )}
 
-        {/* 生成结果 */}
-        {(resultUrl || generating) && (
+        {/* 生成结果（只在当前模式匹配时显示） */}
+        {((resultUrl && mode === resultMode) || (generating && mode === generatingMode)) && (
           <div className="pt-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-1.5">
@@ -465,10 +526,10 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
                   </div>
                 </div>
                 <p className="text-sm text-[var(--text-muted)]">
-                  {mode === 'image' ? 'AI 正在创作中...' : pollingStatus || 'AI 正在生成视频...'}
+                  {generatingMode === 'image' ? 'AI 正在创作中...' : pollingStatus || 'AI 正在生成视频...'}
                 </p>
               </div>
-            ) : mode === 'image' ? (
+            ) : resultMode === 'image' ? (
               <div className="relative group rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--bg-secondary)]">
                 <img
                   src={resultUrl}
@@ -507,6 +568,12 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
                 </div>
               </div>
             )}
+            {resultUrl && resultMode === 'video' && (
+              <p className="mt-2 text-xs text-emerald-400/80 flex items-center gap-1">
+                <Download className="w-3 h-3" />
+                视频已自动下载到本地，也可点击上方按钮重新下载
+              </p>
+            )}
           </div>
         )}
 
@@ -527,9 +594,9 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         {/* 历史记录 */}
         {history.length > 0 && (
           <div className="pt-4 border-t border-[var(--border)]">
-            <button
+            <div
               onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center justify-between w-full mb-3"
+              className="flex items-center justify-between w-full mb-3 cursor-pointer"
             >
               <div className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
                 <Clock className="w-4 h-4" />
@@ -549,7 +616,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
                   </button>
                 )}
               </div>
-            </button>
+            </div>
 
             {showHistory && (
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
