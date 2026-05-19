@@ -20,8 +20,7 @@ export async function streamOpenAIChat(
   let apiUrl: string
   if (baseUrl) {
     // 自定义 base URL，使用 OpenAI 兼容格式
-    // Ollama 使用 /v1/chat/completions
-    const path = provider === 'ollama' ? '/v1/chat/completions' : '/chat/completions'
+    const path = '/v1/chat/completions'
     apiUrl = baseUrl.replace(/\/$/, '') + path
   } else if (provider === 'anthropic') {
     // Anthropic API
@@ -38,13 +37,13 @@ export async function streamOpenAIChat(
   const systemPrompt = scenario.system_prompt || '你是一个文字冒险游戏的GM。'
 
   // 构建消息历史（保留最近 20 条对话，约 10 个回合）
+  // 注意: history 已包含用户输入的最新消息, 不需要再追加 userInput
   const messages: { role: string; content: string }[] = [
     { role: 'system', content: systemPrompt },
     ...history.slice(-20).map(msg => ({
       role: msg.role,
       content: msg.content,
     })),
-    { role: 'user', content: userInput },
   ]
 
   // 构建请求体
@@ -108,13 +107,18 @@ export async function streamOpenAIChat(
   }
 
   // 转换为标准流格式（与 DeepSeek 相同）
+  const decoder = new TextDecoder('utf-8')
+  let lineBuffer = ''
   return response.body.pipeThrough(new TransformStream({
     transform(chunk, controller) {
-      const text = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions).decode(chunk)
-      const lines = text.split('\n').filter(l => l.trim())
+      const text = decoder.decode(chunk, { stream: true })
+      const lines = (lineBuffer + text).split('\n')
+      lineBuffer = lines.pop() || ''
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
+      for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line) continue
+        if (!line.startsWith('data: ')) continue
           const data = line.slice(6)
           if (data === '[DONE]') {
             controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
@@ -142,5 +146,5 @@ export async function streamOpenAIChat(
         }
       }
     }
-  }))
+  ))
 }

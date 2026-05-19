@@ -168,28 +168,8 @@ export function ScenarioSelector({ saves, scenarios, username, isAdmin, userId }
       toast.error('场景数据异常，无法开始游戏')
       return
     }
-    setCreating(scenario.id)
-    try {
-      const res = await apiFetch('/api/game/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenarioId: scenario.id,
-          state: scenario.initial_state,
-          history: [],
-          turnCount: 0,
-        }),
-      })
-      const data = await res.json()
-      if (data.save?.id) {
-        router.push(`/game/${data.save.id}`)
-      } else {
-        toast.error('创建游戏失败', { description: data.error })
-      }
-    } catch {
-      toast.error('网络错误')
-    }
-    setCreating(null)
+    // 跳转到角色创建页面
+    router.push(`/game/create?scenarioId=${scenario.id}`)
   }
 
   async function handleLogout() {
@@ -709,12 +689,39 @@ ${scenarioData.playerOptions || '1. 探索周围\n2. 检查物品\n3. 寻找线�
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <h3
-                        className="text-sm md:text-base font-semibold truncate pr-2 mb-2"
-                        style={{ color: hasImg ? (isLight ? '#1a1a1a' : '#ffffff') : 'var(--text-primary)' }}
-                      >
-                        {scenarioTitle}
-                      </h3>
+
+                      {/* 存档标题（自动生成的可读标题） */}
+                      <div className="mb-1">
+                        {(save as any).title ? (
+                          <div className="text-xs font-medium truncate" style={{ color: hasImg ? (isLight ? '#1a1a1a' : 'rgba(255,255,255,0.8)') : 'var(--text-secondary)' }}>
+                            {(save as any).title}
+                          </div>
+                        ) : (
+                          <h3
+                            className="text-sm md:text-base font-semibold truncate pr-2"
+                            style={{ color: hasImg ? (isLight ? '#1a1a1a' : '#ffffff') : 'var(--text-primary)' }}
+                          >
+                            {scenarioTitle}
+                          </h3>
+                        )}
+                      </div>
+
+                      {/* 位置 + 境界 */}
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {save.current_state?.location && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
+                            📍 {save.current_state.location}
+                          </span>
+                        )}
+                        {save.current_state?.realm && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                            style={{ backgroundColor: 'rgba(20,241,198,0.08)', color: '#14f1c6' }}>
+                            ✦ {save.current_state.realm}
+                          </span>
+                        )}
+                      </div>
+
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-[10px] md:text-xs" style={{ color: 'var(--text-muted)' }}>
                           第 {save.turn_count} 回合

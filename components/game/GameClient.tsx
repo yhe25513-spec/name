@@ -10,6 +10,7 @@ import { InputArea } from './InputArea'
 import { SidePanel } from './SidePanel'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { GameMap } from './GameMap'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
 import { getTheme, FONTS, buildCustomThemeCss, THEMES } from '@/lib/themes'
 import type { CustomThemeColors } from '@/lib/themes'
+import { useSound } from '@/hooks/useSound'
 
 interface GameClientProps {
   initialSave: GameSave
@@ -79,7 +81,15 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   const hasStartedRef = useRef(false)
   const pendingCharsRef = useRef('')
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
-  const [mobileDrawerTab, setMobileDrawerTab] = useState<'stats'|'inventory'>('stats')
+  const [mobileDrawerTab, setMobileDrawerTab] = useState<'stats'|'inventory'|'map'>('stats')
+  const sound = useSound()
+
+  // 氛围变化触发 BGM 和音效
+  useEffect(() => {
+    sound.setAtmosphere(atmosphereHint || 'normal')
+    if (atmosphereHint === 'triumph') sound.playTriumph()
+    if (atmosphereHint === 'danger') sound.playDangerHit()
+  }, [atmosphereHint])
 
   // Canvas 采样分析图片平均亮度（WCAG 相对亮度加权）
   function analyzeImageBrightness(url: string): Promise<number> {
@@ -293,29 +303,32 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       }
 
       const reader = res.body!.getReader()
-      const decoder = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions)
+      const decoder = new TextDecoder('utf-8')
       let fullText = ''
+      let lineBuf = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n').filter((l) => l.trim())
+        const chunk = decoder.decode(value, { stream: true })
+        const parts = (lineBuf + chunk).split('\n')
+        lineBuf = parts.pop() || ''
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') break
-            try {
-              const parsed = JSON.parse(data)
-              if (parsed.content) {
-                fullText += parsed.content
-                pendingCharsRef.current += parsed.content
-              }
-            } catch {
-              // ignore
+        for (const raw of parts) {
+          const line = raw.trim()
+          if (!line) continue
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') break
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.content) {
+              fullText += parsed.content
+              pendingCharsRef.current += parsed.content
             }
+          } catch {
+            // ignore
           }
         }
       }
@@ -362,6 +375,28 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMobileDrawerOpen(false)
+
+      // F5 = 快速保存
+      if (e.key === 'F5') {
+        e.preventDefault()
+        handleManualSave()
+        return
+      }
+
+      // F8 = 快速读取
+      if (e.key === 'F8') {
+        e.preventDefault()
+        const quickSaveId = localStorage.getItem('quick-save-id')
+        if (quickSaveId && quickSaveId !== saveId) {
+          if (confirm('读取快速存档？未保存的进度将丢失。')) {
+            router.push(`/game/${quickSaveId}`)
+          }
+        } else {
+          toast.error('没有快速存档', { description: '请先使用 F5 保存' })
+        }
+        return
+      }
+
       if (isStreaming || quickOptions.length === 0) return
       const n = parseInt(e.key)
       if (n >= 1 && n <= 9 && n <= quickOptions.length) {
@@ -371,7 +406,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [isStreaming, quickOptions])
+  }, [isStreaming, quickOptions, saveId, router])
 
   // 打字机效果：逐字将待输出缓冲区的内容显示到 streamingText
   useEffect(() => {
@@ -381,13 +416,20 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       setStreamingText(prev => {
         const next = prev + pendingCharsRef.current[0]
         pendingCharsRef.current = pendingCharsRef.current.slice(1)
-        return next
+        // 过滤 "undefined" 及其中间态，防止跨 chunk 拼合时逐字显示
+        const cleaned = next.replace(/undefined/g, '')
+        const partials = ['u', 'un', 'und', 'unde', 'undef', 'undefi', 'undefin', 'undefine']
+        for (const p of partials) {
+          if (cleaned.endsWith(p)) return cleaned.slice(0, -p.length)
+        }
+        return cleaned
       })
     }, 15)
     return () => clearInterval(timer)
   }, [isStreaming])
 
   function handleOptionClick(option: string) {
+    sound.playSendMessage()
     sendMessage(option)
   }
 
@@ -422,6 +464,8 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
   const sendMessage = useCallback(async (userInput: string) => {
     if (isStreaming) return
 
+    sound.playSendMessage()
+
     const userMsg: ConversationMessage = {
       role: 'user',
       content: userInput,
@@ -454,29 +498,32 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
       }
 
       const reader = res.body!.getReader()
-      const decoder = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions)
+      const decoder = new TextDecoder('utf-8')
       let fullText = ''
+      let lineBuf = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n').filter((l) => l.trim())
+        const chunk = decoder.decode(value, { stream: true })
+        const parts = (lineBuf + chunk).split('\n')
+        lineBuf = parts.pop() || ''
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') break
-            try {
-              const parsed = JSON.parse(data)
-              if (parsed.content) {
-                fullText += parsed.content
-                pendingCharsRef.current += parsed.content
-              }
-            } catch {
-              // ignore
+        for (const raw of parts) {
+          const line = raw.trim()
+          if (!line) continue
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') break
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.content) {
+              fullText += parsed.content
+              pendingCharsRef.current += parsed.content
             }
+          } catch {
+            // ignore
           }
         }
       }
@@ -535,14 +582,19 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
           state: newState,
           history,
           turnCount: newTurnCount,
+          // 自动生成标题由服务端处理
         }),
       })
       const data = await res.json()
       if (data.save?.id && data.save.id !== saveId) {
         setSaveId(data.save.id)
       }
+      // 标记快速存档
+      if (data.save?.id && data.save.id === saveId) {
+        localStorage.setItem('quick-save-id', data.save.id)
+      }
     } catch {
-      // 静默失败，不打扰玩家
+      toast.error('自动保存失败')
     }
   }
 
@@ -559,8 +611,14 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
           turnCount,
         }),
       })
+      const data = await res.json()
       if (res.ok) {
         setSaveSuccess(true)
+        sound.playSaveSuccess()
+        if (data.save?.id && data.save.id !== saveId) {
+          setSaveId(data.save.id)
+        }
+        localStorage.setItem('quick-save-id', data.save?.id || saveId)
         setTimeout(() => setSaveSuccess(false), 2000)
       } else {
         toast.error('保存失败')
@@ -788,6 +846,34 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
                   </div>
                 </div>
 
+                {/* ─── 音效 ─── */}
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">音效</h4>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => sound.toggleMute()}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                      style={{
+                        backgroundColor: sound.isMuted ? 'rgba(255,255,255,0.04)' : 'var(--accent-soft)',
+                        border: `1px solid ${sound.isMuted ? 'var(--border)' : 'var(--accent)'}`,
+                        color: sound.isMuted ? 'var(--text-muted)' : 'var(--accent)',
+                      }}
+                    >
+                      {sound.isMuted ? '🔇' : '🔊'}
+                    </button>
+                    <input type="range" min="0" max="100" value={Math.round(sound.volume * 100)}
+                      onChange={e => sound.setVolume(Number(e.target.value) / 100)}
+                      className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
+                      style={{
+                        background: 'var(--border)',
+                      }}
+                    />
+                    <span className="text-[10px] w-8 text-right" style={{ color: 'var(--text-muted)' }}>
+                      {Math.round(sound.volume * 100)}%
+                    </span>
+                  </div>
+                </div>
+
                 {/* ─── 字体选择 ─── */}
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">字体</h4>
@@ -817,21 +903,27 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
           </Dialog>
 
           {!isSandbox && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleManualSave}
-              disabled={saving}
-              className={cn(
-                'h-7 px-2 text-[10px] transition-colors',
-                saveSuccess ? 'text-emerald-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              )}
-            >
-              {saveSuccess
-                ? <><CheckCircle className="w-3 h-3 mr-1" />已保存</>
-                : <><Save className="w-3 h-3 mr-1" />保存</>
-              }
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleManualSave}
+                disabled={saving}
+                className={cn(
+                  'h-7 px-2 text-[10px] transition-colors',
+                  saveSuccess ? 'text-emerald-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                )}
+              >
+                {saveSuccess
+                  ? <><CheckCircle className="w-3 h-3 mr-1" />已保存</>
+                  : <><Save className="w-3 h-3 mr-1" />保存</>
+                }
+              </Button>
+              <span className="hidden sm:inline text-[8px] tracking-wider px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--text-muted)' }}>
+                F5
+              </span>
+            </div>
           )}
           {isSandbox && (
             <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
@@ -856,7 +948,18 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
 
       {/* PC 右侧状态面板 — grid-column: 3 */}
       <div className="hidden lg:block">
-        <SidePanel state={state} turnCount={turnCount} hasBgImage={!!bgImageUrl} scenarioBgUrl={scenario.background_image_url} scenarioTitle={scenario.title} />
+        <SidePanel
+          state={state}
+          turnCount={turnCount}
+          hasBgImage={!!bgImageUrl}
+          scenarioBgUrl={scenario.background_image_url}
+          scenarioTitle={scenario.title}
+          onUseItem={(item) => {
+            if (!isStreaming) {
+              sendMessage(`[使用]${item}`)
+            }
+          }}
+        />
       </div>
 
       {/* 移动端状态栏 */}
@@ -875,6 +978,7 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         {[
           { label: '冒险', icon: '📜', action: () => router.push('/game') },
           { label: '状态', icon: '👤', action: () => { setMobileDrawerTab('stats'); setMobileDrawerOpen(true) } },
+          { label: '地图', icon: '🗺️', action: () => { setMobileDrawerTab('map'); setMobileDrawerOpen(true) } },
           { label: '故事', icon: '📖', action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
           { label: '背包', icon: '🎒', action: () => { setMobileDrawerTab('inventory'); setMobileDrawerOpen(true) } },
           { label: '选项', icon: '⚡', action: () => document.querySelector('.flex.flex-wrap.gap-1\\.5')?.scrollIntoView({ behavior: 'smooth' }) },
@@ -939,6 +1043,13 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
                   ))}
                 </div>
               )}
+            </div>
+          ) : mobileDrawerTab === 'map' ? (
+            <div className="rounded-xl p-3.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--card-shadow)' }}>
+              <div className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
+                📍 当前位置：{state.location || '未知'}
+              </div>
+              <GameMap state={state} />
             </div>
           ) : (
             <div className="rounded-xl p-3.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--card-shadow)' }}>

@@ -1,9 +1,22 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { ConversationMessage } from '@/lib/types'
 import { User, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+/** 智能过滤 "undefined" 及其中间态（如 "undefi"、"undefin" 等）避免打字中显示 */
+function sanitizeUndefined(text: string): string {
+  let result = text.replace(/undefined/g, '')
+  // 删除末尾的 "undefined" 部分前缀，防止跨 chunk 拼合时逐字显示
+  const prefixes = ['u', 'un', 'und', 'unde', 'undef', 'undefi', 'undefin', 'undefine']
+  for (const p of prefixes) {
+    if (result.endsWith(p)) {
+      return result.slice(0, -p.length)
+    }
+  }
+  return result
+}
 
 interface ChatAreaProps {
   messages: ConversationMessage[]
@@ -38,6 +51,139 @@ const ATMOSPHERE_STYLES: Record<string, { bar: string; border: string; glow: str
     glow: '',
     label: 'text-zinc-400 border-zinc-800/40 bg-zinc-900/30',
   },
+}
+
+// ─── NPC Avatar Colors ───
+const AVATAR_COLORS = [
+  { bg: '#ef4444', text: '#fff' },
+  { bg: '#f59e0b', text: '#fff' },
+  { bg: '#10b981', text: '#fff' },
+  { bg: '#3b82f6', text: '#fff' },
+  { bg: '#8b5cf6', text: '#fff' },
+  { bg: '#ec4899', text: '#fff' },
+  { bg: '#14b8a6', text: '#fff' },
+  { bg: '#f97316', text: '#fff' },
+  { bg: '#6366f1', text: '#fff' },
+  { bg: '#a855f7', text: '#fff' },
+]
+
+function getAvatarColor(name: string): { bg: string; text: string } {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+// ─── NPC Dialogue Detection ───
+
+interface DialogueSegment {
+  type: 'narration' | 'npc_dialogue' | 'npc_name'
+  text: string
+  npcName?: string
+}
+
+/** 从文本中检测 NPC 对话并分段 */
+function parseDialogueSegments(text: string): DialogueSegment[] {
+  // 匹配模式："NPC名说/NPC名道/NPC名：" 后的对话内容
+  const npcSpeechPattern = /(['"「『]?)([一-鿿㐀-䶿\w]{2,8}?)(?:说(?:道|：|:)|道(?:：|:)|：(?!\s)|：\s?|[：:])\s*(['"」』]?)(.+?)(['"」』]?(?=\s*[。！？\n]|$))/g
+
+  const segments: DialogueSegment[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = npcSpeechPattern.exec(text)) !== null) {
+    // 匹配之前的叙述文本
+    if (match.index > lastIndex) {
+      segments.push({ type: 'narration', text: text.slice(lastIndex, match.index) })
+    }
+
+    const npcName = match[2]
+    const dialogueContent = match[4] || match[0]
+
+    segments.push({ type: 'npc_name', text: npcName, npcName })
+    segments.push({ type: 'npc_dialogue', text: dialogueContent, npcName })
+
+    lastIndex = match.index + match[0].length
+  }
+
+  // 剩余文本
+  if (lastIndex < text.length) {
+    segments.push({ type: 'narration', text: text.slice(lastIndex) })
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'narration', text }]
+}
+
+function NPCAvatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'xs' }) {
+  const color = getAvatarColor(name)
+  const sizeClasses = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-5 h-5 text-[9px]'
+
+  return (
+    <div
+      className={cn('rounded-full flex-shrink-0 flex items-center justify-center font-bold', sizeClasses)}
+      style={{
+        backgroundColor: color.bg,
+        color: color.text,
+        boxShadow: `0 0 12px ${color.bg}40`,
+      }}
+      title={name}
+    >
+      {name.charAt(0)}
+    </div>
+  )
+}
+
+// ─── AI Message Renderer ───
+
+function AIRender({ content, hasBgImage }: { content: string; hasBgImage: boolean }) {
+  const segments = useMemo(() => parseDialogueSegments(content), [content])
+
+  if (segments.length === 1 && segments[0].type === 'narration') {
+    // 没有NPC对话，常规渲染
+    return <span>{content}</span>
+  }
+
+  return (
+    <div className="space-y-2">
+      {segments.map((seg, i) => {
+        if (seg.type === 'narration') {
+          return <span key={i}>{seg.text}</span>
+        }
+        if (seg.type === 'npc_name') {
+          return (
+            <div key={i} className="flex items-center gap-2 mt-3 mb-1">
+              <NPCAvatar name={seg.npcName || seg.text} size="sm" />
+              <span
+                className="text-xs font-semibold tracking-wide"
+                style={{ color: 'var(--accent)' }}
+              >
+                {seg.text}
+              </span>
+            </div>
+          )
+        }
+        if (seg.type === 'npc_dialogue') {
+          return (
+            <div key={i} className="relative pl-3 ml-10 mb-2" style={{
+              borderLeft: '2px solid var(--accent2, #5eead4)',
+              backgroundColor: 'rgba(255,255,255,0.02)',
+              borderRadius: '0 8px 8px 0',
+              padding: '4px 12px',
+            }}>
+              <span
+                className="italic"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                「{seg.text}」
+              </span>
+            </div>
+          )
+        }
+        return null
+      })}
+    </div>
+  )
 }
 
 export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint = 'normal', hasBgImage = false }: ChatAreaProps) {
@@ -140,18 +286,21 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
                 )} />
 
                 <div className="flex-1 min-w-0">
-                  {/* 叙事文本 */}
+                  {/* 叙事文本 - 使用 NPC 感知渲染 */}
                   <div
                     className={cn(
                       'text-sm sm:text-base leading-[1.9] whitespace-pre-wrap',
-                      'first-letter:text-2xl first-letter:font-bold first-letter:mr-0.5',
+                      'first-letter:text-2xl first-letter:font-bold first-letter:mr-0.5 first-letter:text-[var(--accent)]',
                       'selection:bg-[var(--accent-soft)] selection:text-[var(--text-primary)]',
                       hasBgImage && 'drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]',
                     )}
                     style={{ color: 'var(--text-primary)' }}
                   >
-                    <span style={{ color: 'var(--accent)' }}>{msg.content[0]}</span>
-                    {msg.content.slice(1)}
+                    {msg.content ? (
+                      <AIRender content={msg.content} hasBgImage={hasBgImage} />
+                    ) : (
+                      <span className="italic opacity-50">——</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -222,7 +371,7 @@ export function ChatArea({ messages, streamingText, isStreaming, atmosphereHint 
                     )}
                     style={{ color: 'var(--text-primary)' }}
                   >
-                    {streamingText}
+                    {sanitizeUndefined(streamingText)}
                     <span
                       className="inline-block w-0.5 h-[1em] ml-0.5 animate-pulse align-text-bottom"
                       style={{ backgroundColor: 'var(--accent)' }}

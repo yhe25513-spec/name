@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { GameState } from '@/lib/types'
+import { cn } from '@/lib/utils'
+import { GameMap } from './GameMap'
 
 interface SidePanelProps {
   state: GameState
@@ -8,10 +11,93 @@ interface SidePanelProps {
   hasBgImage?: boolean
   scenarioBgUrl?: string
   scenarioTitle?: string
+  onUseItem?: (itemName: string) => void
 }
 
-export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: SidePanelProps) {
+// 物品品质定义
+interface ItemQuality {
+  label: string
+  color: string
+  borderColor: string
+  glow: string
+  bg: string
+}
+
+const ITEM_QUALITIES: Record<string, ItemQuality> = {
+  普通: { label: '普通', color: '#94a3b8', borderColor: 'rgba(148,163,184,0.2)', glow: 'none', bg: 'rgba(148,163,184,0.05)' },
+  稀有: { label: '稀有', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)', glow: '0 0 8px rgba(59,130,246,0.1)', bg: 'rgba(59,130,246,0.08)' },
+  史诗: { label: '史诗', color: '#8b5cf6', borderColor: 'rgba(139,92,246,0.35)', glow: '0 0 10px rgba(139,92,246,0.15)', bg: 'rgba(139,92,246,0.1)' },
+  传说: { label: '传说', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.4)', glow: '0 0 12px rgba(245,158,11,0.2)', bg: 'rgba(245,158,11,0.12)' },
+}
+
+function getItemQuality(name: string): ItemQuality {
+  if (name.includes('神器') || name.includes('至宝') || name.includes('上古')) return ITEM_QUALITIES['传说']
+  if (name.includes('破境') || name.includes('护身') || name.includes('极品')) return ITEM_QUALITIES['史诗']
+  if (name.includes('丹') || name.includes('符') || name.includes('灵') || name.includes('宝')) return ITEM_QUALITIES['稀有']
+  return ITEM_QUALITIES['普通']
+}
+
+const EMOJI_MAP: Record<string, string> = {
+  '丹': '💊', '符': '📜', '剑': '⚔️', '石': '💎', '草': '🌿',
+  '甲': '🛡️', '盘': '🧭', '图': '🗺️', '卷': '📖', '毒': '🧪',
+  '佩': '💠', '戒': '💍', '鼎': '🏺', '琴': '🎵', '镜': '🪞',
+}
+
+function getItemEmoji(name: string): string {
+  const match = Object.entries(EMOJI_MAP).find(([k]) => name.includes(k))
+  return match?.[1] || '📦'
+}
+
+/** 物品详情弹出卡片 */
+function ItemDetail({ item, onClose, onUse }: { item: string; onClose: () => void; onUse: (item: string) => void }) {
+  const quality = getItemQuality(item)
+  return (
+    <>
+      <div className="fixed inset-0 z-50" onClick={onClose} />
+      <div
+        className="absolute z-50 p-4 rounded-xl shadow-2xl min-w-[180px]"
+        style={{
+          backgroundColor: '#1a1b2e',
+          border: `1px solid ${quality.borderColor}`,
+          boxShadow: `${quality.glow}, 0 10px 40px rgba(0,0,0,0.5)`,
+          top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-2xl">{getItemEmoji(item)}</span>
+          <div>
+            <div className="text-sm font-semibold" style={{ color: quality.color }}>{item}</div>
+            <div className="text-[10px] px-1.5 py-0.5 rounded-full inline-block mt-1"
+              style={{ backgroundColor: quality.bg, color: quality.color, border: `1px solid ${quality.borderColor}` }}>
+              {quality.label}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => { onUse(item); onClose() }}
+          className="w-full py-2 rounded-lg text-xs font-semibold transition-all mt-1"
+          style={{
+            backgroundColor: quality.color + '20',
+            color: quality.color,
+            border: `1px solid ${quality.borderColor}`,
+          }}
+        >
+          使用
+        </button>
+      </div>
+    </>
+  )
+}
+
+export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle, onUseItem }: SidePanelProps) {
   const hpPercent = Math.round((state.hp / state.maxHp) * 100)
+  const [selectedItem, setSelectedItem] = useState<string | null>(null)
+
+  function handleUseItem(item: string) {
+    if (onUseItem) {
+      onUseItem(item)
+    }
+  }
 
   return (
     <aside className="game-status game-scrollbar">
@@ -47,7 +133,7 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
         </div>
       </div>
 
-      {/* 场景背景卡 — 显示场景预设背景图片 */}
+      {/* 场景背景卡 */}
       <div className="game-hud-panel" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{
           position: 'relative',
@@ -57,7 +143,6 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
           borderBottomLeftRadius: 0,
           borderBottomRightRadius: 0,
         }}>
-          {/* 背景图片 / 默认渐变 */}
           <div style={{
             position: 'absolute', inset: 0,
             ...(scenarioBgUrl
@@ -71,14 +156,12 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
                 }
             ),
           }} />
-          {/* 遮罩 — 仅图片时显示 */}
           {scenarioBgUrl && (
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.05) 100%)',
             }} />
           )}
-          {/* 非图片时中间装饰图标 */}
           {!scenarioBgUrl && (
             <div style={{
               position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
@@ -91,26 +174,17 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
               🌌
             </div>
           )}
-          {/* 底部信息 */}
           <div style={{ position: 'absolute', bottom: 10, left: 14, right: 14 }}>
-            <div style={{
-              fontSize: 13, fontWeight: 600,
-              color: '#f3f6ff',
-              textShadow: '0 1px 8px rgba(0,0,0,0.6)',
-            }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#f3f6ff', textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
               {scenarioTitle || '未知场景'}
             </div>
             {state.location && (
-              <div style={{
-                fontSize: 10, color: 'rgba(255,255,255,0.6)',
-                marginTop: 3, textShadow: '0 1px 4px rgba(0,0,0,0.5)',
-              }}>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 3, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
                 📍 {state.location}
               </div>
             )}
           </div>
         </div>
-        {/* 标签栏 */}
         <div style={{
           padding: '6px 12px',
           borderTop: '1px solid rgba(255,255,255,0.04)',
@@ -121,6 +195,17 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
             {scenarioBgUrl ? '场景预览' : '太虚之境'}
           </span>
         </div>
+      </div>
+
+      {/* 地图 */}
+      <div className="game-hud-panel">
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="w-1 h-1 rounded-full" style={{ background: 'var(--accent, #14f1c6)', boxShadow: '0 0 6px var(--accent, #14f1c6)' }} />
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--text-sub, #94a3b8)' }}>
+            地图
+          </span>
+        </div>
+        <GameMap state={state} />
       </div>
 
       {/* Attributes */}
@@ -143,8 +228,8 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
         </div>
       )}
 
-      {/* Inventory */}
-      <div className="game-hud-panel">
+      {/* Inventory with Interaction */}
+      <div className="game-hud-panel" style={{ position: 'relative' }}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent, #14f1c6)', boxShadow: '0 0 6px var(--accent, #14f1c6)' }} />
@@ -159,39 +244,50 @@ export function SidePanel({ state, turnCount, scenarioBgUrl, scenarioTitle }: Si
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
             {state.inventory.map((item, i) => {
-              const isRare = item.includes('丹') || item.includes('符')
-              const isEpic = item.includes('破境') || item.includes('护身')
-              const emojiMap: Record<string, string> = {
-                '丹': '💊', '符': '📜', '剑': '⚔️', '石': '💎', '草': '🌿',
-                '甲': '🛡️', '盘': '🧭', '图': '🗺️', '卷': '📖', '毒': '🧪',
-                '佩': '💠',
-              }
-              const emoji = Object.entries(emojiMap).find(([k]) => item.includes(k))?.[1] || '📦'
+              const quality = getItemQuality(item)
               return (
                 <div
                   key={i}
                   title={item}
+                  onClick={() => setSelectedItem(item)}
                   style={{
                     aspectRatio: 1,
                     borderRadius: 'var(--game-radius-sm, 10px)',
-                    background: 'rgba(23,32,51,.5)',
-                    border: isEpic ? '1px solid rgba(139,92,246,.4)' : isRare ? '1px solid rgba(59,130,246,.3)' : '1px solid var(--glass-border, rgba(255,255,255,.06))',
-                    boxShadow: isEpic ? '0 0 10px rgba(139,92,246,.15)' : isRare ? '0 0 8px rgba(59,130,246,.1)' : 'none',
+                    background: quality.bg,
+                    border: `1px solid ${quality.borderColor}`,
+                    boxShadow: quality.glow,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 16, cursor: 'pointer', position: 'relative',
                     transition: 'all .2s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.15)'; e.currentTarget.style.background = 'rgba(23,32,51,.8)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = isEpic ? 'rgba(139,92,246,.4)' : isRare ? 'rgba(59,130,246,.3)' : 'var(--glass-border, rgba(255,255,255,.06))'; e.currentTarget.style.background = 'rgba(23,32,51,.5)' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = quality.color
+                    e.currentTarget.style.background = quality.color + '15'
+                    e.currentTarget.style.transform = 'scale(1.1)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = quality.borderColor
+                    e.currentTarget.style.background = quality.bg
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
                 >
-                  {emoji}
-                  <span style={{ position: 'absolute', bottom: 1, right: 3, fontSize: 9, color: 'var(--text-sub, #94a3b8)', fontWeight: 600 }}>
-                    {item.match(/\d+/)?.[0] || '1'}
+                  {getItemEmoji(item)}
+                  <span style={{ position: 'absolute', bottom: 1, right: 3, fontSize: 9, color: quality.color, fontWeight: 600 }}>
+                    {item.match(/\d+/)?.[0] || ''}
                   </span>
                 </div>
               )
             })}
           </div>
+        )}
+
+        {/* 物品详情弹窗 */}
+        {selectedItem && (
+          <ItemDetail
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+            onUse={handleUseItem}
+          />
         )}
       </div>
 

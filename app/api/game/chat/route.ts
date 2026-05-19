@@ -171,16 +171,22 @@ export async function POST(req: NextRequest) {
     // 透传流式响应，并在末尾附加 saveId
     const encoder = new TextEncoder()
     let fullText = ''
+    const textDecoder = new TextDecoder('utf-8')
+    let lineBuffer = ''
 
     const transformStream = new TransformStream({
       async transform(chunk, controller) {
-        const text = new TextDecoder('utf-8', { stream: true } as TextDecoderOptions).decode(chunk)
-        const lines = text.split('\n').filter((l) => l.trim())
+        const text = textDecoder.decode(chunk, { stream: true })
+        const lines = (lineBuffer + text).split('\n')
+        // 最后一段可能不完整，缓存到下次
+        lineBuffer = lines.pop() || ''
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') {
+        for (const rawLine of lines) {
+          const line = rawLine.trim()
+          if (!line) continue
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') {
               // 流结束后记录日志
               if (!isSandbox && saveId) {
                 await supabase.from('conversation_logs').insert({
@@ -207,7 +213,7 @@ export async function POST(req: NextRequest) {
           }
         }
       },
-    })
+    )
 
     stream.pipeTo(transformStream.writable).catch(() => { })
 

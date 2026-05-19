@@ -64,6 +64,8 @@ export interface GameSave {
   current_state: GameState
   conversation_history: ConversationMessage[]
   turn_count: number
+  title?: string
+  summary?: string
   created_at: string
   updated_at: string
   scenario?: GameScenario
