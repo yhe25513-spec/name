@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Sword, ArrowLeft, Users, BookOpen, Settings, FlaskConical, Server } from 'lucide-react'
+import { Sword, ArrowLeft, Users, BookOpen, Settings, FlaskConical, Server, CookingPot } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ScenariosTab } from '@/components/admin/ScenariosTab'
 import { PlayersTab } from '@/components/admin/PlayersTab'
 import { ConfigTab } from '@/components/admin/ConfigTab'
 import { AIConfigsTab } from '@/components/admin/AIConfigsTab'
 import { SandboxTab } from '@/components/admin/SandboxTab'
+import { HotpotOrdersTab } from '@/components/admin/HotpotOrdersTab'
 
 interface AdminDashboardProps {
   username: string
@@ -77,6 +78,11 @@ export function AdminDashboard({ username, isAdmin = false }: AdminDashboardProp
                   <span className="hidden sm:inline">沙盒</span>
                   <span className="sm:hidden">沙盒</span>
                 </TabsTrigger>
+                <TabsTrigger value="hotpot" className="data-[state=active]:bg-zinc-700 text-zinc-400 data-[state=active]:text-white whitespace-nowrap">
+                  <CookingPot className="w-4 h-4 mr-1.5" />
+                  <span className="hidden sm:inline">火锅订单</span>
+                  <span className="sm:hidden">火锅</span>
+                </TabsTrigger>
               </>
             )}
           </TabsList>
@@ -88,6 +94,7 @@ export function AdminDashboard({ username, isAdmin = false }: AdminDashboardProp
               <TabsContent value="ai-configs"><AIConfigsTab /></TabsContent>
               <TabsContent value="config"><ConfigTab /></TabsContent>
               <TabsContent value="sandbox"><SandboxTab /></TabsContent>
+              <TabsContent value="hotpot"><HotpotOrdersTab /></TabsContent>
             </>
           )}
         </Tabs>
