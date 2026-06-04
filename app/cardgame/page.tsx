@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Card, createDeck, shuffleDeck, dealCards, classifyHand, canBeat } from '@/lib/cardgame/logic'
 import { SupabaseClient } from '@/lib/cardgame/supabase'
-import { AIPlayer } from '@/lib/cardgame/ai'
+import { AIPlayer, resetPlayedCards, recordPlayedCards } from '@/lib/cardgame/ai'
 
 const CARD_TYPE_NAMES: Record<string, string> = {
   SINGLE: '单张', PAIR: '对子', TRIPLE: '三条',
@@ -140,6 +140,7 @@ export default function CardGamePage() {
     const room = await supabaseRef.current?.getRoom(roomCode)
     if (!room) { setMessage('房间不存在'); return }
 
+    resetPlayedCards() // 重置出牌记录
     const players = room.players || []
     const deck = shuffleDeck(createDeck())
     const [hand1, hand2, hand3, landlordCards] = dealCards(deck)
@@ -178,10 +179,11 @@ export default function CardGamePage() {
   }
 
   // AI叫分
-  const aiBid = (playerIndex: number) => {
+  const aiBid = async (playerIndex: number) => {
     if (!gameState || !aiRef.current) return
     const hand = gameState.hands[playerIndex]
-    const score = aiRef.current.decideBid(hand)
+    const handCount = gameState.hands.map(h => h.length)
+    const score = await aiRef.current.decideBid(hand, handCount)
     handleBid(score, playerIndex)
   }
 
@@ -232,15 +234,31 @@ export default function CardGamePage() {
   }
 
   // AI出牌
-  const aiPlay = (playerIndex: number) => {
+  const aiPlay = async (playerIndex: number) => {
     if (!gameState || !aiRef.current) return
     const hand = gameState.hands[playerIndex]
     const mustFollow = gameState.passCount >= 2 ? null : gameState.lastPlay
-    const cards = aiRef.current.decidePlay(hand, mustFollow)
+    const handCount = gameState.hands.map(h => h.length)
+    const isLandlord = gameState.landlord === playerIndex
+    const playerName = gameState.players[playerIndex]?.name || 'AI'
+
+    // 构建出牌历史
+    const history: { player: number, cards: Card[] | null, playerName: string }[] = []
+
+    // 转换 mustFollow 格式
+    const followPlay = mustFollow ? {
+      cards: mustFollow.cards,
+      type: mustFollow.type as any,
+      mainPower: mustFollow.mainPower || 0,
+    } : null
+
+    const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord, playerName, history)
 
     if (cards === null) {
       handlePass(playerIndex)
     } else {
+      // 记录出牌
+      recordPlayedCards(cards)
       handlePlay(cards, playerIndex)
     }
   }
@@ -258,6 +276,9 @@ export default function CardGamePage() {
     if (gameState.lastPlay && gameState.passCount < 2 && playerIndex === undefined) {
       if (!canBeat(play, gameState.lastPlay)) { setMessage('打不过上家'); return }
     }
+
+    // 记录出牌
+    recordPlayedCards(cardsToPlay)
 
     const newHands = gameState.hands.map(h => [...h])
     newHands[idx] = newHands[idx].filter(c => !cardsToPlay.some(sc => sc.suit === c.suit && sc.rank === c.rank))
@@ -293,6 +314,7 @@ export default function CardGamePage() {
 
   // 开始AI对战
   const startAIGame = () => {
+    resetPlayedCards() // 重置出牌记录
     const deck = shuffleDeck(createDeck())
     const [h1, h2, h3, lc] = dealCards(deck)
     const firstBidder = Math.floor(Math.random() * 3)
