@@ -83,28 +83,12 @@ export default function CardGamePage() {
 
   // 等待计时器
   useEffect(() => {
-    if (isWaiting) {
-      waitingTimerRef.current = setInterval(() => {
-        setWaitingTime(prev => {
-          if (prev >= 30) {
-            // 30秒超时，开始AI对战
-            startAIGame()
-            return 0
-          }
-          return prev + 1
-        })
-      }, 1000)
-    } else {
-      if (waitingTimerRef.current) {
-        clearInterval(waitingTimerRef.current)
-      }
-    }
     return () => {
       if (waitingTimerRef.current) {
         clearInterval(waitingTimerRef.current)
       }
     }
-  }, [isWaiting])
+  }, [])
 
   // 创建房间
   const createRoom = async () => {
@@ -212,7 +196,7 @@ export default function CardGamePage() {
     }
 
     try {
-      const room = await supabaseRef.current?.joinRoom(roomCode.toUpperCase(), playerName)
+      const room = await supabaseRef.current?.joinRoom(roomCode, playerName)
       if (room) {
         setIsConnected(true)
         setIsHost(false)
@@ -792,16 +776,16 @@ export default function CardGamePage() {
                 disabled={isWaiting}
                 className="w-full py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-lg disabled:opacity-50"
               >
-                {isWaiting ? `等待中 ${waitingTime}/30秒...` : '创建房间'}
+                {isWaiting ? '等待中...' : '创建房间'}
               </button>
 
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={roomCode}
-                  onChange={e => setRoomCode(e.target.value.toUpperCase())}
+                  onChange={e => setRoomCode(e.target.value)}
                   placeholder="房间号"
-                  className="flex-1 px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none uppercase"
+                  className="flex-1 px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none"
                   maxLength={8}
                 />
                 <button

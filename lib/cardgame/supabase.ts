@@ -13,7 +13,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export class SupabaseClient {
   // 创建房间
   async createRoom(hostName: string) {
-    const roomCode = Math.random().toString(36).substring(2, 10).toUpperCase()
+    // 生成6位数字房间号
+    const roomCode = Math.floor(100000 + Math.random() * 900000).toString()
 
     const { data, error } = await supabase
       .from('doudizhu_rooms')
