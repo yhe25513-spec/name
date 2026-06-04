@@ -1,5 +1,5 @@
 /**
- * Supabase 客户端 - 用于多人联机
+ * Supabase 客户端 - 使用 Realtime Broadcast 实现实时同步
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -7,13 +7,13 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-// Supabase 客户端
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export class SupabaseClient {
+  private channel: any = null
+
   // 创建房间
   async createRoom(hostName: string) {
-    // 生成6位数字房间号
     const roomCode = Math.floor(100000 + Math.random() * 900000).toString()
 
     const { data, error } = await supabase
@@ -31,7 +31,6 @@ export class SupabaseClient {
       console.error('创建房间失败:', error)
       return null
     }
-
     return data
   }
 
@@ -47,29 +46,21 @@ export class SupabaseClient {
       console.error('获取房间失败:', error)
       return null
     }
-
     return data
   }
 
   // 加入房间
   async joinRoom(roomCode: string, playerName: string) {
-    // 先获取房间
     const room = await this.getRoom(roomCode)
     if (!room) return null
 
     const players = room.players || []
     if (players.length >= 3) return null
 
-    // 检查是否已存在
     const existing = players.find((p: any) => p.name === playerName)
-    if (existing) return room // 重连
+    if (existing) return room
 
-    // 添加玩家
-    players.push({
-      name: playerName,
-      ready: false,
-      index: players.length,
-    })
+    players.push({ name: playerName, ready: false, index: players.length })
 
     const { error } = await supabase
       .from('doudizhu_rooms')
@@ -80,29 +71,7 @@ export class SupabaseClient {
       console.error('加入房间失败:', error)
       return null
     }
-
     return await this.getRoom(roomCode)
-  }
-
-  // 离开房间
-  async leaveRoom(roomCode: string, playerName: string) {
-    const room = await this.getRoom(roomCode)
-    if (!room) return
-
-    const players = (room.players || []).filter((p: any) => p.name !== playerName)
-
-    if (players.length === 0) {
-      // 房间空了，删除
-      await supabase
-        .from('doudizhu_rooms')
-        .delete()
-        .eq('room_code', roomCode)
-    } else {
-      await supabase
-        .from('doudizhu_rooms')
-        .update({ players })
-        .eq('room_code', roomCode)
-    }
   }
 
   // 更新游戏状态
@@ -116,8 +85,17 @@ export class SupabaseClient {
       .eq('room_code', roomCode)
 
     if (error) {
-      console.error('更新游戏状态失败:', error)
+      console.error('更新失败:', error)
       return false
+    }
+
+    // 通过 Broadcast 发送实时更新
+    if (this.channel) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'game-update',
+        payload: { state: gameState, roomCode },
+      })
     }
 
     return true
@@ -127,40 +105,115 @@ export class SupabaseClient {
   async startGame(roomCode: string, gameState: any) {
     const { error } = await supabase
       .from('doudizhu_rooms')
-      .update({
-        status: 'playing',
-        game_state: gameState,
-      })
+      .update({ status: 'playing', game_state: gameState })
       .eq('room_code', roomCode)
 
-    if (error) {
-      console.error('开始游戏失败:', error)
-      return false
+    if (error) return false
+
+    // 广播游戏开始
+    if (this.channel) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'game-start',
+        payload: { state: gameState, roomCode },
+      })
     }
 
     return true
   }
 
-  // 订阅房间变化
-  subscribeRoom(roomCode: string, callback: (room: any) => void) {
-    const channel = supabase
+  // 订阅房间（使用 Broadcast）
+  subscribeRoom(roomCode: string, callbacks: {
+    onGameUpdate?: (state: any) => void
+    onGameStart?: (state: any) => void
+    onPlayerJoin?: (players: any[]) => void
+  }) {
+    // 先清理旧的
+    if (this.channel) {
+      supabase.removeChannel(this.channel)
+    }
+
+    this.channel = supabase
       .channel(`room:${roomCode}`)
+      .on('broadcast', { event: 'game-update' }, (payload) => {
+        if (payload.payload.roomCode === roomCode && callbacks.onGameUpdate) {
+          callbacks.onGameUpdate(payload.payload.state)
+        }
+      })
+      .on('broadcast', { event: 'game-start' }, (payload) => {
+        if (payload.payload.roomCode === roomCode && callbacks.onGameStart) {
+          callbacks.onGameStart(payload.payload.state)
+        }
+      })
+      .on('broadcast', { event: 'player-join' }, (payload) => {
+        if (payload.payload.roomCode === roomCode && callbacks.onPlayerJoin) {
+          callbacks.onPlayerJoin(payload.payload.players)
+        }
+      })
+      .subscribe()
+
+    // 也订阅数据库变化（用于玩家加入通知）
+    const dbChannel = supabase
+      .channel(`db:${roomCode}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'doudizhu_rooms',
           filter: `room_code=eq.${roomCode}`,
         },
         (payload) => {
-          callback(payload.new)
+          const newRoom = payload.new as any
+          if (newRoom.status === 'playing' && newRoom.game_state && callbacks.onGameStart) {
+            callbacks.onGameStart(newRoom.game_state)
+          }
+          if (newRoom.players && callbacks.onPlayerJoin) {
+            callbacks.onPlayerJoin(newRoom.players)
+          }
         }
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      if (this.channel) {
+        supabase.removeChannel(this.channel)
+        this.channel = null
+      }
+      supabase.removeChannel(dbChannel)
+    }
+  }
+
+  // 广播玩家加入
+  broadcastPlayerJoin(roomCode: string, players: any[]) {
+    if (this.channel) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'player-join',
+        payload: { players, roomCode },
+      })
+    }
+  }
+
+  // 离开房间
+  async leaveRoom(roomCode: string, playerName: string) {
+    const room = await this.getRoom(roomCode)
+    if (!room) return
+
+    const players = (room.players || []).filter((p: any) => p.name !== playerName)
+
+    if (players.length === 0) {
+      await supabase.from('doudizhu_rooms').delete().eq('room_code', roomCode)
+    } else {
+      await supabase.from('doudizhu_rooms').update({ players }).eq('room_code', roomCode)
+    }
+
+    if (this.channel) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'player-join',
+        payload: { players, roomCode },
+      })
     }
   }
 }
