@@ -6,7 +6,14 @@ import { Card, CardType, classifyHand, findAllValidPlays, getRankPower, PlayHand
 
 // API 配置
 const API_URL = 'https://api.deepseek.com/chat/completions'
-const API_KEY = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY || ''
+
+// 从 localStorage 获取 API Key
+function getApiKey(): string {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('deepseek_api_key') || ''
+  }
+  return ''
+}
 
 // 牌力权重
 const CARD_WEIGHTS: Record<string, number> = {
@@ -92,7 +99,12 @@ export class AIPlayer {
   private useAPI: boolean
 
   constructor() {
-    this.useAPI = !!API_KEY
+    this.useAPI = !!getApiKey()
+  }
+
+  // 检查是否配置了API
+  isAPIConfigured(): boolean {
+    return !!getApiKey()
   }
 
   // 评估手牌强度
@@ -195,28 +207,56 @@ export class AIPlayer {
 
   // 调用 DeepSeek API
   private async callAPI(prompt: string): Promise<string | null> {
-    if (!this.useAPI) return null
+    const apiKey = getApiKey()
+    if (!apiKey) {
+      console.log('API未配置，使用本地AI')
+      return null
+    }
 
+    console.log('正在调用DeepSeek API...')
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: 'deepseek-chat',
           messages: [
-            { role: 'system', content: '你是专业斗地主AI。只返回JSON，不要其他内容。' },
+            {
+              role: 'system',
+              content: `你是专业斗地主AI，精通算牌和策略分析。
+
+核心能力:
+1. 算牌：记住所有出过的牌，推断对手手牌
+2. 概率计算：分析各种出牌的胜率
+3. 策略选择：根据身份(地主/农民)选择最优策略
+
+出牌原则:
+- 地主：主动控制局面，快速出完
+- 农民：配合队友，帮队友出完
+- 保留炸弹在关键时刻
+- 顺子/三带优先出
+
+只返回JSON，不要其他内容。`
+            },
             { role: 'user', content: prompt },
           ],
-          temperature: 0.3,
-          max_tokens: 200,
+          temperature: 0.2,
+          max_tokens: 300,
         }),
       })
 
+      if (!response.ok) {
+        console.error('API响应错误:', response.status)
+        return null
+      }
+
       const data = await response.json()
-      return data.choices?.[0]?.message?.content || null
+      const content = data.choices?.[0]?.message?.content
+      console.log('API返回:', content)
+      return content || null
     } catch (error) {
       console.error('API调用失败:', error)
       return null
