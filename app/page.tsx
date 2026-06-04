@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BookOpen, Image, Sparkles, ArrowRight, CookingPot } from 'lucide-react'
+import { BookOpen, Image, Sparkles, ArrowRight, CookingPot, Gamepad2 } from 'lucide-react'
 
 const features = [
   {
@@ -12,6 +12,15 @@ const features = [
     icon: BookOpen,
     href: '/game',
     badge: '经典',
+  },
+  {
+    id: 'cardgame',
+    title: '斗地主',
+    subtitle: '牌局风云',
+    description: '在线对战，支持真人匹配和AI对战',
+    icon: Gamepad2,
+    href: '/cardgame',
+    badge: '新游戏',
   },
   {
     id: 'image',
