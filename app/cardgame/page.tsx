@@ -441,7 +441,11 @@ export default function CardGamePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
-        <h1 className="text-2xl font-bold text-center text-yellow-400 mb-6">🃏 斗地主</h1>
+        <div className="flex items-center justify-between mb-6">
+          <a href="/" className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">← 返回首页</a>
+          <h1 className="text-2xl font-bold text-yellow-400">🃏 斗地主</h1>
+          <div className="w-20"></div>
+        </div>
         <div className="mb-4">
           <label className="block text-sm text-gray-400 mb-1">你的昵称</label>
           <input type="text" value={playerName} onChange={e => setPlayerName(e.target.value)}
