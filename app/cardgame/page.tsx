@@ -66,6 +66,7 @@ export default function CardGamePage() {
   const [roomCode, setRoomCode] = useState('')
   const [isConnected, setIsConnected] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
+  const [isHost, setIsHost] = useState(false)
   const [waitingTime, setWaitingTime] = useState(0)
   const [message, setMessage] = useState('')
   const [myIndex, setMyIndex] = useState(0)
@@ -120,6 +121,8 @@ export default function CardGamePage() {
       if (room) {
         setRoomCode(room.room_code)
         setIsConnected(true)
+        setIsHost(true)
+        setMyIndex(0)
         setMessage(`房间已创建: ${room.room_code}，等待玩家加入...`)
 
         // 订阅房间变化
@@ -129,6 +132,62 @@ export default function CardGamePage() {
       setMessage('创建房间失败')
       setIsWaiting(false)
     }
+  }
+
+  // 开始在线游戏
+  const startOnlineGame = async () => {
+    if (!isHost || !roomCode) return
+
+    // 获取房间信息
+    const room = await supabaseRef.current?.getRoom(roomCode)
+    if (!room) {
+      setMessage('房间不存在')
+      return
+    }
+
+    const players = room.players || []
+    if (players.length < 2) {
+      setMessage('至少需要2名玩家才能开始')
+      return
+    }
+
+    // 创建游戏
+    const deck = shuffleDeck(createDeck())
+    const [hand1, hand2, hand3, landlordCards] = dealCards(deck)
+
+    const hands = [hand1, hand2, hand3]
+
+    const gameState = {
+      phase: 'bidding',
+      hands: hands.map(hand => hand.map(c => ({ suit: c.suit, rank: c.rank }))),
+      landlordCards: landlordCards.map(c => ({ suit: c.suit, rank: c.rank })),
+      landlord: null,
+      currentPlayer: Math.floor(Math.random() * players.length),
+      lastPlay: null,
+      lastPlayer: null,
+      passCount: 0,
+      bidScores: new Array(players.length).fill(null),
+      currentBidder: Math.floor(Math.random() * players.length),
+      winner: null,
+      players: players.map((p: any, i: number) => ({
+        id: p.name,
+        name: p.name,
+        index: i,
+        isAI: false,
+      })),
+    }
+
+    // 更新 Supabase
+    await supabaseRef.current?.startGame(roomCode, gameState)
+
+    // 本地进入游戏
+    setGameState({
+      ...gameState,
+      phase: 'bidding' as const,
+      hands,
+      landlordCards,
+    })
+    setMessage('游戏开始！')
   }
 
   // 加入房间
@@ -142,6 +201,11 @@ export default function CardGamePage() {
       const room = await supabaseRef.current?.joinRoom(roomCode.toUpperCase(), playerName)
       if (room) {
         setIsConnected(true)
+        setIsHost(false)
+        // 找到自己的索引
+        const players = room.players || []
+        const myIdx = players.findIndex((p: any) => p.name === playerName)
+        setMyIndex(myIdx >= 0 ? myIdx : players.length - 1)
         setMessage('已加入房间，等待房主开始游戏...')
         subscribeToRoom(room.room_code)
       } else {
@@ -204,6 +268,13 @@ export default function CardGamePage() {
     const hands = state.hands.map((hand: any[]) =>
       hand.map((c: any) => ({ suit: c.suit, rank: c.rank }))
     )
+
+    // 找到自己的索引
+    const players = state.players || []
+    const myIdx = players.findIndex((p: any) => p.name === playerName)
+    if (myIdx >= 0) {
+      setMyIndex(myIdx)
+    }
 
     setGameState({
       ...state,
@@ -686,30 +757,47 @@ export default function CardGamePage() {
 
         {/* 操作按钮 */}
         <div className="space-y-4">
-          <button
-            onClick={createRoom}
-            disabled={isWaiting}
-            className="w-full py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-lg disabled:opacity-50"
-          >
-            {isWaiting ? `等待中 ${waitingTime}/30秒...` : '创建房间'}
-          </button>
+          {!isConnected ? (
+            <>
+              <button
+                onClick={createRoom}
+                disabled={isWaiting}
+                className="w-full py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-lg disabled:opacity-50"
+              >
+                {isWaiting ? `等待中 ${waitingTime}/30秒...` : '创建房间'}
+              </button>
 
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={roomCode}
-              onChange={e => setRoomCode(e.target.value.toUpperCase())}
-              placeholder="房间号"
-              className="flex-1 px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none uppercase"
-              maxLength={8}
-            />
-            <button
-              onClick={joinRoom}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold"
-            >
-              加入
-            </button>
-          </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={roomCode}
+                  onChange={e => setRoomCode(e.target.value.toUpperCase())}
+                  placeholder="房间号"
+                  className="flex-1 px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none uppercase"
+                  maxLength={8}
+                />
+                <button
+                  onClick={joinRoom}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold"
+                >
+                  加入
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center">
+              <div className="text-lg text-yellow-400 mb-2">房间号: {roomCode}</div>
+              <div className="text-sm text-gray-400 mb-4">等待玩家加入中...</div>
+              {isHost && (
+                <button
+                  onClick={startOnlineGame}
+                  className="w-full py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-lg"
+                >
+                  开始游戏
+                </button>
+              )}
+            </div>
+          )}
 
           <button
             onClick={startAIGame}
