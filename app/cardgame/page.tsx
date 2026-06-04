@@ -146,8 +146,8 @@ export default function CardGamePage() {
     }
 
     const players = room.players || []
-    if (players.length < 2) {
-      setMessage('至少需要2名玩家才能开始')
+    if (players.length < 1) {
+      setMessage('至少需要1名玩家才能开始')
       return
     }
 
@@ -157,24 +157,38 @@ export default function CardGamePage() {
 
     const hands = [hand1, hand2, hand3]
 
+    // 构建玩家列表，不够3人用AI补
+    const allPlayers = players.map((p: any, i: number) => ({
+      id: p.name,
+      name: p.name,
+      index: i,
+      isAI: false,
+    }))
+
+    // 用AI补齐到3人
+    while (allPlayers.length < 3) {
+      const aiIndex = allPlayers.length
+      allPlayers.push({
+        id: `ai${aiIndex}`,
+        name: `电脑${aiIndex}`,
+        index: aiIndex,
+        isAI: true,
+      })
+    }
+
     const gameState = {
       phase: 'bidding',
       hands: hands.map(hand => hand.map(c => ({ suit: c.suit, rank: c.rank }))),
       landlordCards: landlordCards.map(c => ({ suit: c.suit, rank: c.rank })),
       landlord: null,
-      currentPlayer: Math.floor(Math.random() * players.length),
+      currentPlayer: Math.floor(Math.random() * 3),
       lastPlay: null,
       lastPlayer: null,
       passCount: 0,
-      bidScores: new Array(players.length).fill(null),
-      currentBidder: Math.floor(Math.random() * players.length),
+      bidScores: [null, null, null],
+      currentBidder: Math.floor(Math.random() * 3),
       winner: null,
-      players: players.map((p: any, i: number) => ({
-        id: p.name,
-        name: p.name,
-        index: i,
-        isAI: false,
-      })),
+      players: allPlayers,
     }
 
     // 更新 Supabase
@@ -611,7 +625,21 @@ export default function CardGamePage() {
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-4">
         {/* 顶部信息 */}
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-yellow-400">🃏 斗地主</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                setGameState(null)
+                setIsConnected(false)
+                setIsHost(false)
+                setRoomCode('')
+                setMessage('')
+              }}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+            >
+              ← 返回
+            </button>
+            <h1 className="text-2xl font-bold text-yellow-400">🃏 斗地主</h1>
+          </div>
           <div className="text-sm text-gray-400">
             {isLandlord ? '👑 地主' : '👨‍🌾 农民'} | 手牌: {gameState.hands[myIndex].length}张
           </div>
