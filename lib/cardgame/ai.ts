@@ -118,41 +118,79 @@ export class AIPlayer {
     const validPlays = findAllValidPlays(hand, mustFollow)
     if (validPlays.length === 0) return null
 
-    if (hand.length <= 3) {
+    // 手牌很少时，尝试一次出完
+    if (hand.length <= 5) {
       for (const play of validPlays) {
         if (play.cards.length === hand.length) return play.cards
       }
     }
 
+    // 首出策略
     if (!mustFollow) {
-      // 首出：出小牌
+      // 优先出顺子（容易出完）
+      const straights = validPlays.filter(p => p.type === CardType.STRAIGHT)
+      if (straights.length > 0) {
+        straights.sort((a, b) => (a.chainLength || 0) - (b.chainLength || 0))
+        return straights[0].cards
+      }
+
+      // 出三带
+      const triples = validPlays.filter(p => p.type === CardType.TRIPLE_ONE || p.type === CardType.TRIPLE_TWO)
+      if (triples.length > 0) {
+        triples.sort((a, b) => a.mainPower - b.mainPower)
+        return triples[0].cards
+      }
+
+      // 出小对子
+      const pairs = validPlays.filter(p => p.type === CardType.PAIR).sort((a, b) => a.mainPower - b.mainPower)
+      if (pairs.length > 0) {
+        const smallPair = pairs.find(p => p.mainPower <= 5)
+        if (smallPair) return smallPair.cards
+        return pairs[0].cards
+      }
+
+      // 出小单张
       const singles = validPlays.filter(p => p.type === CardType.SINGLE).sort((a, b) => a.mainPower - b.mainPower)
       if (singles.length > 0) {
-        const small = singles.find(p => p.mainPower <= 4)
-        return small ? small.cards : singles[0].cards
+        const smallSingle = singles.find(p => p.mainPower <= 3)
+        if (smallSingle) return smallSingle.cards
+        return singles[0].cards
       }
-      const pairs = validPlays.filter(p => p.type === CardType.PAIR).sort((a, b) => a.mainPower - b.mainPower)
-      if (pairs.length > 0) return pairs[0].cards
+
       validPlays.sort((a, b) => a.mainPower - b.mainPower)
       return validPlays[0].cards
     }
 
-    // 跟牌
+    // 跟牌策略
     const nonBombs = validPlays.filter(p => p.type !== CardType.BOMB && p.type !== CardType.ROCKET)
+
     if (nonBombs.length > 0) {
       nonBombs.sort((a, b) => a.mainPower - b.mainPower)
-      const small = nonBombs.find(p => p.mainPower <= 5)
-      return small ? small.cards : nonBombs[0].cards
+
+      // 手牌多时出小牌，手牌少时出大牌控牌
+      if (hand.length > 8) {
+        // 出最小能打过的牌
+        return nonBombs[0].cards
+      } else {
+        // 出中等大小的牌
+        const midPlay = nonBombs.find(p => p.mainPower >= 5 && p.mainPower <= 10)
+        if (midPlay) return midPlay.cards
+        return nonBombs[0].cards
+      }
     }
 
-    if (hand.length <= 4) {
+    // 只剩炸弹/火箭
+    if (hand.length <= 5) {
       const bombs = validPlays.filter(p => p.type === CardType.BOMB)
-      if (bombs.length > 0) return bombs[0].cards
+      if (bombs.length > 0) {
+        bombs.sort((a, b) => a.mainPower - b.mainPower)
+        return bombs[0].cards
+      }
       const rockets = validPlays.filter(p => p.type === CardType.ROCKET)
       if (rockets.length > 0) return rockets[0].cards
     }
 
-    return null
+    return null // 过牌
   }
 
   // 调用 DeepSeek API
@@ -227,9 +265,14 @@ ${getRemainingAnalysis()}
 手牌(${hand.length}张): ${formatHand(hand)}
 各玩家手牌数: ${handCount.join(', ')}
 ${getRemainingAnalysis()}
-最近出牌:\n${formatHistory(history)}
 ${mustFollow ? `需要跟: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})` : '首出，任意出'}
 可选出牌:\n${validStr || '无'}
+
+策略提示:
+- 地主: 主动出牌控制局面，对手手牌少时用炸弹
+- 农民: 配合队友，用小牌帮队友出完
+- 手牌少时优先出顺子/三带
+- 保留炸弹在关键时刻使用
 
 选择最佳出牌或不出。返回JSON: {"action": "play"/"pass", "index": 数字(从0开始)}`
 

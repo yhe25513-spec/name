@@ -74,12 +74,13 @@ export function shuffleDeck(deck: Card[]): Card[] {
 
 // 发牌
 export function dealCards(deck: Card[]): [Card[], Card[], Card[], Card[]] {
-  const sorted = [...deck].sort((a, b) => getRankPower(a.rank) - getRankPower(b.rank))
+  // 随机发牌，不要排序
+  const shuffled = shuffleDeck([...deck])
   return [
-    sorted.slice(0, 17),
-    sorted.slice(17, 34),
-    sorted.slice(34, 51),
-    sorted.slice(51, 54),
+    shuffled.slice(0, 17),
+    shuffled.slice(17, 34),
+    shuffled.slice(34, 51),
+    shuffled.slice(51, 54),
   ]
 }
 

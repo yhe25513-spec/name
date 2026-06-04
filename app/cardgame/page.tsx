@@ -437,7 +437,16 @@ export default function CardGamePage() {
             </>
           )}
           {gameState.phase === 'finished' && (
-            <button onClick={() => { setGameState(null); setIsConnected(false) }}
+            <button onClick={() => {
+              // 如果是在线模式，重新开始游戏；如果是单人模式，回到大厅
+              if (isHost && roomCode) {
+                startOnlineGame()
+              } else if (!isConnected) {
+                setGameState(null)
+              } else {
+                startOnlineGame()
+              }
+            }}
               className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm">再来一局</button>
           )}
         </div>
