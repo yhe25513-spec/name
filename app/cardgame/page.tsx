@@ -48,7 +48,10 @@ export default function CardGamePage() {
   useEffect(() => {
     if (!gameState || gameState.phase === 'finished') return
     const current = gameState.players[gameState.currentPlayer]
-    if (!current?.isAI || gameState.currentPlayer === myIndex) return
+    if (!current?.isAI) return
+    if (gameState.currentPlayer === myIndex) return
+
+    console.log('AI回合:', gameState.currentPlayer, gameState.phase)
 
     const timeout = setTimeout(async () => {
       if (gameState.phase === 'bidding') {
@@ -56,9 +59,9 @@ export default function CardGamePage() {
       } else if (gameState.phase === 'playing') {
         await aiPlay(gameState.currentPlayer)
       }
-    }, 1000)
+    }, 1500)
     return () => clearTimeout(timeout)
-  }, [gameState?.currentPlayer, gameState?.phase, gameState?.hands])
+  }, [gameState?.currentPlayer, gameState?.phase])
 
   // 同步游戏状态到Supabase
   const syncGameState = useCallback(async (newState: GameState) => {
@@ -319,21 +322,26 @@ export default function CardGamePage() {
     const suit = SUIT_SYMBOLS[card.suit] || ''
     const color = SUIT_COLORS[card.suit] || '#000'
     const isJoker = card.rank === 'small_joker' || card.rank === 'big_joker'
+
+    // 根据屏幕大小调整牌的尺寸
+    const sizeClass = small
+      ? 'w-8 h-11 sm:w-10 sm:h-14'
+      : 'w-9 h-12 sm:w-11 sm:h-15 md:w-12 md:h-16'
+
     return (
-      <div onClick={onClick} className={`rounded-md cursor-pointer transition-all flex-shrink-0
-        ${selected ? 'transform -translate-y-2 ring-2 ring-yellow-400' : 'hover:-translate-y-1'}
-        bg-white shadow border border-gray-200 relative ${small ? 'w-10 h-14' : 'w-11 h-15 sm:w-12 sm:h-16'}`}
-        style={{ aspectRatio: '5/7' }}>
+      <div onClick={onClick} className={`${sizeClass} rounded cursor-pointer transition-all flex-shrink-0
+        ${selected ? 'transform -translate-y-2 ring-2 ring-yellow-400' : ''}
+        bg-white shadow border border-gray-200 relative`}>
         {isJoker ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <span className="font-bold" style={{ color: card.rank === 'big_joker' ? '#e94560' : '#000', fontSize: small ? '7px' : '9px' }}>JOKER</span>
-            <span style={{ fontSize: small ? '10px' : '14px' }}>{card.rank === 'big_joker' ? '👑' : '🃏'}</span>
+            <span className="font-bold" style={{ color: card.rank === 'big_joker' ? '#e94560' : '#000', fontSize: small ? '6px' : '8px' }}>JOKER</span>
+            <span style={{ fontSize: small ? '10px' : '12px' }}>{card.rank === 'big_joker' ? '👑' : '🃏'}</span>
           </div>
         ) : (
           <>
-            <div className="absolute top-0.5 left-0.5 font-bold" style={{ color, fontSize: small ? '7px' : '9px' }}>{card.rank}</div>
-            <div className="absolute top-2.5 left-0.5" style={{ color, fontSize: small ? '8px' : '10px' }}>{suit}</div>
-            <div className="flex items-center justify-center h-full" style={{ fontSize: small ? '12px' : '16px', color }}>{suit}</div>
+            <div className="absolute top-0 left-0.5 font-bold leading-none" style={{ color, fontSize: small ? '6px' : '8px' }}>{card.rank}</div>
+            <div className="absolute top-2 left-0.5" style={{ color, fontSize: small ? '7px' : '9px' }}>{suit}</div>
+            <div className="flex items-center justify-center h-full" style={{ fontSize: small ? '10px' : '14px', color }}>{suit}</div>
           </>
         )}
       </div>
@@ -399,8 +407,8 @@ export default function CardGamePage() {
         {gameState.message && <div className="text-center text-sm text-yellow-400 mb-2">{gameState.message}</div>}
 
         {/* 我的手牌 */}
-        <div className="bg-gray-800 rounded-lg p-2 mb-2 sm:mb-3 overflow-x-auto">
-          <div className="flex gap-1 justify-start sm:justify-center flex-nowrap">
+        <div className="bg-gray-800 rounded-lg p-2 mb-2 sm:mb-3 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex gap-0.5 sm:gap-1 justify-start sm:justify-center flex-nowrap min-w-min">
             {(gameState.hands[myIndex] || []).map((c, i) => (
               <div key={`${c.suit}-${c.rank}-${i}`} className="flex-shrink-0">
                 {renderCard(c, selectedCards.some(s => s.suit === c.suit && s.rank === c.rank), () => toggleCard(c))}
