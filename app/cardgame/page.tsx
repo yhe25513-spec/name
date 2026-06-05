@@ -50,23 +50,27 @@ export default function CardGamePage() {
     return () => { if (unsubscribeRef.current) unsubscribeRef.current() }
   }, [])
 
-  // AI回合 - 使用 ref 读取最新状态
+  // AI回合 - 叫分阶段监听 currentBidder，出牌阶段监听 currentPlayer
   useEffect(() => {
     if (!gameState || gameState.phase === 'finished') return
-    const current = gameState.players[gameState.currentPlayer]
-    if (!current?.isAI) return
-    if (gameState.currentPlayer === myIndex) return
 
-    console.log('[AI触发] 玩家:', gameState.currentPlayer, '阶段:', gameState.phase, '当前:', current.name)
+    // 根据阶段决定监听哪个玩家
+    const activePlayer = gameState.phase === 'bidding' ? gameState.currentBidder : gameState.currentPlayer
+    const current = gameState.players[activePlayer]
+    if (!current?.isAI) return
+    if (activePlayer === myIndex) return
+
+    console.log('[AI触发] 玩家:', activePlayer, '阶段:', gameState.phase, '当前:', current.name)
 
     const timeout = setTimeout(async () => {
       const latest = gameStateRef.current
       if (!latest || latest.phase === 'finished') return
-      console.log('[AI执行] 玩家:', latest.currentPlayer, '阶段:', latest.phase)
+      const latestPlayer = latest.phase === 'bidding' ? latest.currentBidder : latest.currentPlayer
+      console.log('[AI执行] 玩家:', latestPlayer, '阶段:', latest.phase)
 
       try {
         if (latest.phase === 'bidding') {
-          await aiBid(latest.currentPlayer)
+          await aiBid(latest.currentBidder)
         } else if (latest.phase === 'playing') {
           await aiPlay(latest.currentPlayer)
         }
@@ -74,13 +78,13 @@ export default function CardGamePage() {
         console.error('[AI错误]', e)
         // 如果AI出错，跳到下一个玩家
         if (latest.phase === 'bidding') {
-          const nextBidder = (latest.currentPlayer + 1) % 3
+          const nextBidder = (latest.currentBidder + 1) % 3
           await syncGameState({ ...latest, currentBidder: nextBidder })
         }
       }
-    }, 800) // 减少延迟到800ms
+    }, 800)
     return () => clearTimeout(timeout)
-  }, [gameState?.currentPlayer, gameState?.phase])
+  }, [gameState?.currentBidder, gameState?.currentPlayer, gameState?.phase])
 
   // 同步游戏状态
   const syncGameState = async (newState: GameState) => {
