@@ -320,7 +320,7 @@ export default function CardGamePage() {
 
   const renderCard = (card: Card, selected = false, onClick?: () => void, small = false) => {
     const suit = SUIT_SYMBOLS[card.suit] || ''
-    const color = SUIT_COLORS[card.suit] || '#000'
+    const color = card.rank === 'big_joker' ? '#e94560' : card.rank === 'small_joker' ? '#000' : (SUIT_COLORS[card.suit as keyof typeof SUIT_COLORS] || '#000')
     const isJoker = card.rank === 'small_joker' || card.rank === 'big_joker'
 
     // 根据屏幕大小调整牌的尺寸
