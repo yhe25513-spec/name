@@ -8,12 +8,12 @@ import { Card, CardType, classifyHand, findAllValidPlays, getRankPower, PlayHand
 const API_URL = 'https://api.deepseek.com/chat/completions'
 
 // 从服务器获取 API Key（缓存）
-let cachedApiKey: string | null = null
+let cachedApiKey = ''
 let cacheTime = 0
 
 async function getApiKey(): Promise<string> {
   // 缓存5分钟
-  if (cachedApiKey !== null && Date.now() - cacheTime < 300000) {
+  if (cachedApiKey && Date.now() - cacheTime < 300000) {
     return cachedApiKey
   }
 
