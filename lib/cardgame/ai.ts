@@ -264,20 +264,16 @@ ${getPlayHistoryStr()}
     if (validPlays.length === 0) return null
 
     const validStr = validPlays.map((p, i) =>
-      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]})`
+      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]}, ${p.cards.length}张)`
     ).join('\n')
 
     const handStr = formatHand(hand)
     const handStructure = analyzeHandStructure(hand)
-    console.log('[AI出牌] 手牌:', handStr)
-    console.log('[AI出牌] 结构:', handStructure)
-    console.log('[AI出牌] 已出牌:', getAllPlayedCards())
-    console.log('[AI出牌] 历史:', getPlayHistoryStr().substring(0, 200))
 
-    const prompt = `【斗地主出牌决策 - 深度分析】
+    const prompt = `【斗地主出牌决策 - 职业级分析】
 
 ═══ 你的身份 ═══
-${isLandlord ? '🔴 地主（1打2，必须赢）' : '🔵 农民（配合队友，限制地主）'}
+${isLandlord ? '🔴 地主（1打2，必须赢）' : '🔵 农民（和队友配合打赢地主）'}
 
 ═══ 你的手牌 ═══
 ${hand.length}张: ${handStr}
@@ -286,30 +282,38 @@ ${hand.length}张: ${handStr}
 ═══ 各玩家手牌数 ═══
 ${handCount.map((c, i) => `玩家${i}: ${c}张${i === 0 ? ' ← 你' : ''}`).join('\n')}
 
-═══ 已出牌记录（重要！用于推断对手手牌）══=
+═══ 已出牌统计 ═══
 ${getAllPlayedCards()}
 
-═══ 出牌历史（完整记录）══=
+═══ 出牌历史 ═══
 ${getPlayHistoryStr()}
 
 ${mustFollow ? `═══ 需要跟牌 ═══
 上家出了: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}
-牌型: ${CARD_TYPE_NAMES[mustFollow.type]}
-你必须出同类型更大的牌，或者炸弹/火箭，或者不出`
+牌型: ${CARD_TYPE_NAMES[mustFollow.type]}` : '═══ 轮到你首出 ═══'}
 
-: `═══ 轮到你首出 ═══
-可以出任意合法牌型`}
+═══ 可选方案 ═══
+${validStr}
 
-═══ 可选的出牌方案 ═══
-${validStr || '无合法出牌，必须不出'}
+═══ 核心策略（必须遵守）═══
+【地主策略】
+1. 大王/小王/2 是王牌，只在关键时刻使用（对手快赢时或自己能走完时）
+2. 先出小牌/对子/顺子试探，保留大牌控制
+3. 不要浪费 A、K 压小牌
+4. 炸弹留到对手手牌≤3张时使用
 
-═══ 策略思考 ═══
-1. 如果你是地主：先出小牌试探，保留炸弹和大牌控制局面
-2. 如果你是农民：帮队友出牌，不要压制队友的牌
-3. 仔细看已出牌记录，推断对手还剩什么牌
-4. 如果对手手牌很少（≤3张），要警惕
+【农民策略】
+1. 配合队友！如果队友出牌，不要压制队友的牌
+2. 地主出小牌时，让队友去顶，你保留实力
+3. 地主手牌少时才用炸弹压制
+4. 不要抢队友的牌权
 
-返回: {"action": "play" 或 "pass", "cards": [序号] 或 null}`
+【通用规则】
+- 大王/小王是最后杀招，绝不要轻易使用
+- 顺子/三带优先出，减少手牌数量
+- 分析对手剩余牌，预测其手牌结构
+
+返回: {"action": "play", "cards": [序号]} 或 {"action": "pass"}`
 
     const result = await this.callAPI(prompt)
     if (result) {

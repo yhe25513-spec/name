@@ -294,7 +294,7 @@ export default function CardGamePage() {
     const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord)
 
     if (cards === null) await handlePass(playerIndex)
-    else { recordPlayedCards(cards); await handlePlay(cards, playerIndex) }
+    else { await handlePlay(cards, playerIndex) }
   }
 
   // 出牌
