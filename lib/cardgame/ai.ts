@@ -267,14 +267,21 @@ ${getPlayHistoryStr()}
       `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]})`
     ).join('\n')
 
+    const handStr = formatHand(hand)
+    const handStructure = analyzeHandStructure(hand)
+    console.log('[AI出牌] 手牌:', handStr)
+    console.log('[AI出牌] 结构:', handStructure)
+    console.log('[AI出牌] 已出牌:', getAllPlayedCards())
+    console.log('[AI出牌] 历史:', getPlayHistoryStr().substring(0, 200))
+
     const prompt = `【斗地主出牌决策 - 深度分析】
 
 ═══ 你的身份 ═══
 ${isLandlord ? '🔴 地主（1打2，必须赢）' : '🔵 农民（配合队友，限制地主）'}
 
 ═══ 你的手牌 ═══
-${hand.length}张: ${formatHand(hand)}
-结构: ${analyzeHandStructure(hand)}
+${hand.length}张: ${handStr}
+结构: ${handStructure}
 
 ═══ 各玩家手牌数 ═══
 ${handCount.map((c, i) => `玩家${i}: ${c}张${i === 0 ? ' ← 你' : ''}`).join('\n')}
