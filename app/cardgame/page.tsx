@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Card, createDeck, shuffleDeck, dealCards, classifyHand, canBeat } from '@/lib/cardgame/logic'
 import { SupabaseClient } from '@/lib/cardgame/supabase'
-import { AIPlayer, resetPlayedCards, recordPlayedCards } from '@/lib/cardgame/ai'
+import { AIPlayer, resetPlayedCards, recordPlayedCards, recordPlayHistory } from '@/lib/cardgame/ai'
 
 const CARD_TYPE_NAMES: Record<string, string> = {
   SINGLE: '单张', PAIR: '对子', TRIPLE: '三条',
@@ -289,10 +289,9 @@ export default function CardGamePage() {
     const mustFollow = latest.passCount >= 2 ? null : latest.lastPlay
     const handCount = latest.hands.map(h => h.length)
     const isLandlord = latest.landlord === playerIndex
-    const name = latest.players[playerIndex]?.name || 'AI'
 
     const followPlay = mustFollow ? { cards: mustFollow.cards, type: mustFollow.type as any, mainPower: mustFollow.mainPower || 0 } : null
-    const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord, name, [])
+    const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord)
 
     if (cards === null) await handlePass(playerIndex)
     else { recordPlayedCards(cards); await handlePlay(cards, playerIndex) }
@@ -315,6 +314,7 @@ export default function CardGamePage() {
     }
 
     recordPlayedCards(cardsToPlay)
+    recordPlayHistory(idx, cardsToPlay, latest.players[idx].name)
     const newHands = latest.hands.map(h => [...h])
     newHands[idx] = newHands[idx].filter(c => !cardsToPlay.some(sc => sc.suit === c.suit && sc.rank === c.rank))
     const isWin = newHands[idx].length === 0
@@ -336,6 +336,7 @@ export default function CardGamePage() {
     const idx = playerIndex ?? myIndex
     if (playerIndex === undefined && (!latest.lastPlay || latest.passCount >= 2)) return
 
+    recordPlayHistory(idx, null, latest.players[idx].name)
     const newPassCount = latest.passCount + 1
     const nextPlayer = (idx + 1) % 3
 

@@ -1,5 +1,5 @@
 /**
- * 智能斗地主AI - 使用 DeepSeek API + 本地规则引擎
+ * 职业级斗地主AI - DeepSeek API + 高级策略引擎
  */
 
 import { Card, CardType, classifyHand, findAllValidPlays, getRankPower, PlayHand } from './logic'
@@ -7,113 +7,86 @@ import { Card, CardType, classifyHand, findAllValidPlays, getRankPower, PlayHand
 // API 配置
 const API_URL = 'https://api.deepseek.com/chat/completions'
 
-// 从服务器获取 API Key（缓存）
 let cachedApiKey = ''
 let cacheTime = 0
 
 async function getApiKey(): Promise<string> {
-  // 缓存5分钟
-  if (cachedApiKey && Date.now() - cacheTime < 300000) {
-    return cachedApiKey
-  }
-
+  if (cachedApiKey && Date.now() - cacheTime < 300000) return cachedApiKey
   try {
     const res = await fetch('/api/admin/cardgame-config')
     const data = await res.json()
     cachedApiKey = data.apiKey || ''
     cacheTime = Date.now()
     return cachedApiKey
-  } catch {
-    return ''
-  }
+  } catch { return '' }
 }
 
-// 牌力权重
 const CARD_WEIGHTS: Record<string, number> = {
-  '3': 1, '4': 1, '5': 1, '6': 1, '7': 1,
-  '8': 2, '9': 2, '10': 2, 'J': 3, 'Q': 3,
-  'K': 4, 'A': 5, '2': 8, 'small_joker': 10, 'big_joker': 12,
+  '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 2, '9': 2, '10': 2, 'J': 3, 'Q': 3, 'K': 4, 'A': 5, '2': 8, 'small_joker': 10, 'big_joker': 12,
 }
 
-// 牌名映射
 const RANK_NAMES: Record<string, string> = {
-  '3': '3', '4': '4', '5': '5', '6': '6', '7': '7',
-  '8': '8', '9': '9', '10': '10', 'J': 'J', 'Q': 'Q',
-  'K': 'K', 'A': 'A', '2': '2', 'small_joker': '小王', 'big_joker': '大王',
+  '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9', '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A', '2': '2', 'small_joker': '小王', 'big_joker': '大王',
 }
 
-const SUIT_NAMES: Record<string, string> = {
-  spade: '♠', heart: '♥', club: '♣', diamond: '♦', joker: '',
-}
-
+const SUIT_NAMES: Record<string, string> = { spade: '♠', heart: '♥', club: '♣', diamond: '♦', joker: '' }
 const CARD_TYPE_NAMES: Record<string, string> = {
-  SINGLE: '单张', PAIR: '对子', TRIPLE: '三条',
-  TRIPLE_ONE: '三带一', TRIPLE_TWO: '三带二', STRAIGHT: '顺子',
-  STRAIGHT_PAIR: '连对', AIRPLANE: '飞机', BOMB: '炸弹', ROCKET: '火箭',
+  SINGLE: '单张', PAIR: '对子', TRIPLE: '三条', TRIPLE_ONE: '三带一', TRIPLE_TWO: '三带二',
+  STRAIGHT: '顺子', STRAIGHT_PAIR: '连对', AIRPLANE: '飞机', BOMB: '炸弹', ROCKET: '火箭',
 }
 
-// 记录所有出过的牌
 let playedCards: Card[] = []
+let playHistory: { player: number, cards: Card[] | null, playerName: string }[] = []
 
-export function resetPlayedCards() {
-  playedCards = []
+export function resetPlayedCards() { playedCards = []; playHistory = [] }
+export function recordPlayedCards(cards: Card[]) { playedCards.push(...cards) }
+export function recordPlayHistory(player: number, cards: Card[] | null, playerName: string) { playHistory.push({ player, cards, playerName }) }
+export function getPlayHistory() { return playHistory }
+
+function getPlayedCardsAnalysis(): string {
+  if (playedCards.length === 0) return '暂无出牌记录'
+  const counts: Record<string, number> = {}
+  for (const c of playedCards) counts[c.rank] = (counts[c.rank] || 0) + 1
+  return Object.entries(counts).map(([k, v]) => `${RANK_NAMES[k]}×${v}`).join(', ')
 }
 
-export function recordPlayedCards(cards: Card[]) {
-  playedCards.push(...cards)
-}
-
-// 获取剩余牌分析
-function getRemainingAnalysis(): string {
-  // 所有牌
-  const allCards: Card[] = []
-  const suits: Array<'spade' | 'heart' | 'club' | 'diamond'> = ['spade', 'heart', 'club', 'diamond']
-  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
-  for (const suit of suits) {
-    for (const rank of ranks) {
-      allCards.push({ suit, rank })
-    }
-  }
-  allCards.push({ suit: 'joker', rank: 'small_joker' })
-  allCards.push({ suit: 'joker', rank: 'big_joker' })
-
-  // 计算剩余
-  const remaining = allCards.filter(c =>
-    !playedCards.some(p => p.suit === c.suit && p.rank === c.rank)
-  )
-
-  // 统计大牌
-  const bigCards = remaining.filter(c => ['2', 'small_joker', 'big_joker', 'A', 'K'].includes(c.rank))
-  const bigCardCounts: Record<string, number> = {}
-  for (const c of bigCards) {
-    bigCardCounts[c.rank] = (bigCardCounts[c.rank] || 0) + 1
-  }
-
-  return `剩余大牌: ${Object.entries(bigCardCounts).map(([k, v]) => `${RANK_NAMES[k]}×${v}`).join(', ') || '无'}`
-}
-
-// 格式化手牌
-function formatHand(hand: Card[]): string {
-  return hand.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')
-}
-
-// 格式化出牌记录
-function formatHistory(history: { player: number, cards: Card[] | null, playerName: string }[]): string {
-  if (!history || history.length === 0) return '无'
-  return history.slice(-8).map(h => {
-    if (h.cards) {
-      return `${h.playerName}: ${h.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}`
-    }
+function getPlayHistoryStr(): string {
+  if (playHistory.length === 0) return '暂无'
+  return playHistory.slice(-10).map(h => {
+    if (h.cards) return `${h.playerName}: ${h.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}`
     return `${h.playerName}: 不出`
   }).join('\n')
 }
 
+function formatHand(hand: Card[]): string {
+  return hand.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')
+}
+
+function analyzeHandStructure(hand: Card[]): string {
+  const rankCount: Record<string, number> = {}
+  for (const c of hand) rankCount[c.rank] = (rankCount[c.rank] || 0) + 1
+
+  const singles: string[] = [], pairs: string[] = [], triples: string[] = [], quads: string[] = []
+  for (const [rank, count] of Object.entries(rankCount)) {
+    if (count === 1) singles.push(rank)
+    else if (count === 2) pairs.push(rank)
+    else if (count === 3) triples.push(rank)
+    else if (count === 4) quads.push(rank)
+  }
+
+  const parts: string[] = []
+  if (singles.length) parts.push(`单张:${singles.join(',')}`)
+  if (pairs.length) parts.push(`对子:${pairs.join(',')}`)
+  if (triples.length) parts.push(`三条:${triples.join(',')}`)
+  if (quads.length) parts.push(`炸弹:${quads.join(',')}`)
+  return parts.join(' | ') || '空'
+}
+
 export class AIPlayer {
-  private useAPI: boolean = false
+  private useAPI = false
   private apiReady: Promise<boolean>
 
   constructor() {
-    // 异步检查 API，返回 Promise
     this.apiReady = getApiKey().then(key => {
       this.useAPI = !!key
       console.log('AI初始化:', key ? '✅ 使用DeepSeek API' : '⚠️ 使用本地规则')
@@ -121,21 +94,16 @@ export class AIPlayer {
     })
   }
 
-  // 等待 API 就绪
-  async ensureAPIReady(): Promise<boolean> {
-    return this.apiReady
-  }
-
-  // 评估手牌强度
   private evaluateHand(hand: Card[]): number {
     let score = 0
-    for (const card of hand) {
-      score += CARD_WEIGHTS[card.rank] || 0
-    }
+    for (const c of hand) score += CARD_WEIGHTS[c.rank] || 0
+    const rankCount: Record<string, number> = {}
+    for (const c of hand) rankCount[c.rank] = (rankCount[c.rank] || 0) + 1
+    for (const count of Object.values(rankCount)) if (count === 4) score += 8
+    if (hand.some(c => c.rank === 'big_joker') && hand.some(c => c.rank === 'small_joker')) score += 10
     return Math.min(score, 30)
   }
 
-  // 本地规则AI叫分
   private localBid(hand: Card[]): number {
     const score = this.evaluateHand(hand)
     if (score >= 20) return 3
@@ -144,352 +112,210 @@ export class AIPlayer {
     return 0
   }
 
-  // 本地规则AI出牌
   private localPlay(hand: Card[], mustFollow: PlayHand | null): Card[] | null {
     const validPlays = findAllValidPlays(hand, mustFollow)
     if (validPlays.length === 0) return null
 
-    // 手牌很少时，尝试一次出完
-    if (hand.length <= 5) {
+    // 尝试一次出完
+    if (hand.length <= 6) {
       for (const play of validPlays) {
         if (play.cards.length === hand.length) return play.cards
       }
     }
 
-    // 首出策略
     if (!mustFollow) {
-      // 优先出顺子（容易出完）
-      const straights = validPlays.filter(p => p.type === CardType.STRAIGHT)
-      if (straights.length > 0) {
-        straights.sort((a, b) => (a.chainLength || 0) - (b.chainLength || 0))
-        return straights[0].cards
+      // 首出：优先出组合牌
+      const priorities = [CardType.STRAIGHT, CardType.STRAIGHT_PAIR, CardType.TRIPLE_TWO, CardType.TRIPLE_ONE, CardType.PAIR, CardType.SINGLE]
+      for (const type of priorities) {
+        const plays = validPlays.filter(p => p.type === type)
+        if (plays.length > 0) {
+          plays.sort((a, b) => a.mainPower - b.mainPower)
+          return plays[0].cards
+        }
       }
-
-      // 出三带
-      const triples = validPlays.filter(p => p.type === CardType.TRIPLE_ONE || p.type === CardType.TRIPLE_TWO)
-      if (triples.length > 0) {
-        triples.sort((a, b) => a.mainPower - b.mainPower)
-        return triples[0].cards
-      }
-
-      // 出小对子
-      const pairs = validPlays.filter(p => p.type === CardType.PAIR).sort((a, b) => a.mainPower - b.mainPower)
-      if (pairs.length > 0) {
-        const smallPair = pairs.find(p => p.mainPower <= 5)
-        if (smallPair) return smallPair.cards
-        return pairs[0].cards
-      }
-
-      // 出小单张
-      const singles = validPlays.filter(p => p.type === CardType.SINGLE).sort((a, b) => a.mainPower - b.mainPower)
-      if (singles.length > 0) {
-        const smallSingle = singles.find(p => p.mainPower <= 3)
-        if (smallSingle) return smallSingle.cards
-        return singles[0].cards
-      }
-
-      validPlays.sort((a, b) => a.mainPower - b.mainPower)
-      return validPlays[0].cards
-    }
-
-    // 跟牌策略
-    const nonBombs = validPlays.filter(p => p.type !== CardType.BOMB && p.type !== CardType.ROCKET)
-
-    if (nonBombs.length > 0) {
-      nonBombs.sort((a, b) => a.mainPower - b.mainPower)
-
-      // 手牌多时出小牌，手牌少时出大牌控牌
-      if (hand.length > 8) {
-        // 出最小能打过的牌
-        return nonBombs[0].cards
-      } else {
-        // 出中等大小的牌
-        const midPlay = nonBombs.find(p => p.mainPower >= 5 && p.mainPower <= 10)
-        if (midPlay) return midPlay.cards
+    } else {
+      // 跟牌：出能出最多的组合牌
+      const nonBombs = validPlays.filter(p => p.type !== CardType.BOMB && p.type !== CardType.ROCKET)
+      if (nonBombs.length > 0) {
+        // 按出牌张数排序，优先出多张牌
+        nonBombs.sort((a, b) => b.cards.length - a.cards.length || a.mainPower - b.mainPower)
         return nonBombs[0].cards
       }
-    }
-
-    // 只剩炸弹/火箭
-    if (hand.length <= 5) {
-      const bombs = validPlays.filter(p => p.type === CardType.BOMB)
-      if (bombs.length > 0) {
-        bombs.sort((a, b) => a.mainPower - b.mainPower)
-        return bombs[0].cards
+      // 手牌少时用炸弹
+      if (hand.length <= 6) {
+        const bombs = validPlays.filter(p => p.type === CardType.BOMB || p.type === CardType.ROCKET)
+        if (bombs.length > 0) return bombs[0].cards
       }
-      const rockets = validPlays.filter(p => p.type === CardType.ROCKET)
-      if (rockets.length > 0) return rockets[0].cards
     }
-
-    return null // 过牌
+    return null
   }
 
-  // 调用 DeepSeek API
   private async callAPI(prompt: string): Promise<string | null> {
     const apiKey = await getApiKey()
-    if (!apiKey) {
-      console.log('AI: 无API Key，使用本地规则')
-      return null
-    }
+    if (!apiKey) return null
 
     console.log('AI: 调用DeepSeek API...')
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 15000) // 15秒超时
+      const timeout = setTimeout(() => controller.abort(), 15000)
 
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: 'deepseek-chat',
           messages: [
-            {
-              role: 'system',
-              content: `你是世界顶级斗地主AI玩家，拥有职业选手水平。你精通以下技能：
+            { role: 'system', content: `你是世界顶级斗地主AI，拥有职业选手水平。
 
 【核心能力】
-1. 精确算牌：记住所有出过的牌，精确推断每个对手的手牌组成
-2. 概率计算：计算各种出牌组合的胜率，选择期望值最高的打法
-3. 对手建模：分析对手的出牌风格，预测其后续行为
-4. 博弈论思维：在不完全信息下做出最优决策
+1. 精确算牌：记住所有出过的牌，推断对手手牌
+2. 概率计算：分析各种出牌的胜率
+3. 对手建模：预测对手行为
+4. 博弈论思维：不完全信息下最优决策
 
-【斗地主规则】
-- 牌力排序: 3<4<5<6<7<8<9<10<J<Q<K<A<2<小王<大王
-- 牌型: 单张/对子/三带/顺子(5+连续)/连对(3+连续对)/飞机/炸弹(4同)/火箭(双王)
-- 炸弹>普通牌型，火箭>一切
+【牌力排序】3<4<5<6<7<8<9<10<J<Q<K<A<2<小王<大王
+【牌型】单张/对子/三带/顺子(5+连续)/连对(3+连续对)/飞机/炸弹(4同)/火箭(双王)
+【大小】火箭>炸弹>普通牌型
 
-【策略原则】
-地主:
-- 开局出小牌试探，保留大牌控制
-- 对手手牌少于5张时必须压制
-- 炸弹用在关键时刻（对手快赢时）
-- 顺子/三带优先出，减少手牌数量
+【策略】
+地主: 主动控制，先出小牌试探，对手少牌时压制
+农民: 配合队友，不抢队友牌，地主少牌时炸弹压制
 
-农民:
-- 配合队友，帮队友出完牌
-- 不要抢队友的牌
-- 地主手牌少时用炸弹压制
-- 用小牌消耗地主的大牌
-
-【思维链推理】
-请按以下步骤思考:
-1. 分析当前局势（谁领先、剩余牌数）
-2. 评估各种出牌选择的后果
-3. 预测对手的反应
-4. 选择最优策略
-
-只返回JSON格式，不要其他内容。`
-            },
+只返回JSON。` },
             { role: 'user', content: prompt },
           ],
           temperature: 0.2,
-          max_tokens: 500, // 增加token让AI充分思考
+          max_tokens: 10000,
         }),
         signal: controller.signal,
       })
-
       clearTimeout(timeout)
-
-      if (!response.ok) {
-        console.log('AI: API响应错误:', response.status)
-        return null
-      }
-
+      if (!response.ok) return null
       const data = await response.json()
       const content = data.choices?.[0]?.message?.content
       console.log('AI: API返回:', content)
       return content || null
-    } catch (e) {
-      console.log('AI: API调用失败，使用本地规则')
-      return null
-    }
+    } catch { return null }
   }
 
-  // API叫分
   private async apiBid(hand: Card[], handCount: number[]): Promise<number> {
-    // 分析手牌
+    let strength = 0
+    const jokers: string[] = [], bombs: string[] = []
     const rankCount: Record<string, number> = {}
     for (const c of hand) {
-      rankCount[RANK_NAMES[c.rank]] = (rankCount[RANK_NAMES[c.rank]] || 0) + 1
-    }
-
-    // 计算牌力
-    let strength = 0
-    const bombs: string[] = []
-    const jokers: string[] = []
-    for (const c of hand) {
       strength += CARD_WEIGHTS[c.rank] || 0
+      rankCount[c.rank] = (rankCount[c.rank] || 0) + 1
       if (c.rank === 'big_joker') jokers.push('大王')
       if (c.rank === 'small_joker') jokers.push('小王')
     }
-    for (const [rank, count] of Object.entries(rankCount)) {
-      if (count === 4) bombs.push(rank)
-    }
+    for (const [rank, count] of Object.entries(rankCount)) if (count === 4) bombs.push(rank)
 
-    const prompt = `【斗地主叫分决策】
+    const prompt = `【斗地主叫分决策 - 深度分析】
 
-═══ 手牌分析 ═══
-手牌(${hand.length}张): ${formatHand(hand)}
-手牌结构: ${Object.entries(rankCount).map(([r, c]) => `${r}×${c}`).join(', ')}
+═══ 你的手牌 ═══
+${hand.length}张: ${formatHand(hand)}
+结构: ${analyzeHandStructure(hand)}
 牌力评分: ${strength}分
+关键牌: ${jokers.join('+') || '无王'} ${bombs.length ? '炸弹:' + bombs.join(',') : ''}
 
-关键牌: ${jokers.length > 0 ? jokers.join('+') : '无王'} ${bombs.length > 0 ? '炸弹:' + bombs.join(',') : ''}
-剩余大牌: ${getRemainingAnalysis()}
+═══ 已出牌记录 ═══
+${getPlayedCardsAnalysis()}
+
+═══ 最近出牌历史 ═══
+${getPlayHistoryStr()}
 
 ═══ 叫分规则 ═══
-0分 = 不叫（手牌太弱）
-1分 = 一般（有潜力）
-2分 = 较强（有大牌/炸弹）
-3分 = 很强（有火箭/多个炸弹/绝对优势）
+0分 = 不叫（手牌太弱，无法赢）
+1分 = 一般（有潜力但不确定）
+2分 = 较强（有大牌/炸弹，胜率较高）
+3分 = 很强（有火箭/多个炸弹，几乎必胜）
 
 ═══ 策略思考 ═══
-1. 评估手牌: 大牌数量？炸弹/火箭？
-2. 预估胜率: 这手牌能打赢吗？
-3. 风险评估: 叫高分输的代价大
+1. 手牌有多强？大牌多吗？有王/炸弹吗？
+2. 已经出了哪些大牌？对手可能还剩什么？
+3. 如果叫了地主，能打过两个农民吗？
 
-请分析后返回JSON:
-{"bid": 0-3, "reason": "简短理由"}`
+返回: {"bid": 0-3}`
 
-    console.log('[AI] apiBid 开始调用API')
     const result = await this.callAPI(prompt)
-    console.log('[AI] apiBid API返回:', result)
-
     if (result) {
-      try {
-        const match = result.match(/\{[^}]*"bid"\s*:\s*(\d)[^}]*\}/)
-        if (match) {
-          const bid = parseInt(match[1])
-          console.log('[AI] apiBid 解析结果:', bid)
-          if (bid >= 0 && bid <= 3) return bid
-        }
-      } catch (e) {
-        console.log('[AI] apiBid 解析失败:', e)
-      }
+      const match = result.match(/"bid"\s*:\s*(\d)/)
+      if (match) { const bid = parseInt(match[1]); if (bid >= 0 && bid <= 3) return bid }
     }
-    console.log('[AI] apiBid 使用本地规则')
     return this.localBid(hand)
   }
 
-  // API出牌
-  private async apiPlay(
-    hand: Card[],
-    mustFollow: PlayHand | null,
-    handCount: number[],
-    isLandlord: boolean,
-    playerName: string,
-    history: { player: number, cards: Card[] | null, playerName: string }[]
-  ): Promise<Card[] | null> {
+  private async apiPlay(hand: Card[], mustFollow: PlayHand | null, handCount: number[], isLandlord: boolean): Promise<Card[] | null> {
     const validPlays = findAllValidPlays(hand, mustFollow)
     if (validPlays.length === 0) return null
 
     const validStr = validPlays.map((p, i) =>
-      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]}, 权重${p.mainPower})`
+      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]})`
     ).join('\n')
 
-    // 分析手牌结构
-    const rankCount: Record<string, number> = {}
-    for (const c of hand) {
-      rankCount[RANK_NAMES[c.rank]] = (rankCount[RANK_NAMES[c.rank]] || 0) + 1
-    }
-    const handAnalysis = Object.entries(rankCount)
-      .map(([rank, count]) => `${rank}×${count}`)
-      .join(', ')
+    const prompt = `【斗地主出牌决策 - 深度分析】
 
-    // 计算手牌强度
-    let handStrength = 0
-    for (const c of hand) {
-      handStrength += CARD_WEIGHTS[c.rank] || 0
-    }
+═══ 你的身份 ═══
+${isLandlord ? '🔴 地主（1打2，必须赢）' : '🔵 农民（配合队友，限制地主）'}
 
-    const prompt = `【斗地主高手决策】
+═══ 你的手牌 ═══
+${hand.length}张: ${formatHand(hand)}
+结构: ${analyzeHandStructure(hand)}
 
-═══ 局势分析 ═══
-身份: ${isLandlord ? '🔴 地主（1v2）' : '🔵 农民（队友配合）'}
-手牌: ${hand.length}张 | 强度: ${handStrength}分
-手牌结构: ${handAnalysis}
+═══ 各玩家手牌数 ═══
+${handCount.map((c, i) => `玩家${i}: ${c}张${i === 0 ? ' ← 你' : ''}`).join('\n')}
 
-对手剩余: ${handCount.map((c, i) => `P${i}:${c}张`).join(' | ')}
-剩余大牌: ${getRemainingAnalysis()}
+═══ 已出牌记录（重要！用于推断对手手牌）══=
+${getPlayedCardsAnalysis()}
 
-${mustFollow ? `═══ 上家出牌 ═══
-${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})
+═══ 最近出牌历史 ═══
+${getPlayHistoryStr()}
 
-你必须出同类型更大的牌，或用炸弹/火箭压制` : '═══ 首出 ═══你可以出任意合法牌型，选择最优开牌'}
+${mustFollow ? `═══ 需要跟牌 ═══
+上家出了: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}
+牌型: ${CARD_TYPE_NAMES[mustFollow.type]}
+你必须出同类型更大的牌，或者炸弹/火箭，或者不出`
 
-═══ 可选出牌 ═══
-${validStr}
+: `═══ 轮到你首出 ═══
+可以出任意合法牌型`}
+
+═══ 可选的出牌方案 ═══
+${validStr || '无合法出牌，必须不出'}
 
 ═══ 策略思考 ═══
-1. 分析当前局势: 谁领先？谁手牌少？
-2. 评估每个选择: 出完后手牌变化？对手反应？
-3. 预测对手: 对手可能出什么？如何应对？
-4. 选择最优: 哪个选择胜率最高？
+1. 如果你是地主：先出小牌试探，保留炸弹和大牌控制局面
+2. 如果你是农民：帮队友出牌，不要压制队友的牌
+3. 仔细看已出牌记录，推断对手还剩什么牌
+4. 如果对手手牌很少（≤3张），要警惕
 
-请分析后返回JSON:
-{"action": "play", "index": 序号, "reason": "简短理由"}
-或 {"action": "pass", "reason": "简短理由"}`
+返回: {"action": "play" 或 "pass", "cards": [序号] 或 null}`
 
     const result = await this.callAPI(prompt)
     if (result) {
-      try {
-        const actionMatch = result.match(/"action"\s*:\s*"(play|pass)"/)
-        const indexMatch = result.match(/"index"\s*:\s*(\d+)/)
-        if (actionMatch && indexMatch) {
-          const action = actionMatch[1]
-          const index = parseInt(indexMatch[1])
-          if (action === 'pass') return null
-          if (action === 'play' && index >= 0 && index < validPlays.length) {
-            return validPlays[index].cards
-          }
-        }
-      } catch {}
+      const actionMatch = result.match(/"action"\s*:\s*"(play|pass)"/)
+      const indexMatch = result.match(/"index"\s*:\s*(\d+)/)
+      const cardsMatch = result.match(/"cards"\s*:\s*\[(\d+)\]/)
+      if (actionMatch) {
+        if (actionMatch[1] === 'pass') return null
+        const idx = indexMatch ? parseInt(indexMatch[1]) : (cardsMatch ? parseInt(cardsMatch[1]) : -1)
+        if (idx >= 0 && idx < validPlays.length) return validPlays[idx].cards
+      }
     }
     return this.localPlay(hand, mustFollow)
   }
 
-  // 叫分
   async decideBid(hand: Card[], handCount: number[] = [17, 17, 17]): Promise<number> {
-    // 等待 API 就绪
     await this.apiReady
-    console.log('[AI] decideBid - useAPI:', this.useAPI, '手牌数:', hand.length)
-
     if (this.useAPI) {
-      try {
-        console.log('[AI] 调用 apiBid...')
-        const result = await this.apiBid(hand, handCount)
-        console.log('[AI] apiBid 结果:', result)
-        return result
-      } catch (e) {
-        console.error('[AI] API叫分失败:', e)
-        return this.localBid(hand)
-      }
+      try { return await this.apiBid(hand, handCount) } catch { return this.localBid(hand) }
     }
-    console.log('[AI] 使用本地规则叫分')
     return this.localBid(hand)
   }
 
-  // 出牌
-  async decidePlay(
-    hand: Card[],
-    mustFollow: PlayHand | null,
-    handCount: number[] = [17, 17, 17],
-    isLandlord: boolean = false,
-    playerName: string = 'AI',
-    history: { player: number, cards: Card[] | null, playerName: string }[] = []
-  ): Promise<Card[] | null> {
-    // 等待 API 就绪
+  async decidePlay(hand: Card[], mustFollow: PlayHand | null, handCount: number[] = [17, 17, 17], isLandlord = false): Promise<Card[] | null> {
     await this.apiReady
-
     if (this.useAPI) {
-      try {
-        return await this.apiPlay(hand, mustFollow, handCount, isLandlord, playerName, history)
-      } catch (e) {
-        console.error('API出牌失败:', e)
-        return this.localPlay(hand, mustFollow)
-      }
+      try { return await this.apiPlay(hand, mustFollow, handCount, isLandlord) } catch { return this.localPlay(hand, mustFollow) }
     }
     return this.localPlay(hand, mustFollow)
   }
