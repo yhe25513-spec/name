@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, createDeck, shuffleDeck, dealCards, classifyHand, canBeat } from '@/lib/cardgame/logic'
 import { SupabaseClient } from '@/lib/cardgame/supabase'
 import { AIPlayer, resetPlayedCards, recordPlayedCards } from '@/lib/cardgame/ai'
@@ -37,6 +37,12 @@ export default function CardGamePage() {
   const supabaseRef = useRef<SupabaseClient | null>(null)
   const aiRef = useRef<AIPlayer | null>(null)
   const unsubscribeRef = useRef<(() => void) | undefined>(undefined)
+  const gameStateRef = useRef<GameState | null>(null)
+
+  // 保持 ref 同步
+  useEffect(() => {
+    gameStateRef.current = gameState
+  }, [gameState])
 
   useEffect(() => {
     supabaseRef.current = new SupabaseClient()
@@ -44,40 +50,39 @@ export default function CardGamePage() {
     return () => { if (unsubscribeRef.current) unsubscribeRef.current() }
   }, [])
 
-  // AI回合处理
+  // AI回合 - 使用 ref 读取最新状态
   useEffect(() => {
     if (!gameState || gameState.phase === 'finished') return
     const current = gameState.players[gameState.currentPlayer]
     if (!current?.isAI) return
     if (gameState.currentPlayer === myIndex) return
 
-    console.log('AI回合:', gameState.currentPlayer, gameState.phase)
-
     const timeout = setTimeout(async () => {
-      if (gameState.phase === 'bidding') {
-        await aiBid(gameState.currentPlayer)
-      } else if (gameState.phase === 'playing') {
-        await aiPlay(gameState.currentPlayer)
+      const latest = gameStateRef.current
+      if (!latest || latest.phase === 'finished') return
+
+      if (latest.phase === 'bidding') {
+        await aiBid(latest.currentPlayer)
+      } else if (latest.phase === 'playing') {
+        await aiPlay(latest.currentPlayer)
       }
-    }, 1500)
+    }, 1200)
     return () => clearTimeout(timeout)
   }, [gameState?.currentPlayer, gameState?.phase])
 
-  // 同步游戏状态到Supabase
-  const syncGameState = useCallback(async (newState: GameState) => {
+  // 同步游戏状态
+  const syncGameState = async (newState: GameState) => {
     setGameState(newState)
     if (roomCode && supabaseRef.current) {
       await supabaseRef.current.updateGameState(roomCode, newState)
     }
-  }, [roomCode])
+  }
 
   // 订阅房间
-  const subscribeToRoom = useCallback((code: string) => {
+  const subscribeToRoom = (code: string) => {
     if (unsubscribeRef.current) unsubscribeRef.current()
-
     unsubscribeRef.current = supabaseRef.current?.subscribeRoom(code, {
       onGameUpdate: (state: any) => {
-        console.log('收到游戏更新:', state)
         setGameState({
           ...state,
           hands: state.hands?.map((h: any[]) => h.map((c: any) => ({ suit: c.suit, rank: c.rank }))) || [],
@@ -85,22 +90,19 @@ export default function CardGamePage() {
         })
       },
       onGameStart: (state: any) => {
-        console.log('游戏开始:', state)
         const hands = state.hands?.map((h: any[]) => h.map((c: any) => ({ suit: c.suit, rank: c.rank }))) || []
         const myIdx = state.players?.findIndex((p: any) => p.name === playerName) ?? 0
         setMyIndex(myIdx)
         setGameState({
-          ...state,
-          hands,
+          ...state, hands,
           landlordCards: state.landlordCards?.map((c: any) => ({ suit: c.suit, rank: c.rank })) || [],
         })
       },
       onPlayerJoin: (newPlayers: any[]) => {
-        console.log('玩家列表更新:', newPlayers)
         setPlayers(newPlayers)
       },
     })
-  }, [playerName])
+  }
 
   // 创建房间
   const createRoom = async () => {
@@ -130,7 +132,6 @@ export default function CardGamePage() {
       setMyIndex(myIdx >= 0 ? myIdx : room.players.length - 1)
       setMessage('已加入，等待房主开始...')
       subscribeToRoom(room.room_code)
-      // 广播玩家加入
       supabaseRef.current?.broadcastPlayerJoin(room.room_code, room.players)
     } else {
       setMessage('房间不存在或已满')
@@ -158,7 +159,6 @@ export default function CardGamePage() {
       passCount: 0, bidScores: [null, null, null], currentBidder: firstBidder,
       winner: null, players: allPlayers, message: `${allPlayers[firstBidder].name} 请叫分`,
     }
-
     await supabaseRef.current?.startGame(roomCode, state)
     setGameState(state)
   }
@@ -177,27 +177,30 @@ export default function CardGamePage() {
         { id: 'me', name: playerName || '你', index: 0, isAI: false },
         { id: 'ai1', name: '电脑1', index: 1, isAI: true },
         { id: 'ai2', name: '电脑2', index: 2, isAI: true },
-      ], message: `${firstBidder === 0 ? '你' : `电脑${firstBidder}`} 请叫分`,
+      ], message: `等待叫分...`,
     })
     setMyIndex(0)
   }
 
   // AI叫分
   const aiBid = async (playerIndex: number) => {
-    if (!gameState || !aiRef.current) return
-    const hand = gameState.hands[playerIndex]
-    const handCount = gameState.hands.map(h => h.length)
+    const latest = gameStateRef.current
+    if (!latest || !aiRef.current) return
+    const hand = latest.hands[playerIndex]
+    if (!hand) return
+    const handCount = latest.hands.map(h => h.length)
     const score = await aiRef.current.decideBid(hand, handCount)
     await handleBid(score, playerIndex)
   }
 
   // 叫分
   const handleBid = async (score: number, playerIndex?: number) => {
+    const latest = gameStateRef.current
+    if (!latest) return
     const idx = playerIndex ?? myIndex
-    if (!gameState) return
-    if (playerIndex === undefined && gameState.currentBidder !== myIndex) return
+    if (playerIndex === undefined && latest.currentBidder !== myIndex) return
 
-    const newBidScores = [...gameState.bidScores]
+    const newBidScores = [...latest.bidScores]
     newBidScores[idx] = score
 
     if (score === 3) {
@@ -211,103 +214,97 @@ export default function CardGamePage() {
     if (bidsCompleted >= 3) {
       const maxScore = Math.max(...newBidScores.filter(s => s !== null) as number[])
       if (maxScore === 0) {
-        // 都不叫，重新发牌
-        if (isHost && roomCode) {
-          await startOnlineGame()
-        } else {
-          startAIGame()
-        }
+        if (isHost && roomCode) await startOnlineGame()
+        else startAIGame()
         return
       }
       const landlordIndex = newBidScores.findIndex(s => s === maxScore)
       await setLandlord(landlordIndex, newBidScores)
     } else {
-      const newState = {
-        ...gameState, bidScores: newBidScores, currentBidder: nextBidder,
-        message: `${gameState.players[nextBidder].name} 请叫分`,
-      }
-      await syncGameState(newState)
+      await syncGameState({
+        ...latest, bidScores: newBidScores, currentBidder: nextBidder,
+        message: `${latest.players[nextBidder].name} 请叫分`,
+      })
     }
   }
 
   // 设置地主
   const setLandlord = async (playerIndex: number, bidScores: (number | null)[]) => {
-    if (!gameState) return
-    const newHands = gameState.hands.map(h => [...h])
-    newHands[playerIndex] = [...newHands[playerIndex], ...gameState.landlordCards]
+    const latest = gameStateRef.current
+    if (!latest) return
+    const newHands = latest.hands.map(h => [...h])
+    newHands[playerIndex] = [...newHands[playerIndex], ...latest.landlordCards]
 
-    const newState = {
-      ...gameState, phase: 'playing' as const, hands: newHands, landlord: playerIndex,
+    await syncGameState({
+      ...latest, phase: 'playing', hands: newHands, landlord: playerIndex,
       currentPlayer: playerIndex, bidScores, lastPlay: null, lastPlayer: null, passCount: 0,
-      message: `${gameState.players[playerIndex].name} 成为地主！请出牌`,
-    }
-    await syncGameState(newState)
+      message: `${latest.players[playerIndex].name} 成为地主！请出牌`,
+    })
   }
 
   // AI出牌
   const aiPlay = async (playerIndex: number) => {
-    if (!gameState || !aiRef.current) return
-    const hand = gameState.hands[playerIndex]
-    const mustFollow = gameState.passCount >= 2 ? null : gameState.lastPlay
-    const handCount = gameState.hands.map(h => h.length)
-    const isLandlord = gameState.landlord === playerIndex
-    const name = gameState.players[playerIndex]?.name || 'AI'
+    const latest = gameStateRef.current
+    if (!latest || !aiRef.current) return
+    const hand = latest.hands[playerIndex]
+    if (!hand) return
+    const mustFollow = latest.passCount >= 2 ? null : latest.lastPlay
+    const handCount = latest.hands.map(h => h.length)
+    const isLandlord = latest.landlord === playerIndex
+    const name = latest.players[playerIndex]?.name || 'AI'
 
     const followPlay = mustFollow ? { cards: mustFollow.cards, type: mustFollow.type as any, mainPower: mustFollow.mainPower || 0 } : null
     const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord, name, [])
 
-    if (cards === null) {
-      await handlePass(playerIndex)
-    } else {
-      recordPlayedCards(cards)
-      await handlePlay(cards, playerIndex)
-    }
+    if (cards === null) await handlePass(playerIndex)
+    else { recordPlayedCards(cards); await handlePlay(cards, playerIndex) }
   }
 
   // 出牌
   const handlePlay = async (cards?: Card[], playerIndex?: number) => {
+    const latest = gameStateRef.current
+    if (!latest) return
     const idx = playerIndex ?? myIndex
     const cardsToPlay = cards || selectedCards
-    if (!gameState || cardsToPlay.length === 0) return
-    if (playerIndex === undefined && gameState.currentPlayer !== myIndex) return
+    if (cardsToPlay.length === 0) return
+    if (playerIndex === undefined && latest.currentPlayer !== myIndex) return
 
     const play = classifyHand(cardsToPlay)
     if (!play) { if (playerIndex === undefined) setMessage('不是合法牌型'); return }
 
-    if (gameState.lastPlay && gameState.passCount < 2 && playerIndex === undefined) {
-      if (!canBeat(play, gameState.lastPlay)) { setMessage('打不过上家'); return }
+    if (latest.lastPlay && latest.passCount < 2 && playerIndex === undefined) {
+      if (!canBeat(play, latest.lastPlay)) { setMessage('打不过上家'); return }
     }
 
     recordPlayedCards(cardsToPlay)
-    const newHands = gameState.hands.map(h => [...h])
+    const newHands = latest.hands.map(h => [...h])
     newHands[idx] = newHands[idx].filter(c => !cardsToPlay.some(sc => sc.suit === c.suit && sc.rank === c.rank))
     const isWin = newHands[idx].length === 0
     const nextPlayer = (idx + 1) % 3
 
-    const newState = {
-      ...gameState, hands: newHands, lastPlay: { cards: cardsToPlay, type: play.type, player: idx, mainPower: play.mainPower },
+    await syncGameState({
+      ...latest, hands: newHands, lastPlay: { cards: cardsToPlay, type: play.type, player: idx, mainPower: play.mainPower },
       lastPlayer: idx, passCount: 0, currentPlayer: isWin ? idx : nextPlayer,
-      winner: isWin ? idx : null, phase: isWin ? 'finished' as const : 'playing' as const,
-      message: isWin ? `${gameState.players[idx].name} 获胜！` : '',
-    }
-    await syncGameState(newState)
+      winner: isWin ? idx : null, phase: isWin ? 'finished' : 'playing',
+      message: isWin ? `${latest.players[idx].name} 获胜！` : '',
+    })
     if (playerIndex === undefined) setSelectedCards([])
   }
 
   // 过牌
   const handlePass = async (playerIndex?: number) => {
+    const latest = gameStateRef.current
+    if (!latest) return
     const idx = playerIndex ?? myIndex
-    if (!gameState) return
-    if (playerIndex === undefined && (!gameState.lastPlay || gameState.passCount >= 2)) return
+    if (playerIndex === undefined && (!latest.lastPlay || latest.passCount >= 2)) return
 
-    const newPassCount = gameState.passCount + 1
+    const newPassCount = latest.passCount + 1
     const nextPlayer = (idx + 1) % 3
 
-    const newState = {
-      ...gameState, passCount: newPassCount >= 2 ? 0 : newPassCount,
-      lastPlay: newPassCount >= 2 ? null : gameState.lastPlay, currentPlayer: nextPlayer,
-    }
-    await syncGameState(newState)
+    await syncGameState({
+      ...latest, passCount: newPassCount >= 2 ? 0 : newPassCount,
+      lastPlay: newPassCount >= 2 ? null : latest.lastPlay, currentPlayer: nextPlayer,
+    })
     if (playerIndex === undefined) setSelectedCards([])
   }
 
@@ -322,11 +319,7 @@ export default function CardGamePage() {
     const suit = SUIT_SYMBOLS[card.suit] || ''
     const color = card.rank === 'big_joker' ? '#e94560' : card.rank === 'small_joker' ? '#000' : (SUIT_COLORS[card.suit as keyof typeof SUIT_COLORS] || '#000')
     const isJoker = card.rank === 'small_joker' || card.rank === 'big_joker'
-
-    // 根据屏幕大小调整牌的尺寸
-    const sizeClass = small
-      ? 'w-8 h-11 sm:w-10 sm:h-14'
-      : 'w-9 h-12 sm:w-11 sm:h-15 md:w-12 md:h-16'
+    const sizeClass = small ? 'w-8 h-11 sm:w-10 sm:h-14' : 'w-9 h-12 sm:w-11 sm:h-15 md:w-12 md:h-16'
 
     return (
       <div onClick={onClick} className={`${sizeClass} rounded cursor-pointer transition-all flex-shrink-0
@@ -355,7 +348,6 @@ export default function CardGamePage() {
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-2 sm:p-4">
-        {/* 顶部 */}
         <div className="flex justify-between items-center mb-2 sm:mb-4">
           <div className="flex items-center gap-2 sm:gap-4">
             <button onClick={() => { setGameState(null); setIsConnected(false); setIsHost(false); setRoomCode(''); setMessage(''); setPlayers([]) }}
@@ -367,7 +359,6 @@ export default function CardGamePage() {
           </div>
         </div>
 
-        {/* 玩家信息 */}
         <div className="flex justify-between gap-2 mb-2 sm:mb-3">
           {gameState.players.filter((_, i) => i !== myIndex).map(p => (
             <div key={p.id} className="bg-gray-800 rounded-lg p-2 flex-1 min-w-0">
@@ -380,7 +371,6 @@ export default function CardGamePage() {
           ))}
         </div>
 
-        {/* 地主牌 */}
         <div className="bg-gray-800 rounded-lg p-2 mb-2 sm:mb-3">
           <div className="text-xs text-gray-400 mb-1">地主牌</div>
           <div className="flex gap-1 justify-center">
@@ -388,7 +378,6 @@ export default function CardGamePage() {
           </div>
         </div>
 
-        {/* 出牌区 */}
         <div className="bg-gray-700 rounded-lg p-2 sm:p-3 mb-2 sm:mb-3 min-h-[70px] sm:min-h-[90px]">
           {gameState.lastPlay ? (
             <div className="text-center">
@@ -403,10 +392,8 @@ export default function CardGamePage() {
           )}
         </div>
 
-        {/* 状态消息 */}
         {gameState.message && <div className="text-center text-sm text-yellow-400 mb-2">{gameState.message}</div>}
 
-        {/* 我的手牌 */}
         <div className="bg-gray-800 rounded-lg p-2 mb-2 sm:mb-3 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="flex gap-0.5 sm:gap-1 justify-start sm:justify-center flex-nowrap min-w-min">
             {(gameState.hands[myIndex] || []).map((c, i) => (
@@ -417,7 +404,6 @@ export default function CardGamePage() {
           </div>
         </div>
 
-        {/* 按钮 */}
         <div className="flex justify-center gap-2 sm:gap-3 flex-wrap">
           {gameState.phase === 'bidding' && gameState.currentBidder === myIndex && (
             <>
@@ -438,16 +424,10 @@ export default function CardGamePage() {
           )}
           {gameState.phase === 'finished' && (
             <button onClick={() => {
-              // 如果是在线模式，重新开始游戏；如果是单人模式，回到大厅
-              if (isHost && roomCode) {
-                startOnlineGame()
-              } else if (!isConnected) {
-                setGameState(null)
-              } else {
-                startOnlineGame()
-              }
-            }}
-              className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm">再来一局</button>
+              if (isHost && roomCode) startOnlineGame()
+              else if (!isConnected) setGameState(null)
+              else startOnlineGame()
+            }} className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm">再来一局</button>
           )}
         </div>
       </div>
