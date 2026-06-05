@@ -115,6 +115,7 @@ export class AIPlayer {
     // 异步检查 API
     getApiKey().then(key => {
       this.useAPI = !!key
+      console.log('AI初始化:', key ? '✅ 使用DeepSeek API' : '⚠️ 使用本地规则')
     })
   }
 
@@ -220,9 +221,11 @@ export class AIPlayer {
   private async callAPI(prompt: string): Promise<string | null> {
     const apiKey = await getApiKey()
     if (!apiKey) {
+      console.log('AI: 无API Key，使用本地规则')
       return null
     }
 
+    console.log('AI: 调用DeepSeek API...')
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
