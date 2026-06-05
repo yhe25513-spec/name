@@ -291,7 +291,7 @@ export default function CardGamePage() {
     const isLandlord = latest.landlord === playerIndex
 
     const followPlay = mustFollow ? { cards: mustFollow.cards, type: mustFollow.type as any, mainPower: mustFollow.mainPower || 0 } : null
-    const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord)
+    const cards = await aiRef.current.decidePlay(hand, followPlay, handCount, isLandlord, playerIndex)
 
     if (cards === null) await handlePass(playerIndex)
     else { await handlePlay(cards, playerIndex) }

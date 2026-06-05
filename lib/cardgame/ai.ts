@@ -1,5 +1,5 @@
 /**
- * 职业级斗地主AI - 精简版
+ * 职业级斗地主AI - 按用户要求格式
  */
 
 import { Card, CardType, classifyHand, findAllValidPlays, getRankPower, PlayHand } from './logic'
@@ -20,18 +20,18 @@ async function getApiKey(): Promise<string> {
   } catch { return '' }
 }
 
-const CARD_WEIGHTS: Record<string, number> = {
-  '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 2, '9': 2, '10': 2, 'J': 3, 'Q': 3, 'K': 4, 'A': 5, '2': 8, 'small_joker': 10, 'big_joker': 12,
+const RANK_POWER: Record<string, number> = {
+  '3': 0, '4': 1, '5': 2, '6': 3, '7': 4, '8': 5, '9': 6, '10': 7, 'J': 8, 'Q': 9, 'K': 10, 'A': 11, '2': 12, 'small_joker': 13, 'big_joker': 14
 }
 
 const RANK_NAMES: Record<string, string> = {
-  '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9', '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A', '2': '2', 'small_joker': '小王', 'big_joker': '大王',
+  '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9', '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A', '2': '2', 'small_joker': '小王', 'big_joker': '大王'
 }
 
 const SUIT_NAMES: Record<string, string> = { spade: '♠', heart: '♥', club: '♣', diamond: '♦', joker: '' }
 const CARD_TYPE_NAMES: Record<string, string> = {
   SINGLE: '单张', PAIR: '对子', TRIPLE: '三条', TRIPLE_ONE: '三带一', TRIPLE_TWO: '三带二',
-  STRAIGHT: '顺子', STRAIGHT_PAIR: '连对', AIRPLANE: '飞机', BOMB: '炸弹', ROCKET: '火箭',
+  STRAIGHT: '顺子', STRAIGHT_PAIR: '连对', AIRPLANE: '飞机', BOMB: '炸弹', ROCKET: '王炸',
 }
 
 let playedCards: Card[] = []
@@ -43,71 +43,82 @@ export function recordPlayHistory(player: number, cards: Card[] | null, playerNa
   playHistory.push({ player, cards, playerName })
 }
 
-function formatHand(hand: Card[]): string {
-  return sortHand(hand).map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')
+function sortHand(hand: Card[]): Card[] {
+  return [...hand].sort((a, b) => (RANK_POWER[a.rank] || 0) - (RANK_POWER[b.rank] || 0))
 }
 
-function sortHand(hand: Card[]): Card[] {
-  const order: Record<string, number> = { '3': 0, '4': 1, '5': 2, '6': 3, '7': 4, '8': 5, '9': 6, '10': 7, 'J': 8, 'Q': 9, 'K': 10, 'A': 11, '2': 12, 'small_joker': 13, 'big_joker': 14 }
-  return [...hand].sort((a, b) => (order[a.rank] || 0) - (order[b.rank] || 0))
+function formatHand(hand: Card[]): string {
+  return sortHand(hand).map(c => RANK_NAMES[c.rank]).join(',')
 }
 
 function analyzeHandStructure(hand: Card[]): string {
   const rankCount: Record<string, number> = {}
   for (const c of hand) rankCount[c.rank] = (rankCount[c.rank] || 0) + 1
-  const singles: string[] = [], pairs: string[] = [], triples: string[] = [], quads: string[] = []
-  for (const [rank, count] of Object.entries(rankCount)) {
-    if (count === 1) singles.push(RANK_NAMES[rank])
-    else if (count === 2) pairs.push(RANK_NAMES[rank])
-    else if (count === 3) triples.push(RANK_NAMES[rank])
-    else if (count === 4) quads.push(RANK_NAMES[rank])
-  }
   const parts: string[] = []
-  if (singles.length) parts.push(`单:${singles.join(',')}`)
-  if (pairs.length) parts.push(`对:${pairs.join(',')}`)
-  if (triples.length) parts.push(`三条:${triples.join(',')}`)
-  if (quads.length) parts.push(`炸弹:${quads.join(',')}`)
-  return parts.join(' | ')
+  for (const [rank, count] of Object.entries(rankCount)) {
+    if (count === 4) parts.push(`炸弹${RANK_NAMES[rank]}`)
+    else if (count === 3) parts.push(`三条${RANK_NAMES[rank]}`)
+    else if (count === 2) parts.push(`对${RANK_NAMES[rank]}`)
+  }
+  return parts.length > 0 ? parts.join('、') : '无组合'
 }
 
-function getRemainingBigCards(hand: Card[]): string {
-  const suits: Array<'spade' | 'heart' | 'club' | 'diamond'> = ['spade', 'heart', 'club', 'diamond']
-  const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
-  const allCards: Card[] = []
-  for (const suit of suits) for (const rank of ranks) allCards.push({ suit, rank })
-  allCards.push({ suit: 'joker', rank: 'small_joker' })
-  allCards.push({ suit: 'joker', rank: 'big_joker' })
-
-  const playedCounts: Record<string, number> = {}
-  for (const c of playedCards) playedCounts[c.rank] = (playedCounts[c.rank] || 0) + 1
-
-  const handCounts: Record<string, number> = {}
-  for (const c of hand) handCounts[c.rank] = (handCounts[c.rank] || 0) + 1
-
+function getRemainingBigCards(): string {
   const maxCounts: Record<string, number> = { '大王': 1, '小王': 1, '2': 4, 'A': 4, 'K': 4 }
+  const playedCounts: Record<string, number> = {}
+  for (const c of playedCards) {
+    const name = RANK_NAMES[c.rank]
+    if (maxCounts[name] !== undefined) {
+      playedCounts[name] = (playedCounts[name] || 0) + 1
+    }
+  }
   const result: string[] = []
   for (const rank of ['大王', '小王', '2', 'A', 'K']) {
-    const max = maxCounts[rank] || 0
-    const played = playedCounts[rank] || 0
-    const inHand = handCounts[rank] || 0
-    const remaining = max - played - inHand
-    if (remaining > 0) result.push(`${rank}×${remaining}`)
+    const remaining = (maxCounts[rank] || 0) - (playedCounts[rank] || 0)
+    result.push(`${rank}${remaining}`)
   }
-  return result.length > 0 ? result.join(' ') : '无'
+  return result.join('、')
 }
 
-function getRecentHistory(): string {
-  return playHistory.slice(-5).map(h => {
-    if (h.cards) return `${h.playerName}:${h.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}`
-    return `${h.playerName}:不出`
-  }).join(' | ')
+function formatPlayHistory(): string {
+  if (playHistory.length === 0) return '暂无'
+  const rounds: string[] = []
+  let roundNum = 1
+  let roundPlays: string[] = []
+
+  for (let i = 0; i < playHistory.length; i++) {
+    const h = playHistory[i]
+    const role = h.player === 0 ? '我' : (h.player === findLandlordIdx() ? '上家' : '下家')
+    if (h.cards) {
+      roundPlays.push(`${role}出${formatHand(h.cards)}`)
+    } else {
+      roundPlays.push(`${role}过`)
+    }
+
+    // 每3手一轮
+    if (roundPlays.length === 3 || i === playHistory.length - 1) {
+      rounds.push(`第${roundNum}轮：${roundPlays.join('→')}`)
+      roundPlays = []
+      roundNum++
+    }
+  }
+  return rounds.join('\n')
 }
 
-function analyzeAllPlayedCards(): string {
-  if (playedCards.length === 0) return '暂无'
-  const counts: Record<string, number> = {}
-  for (const c of playedCards) counts[RANK_NAMES[c.rank]] = (counts[RANK_NAMES[c.rank]] || 0) + 1
-  return Object.entries(counts).map(([k, v]) => `${k}×${v}`).join(' ')
+function findLandlordIdx(): number {
+  // 从历史推断地主
+  return 1
+}
+
+function getRoleName(playerIdx: number, isLandlord: boolean, myIdx: number): string {
+  if (playerIdx === myIdx) return '我'
+  if (isLandlord) return '下家' // 地主的对手
+  return playerIdx === (myIdx + 1) % 3 ? '下家' : '上家'
+}
+
+function getTeammateName(myIdx: number, isLandlord: boolean): string {
+  if (isLandlord) return '无（地主1v2）'
+  return myIdx === 0 ? '下家' : '上家'
 }
 
 export class AIPlayer {
@@ -123,7 +134,14 @@ export class AIPlayer {
 
   private evaluateHand(hand: Card[]): number {
     let score = 0
-    for (const c of hand) score += CARD_WEIGHTS[c.rank] || 0
+    for (const c of hand) {
+      const power = RANK_POWER[c.rank] || 0
+      if (power >= 12) score += 8 // 2
+      else if (power === 14) score += 12 // 大王
+      else if (power === 13) score += 10 // 小王
+      else if (power >= 10) score += power - 8 // K, A
+      else score += 1
+    }
     const rankCount: Record<string, number> = {}
     for (const c of hand) rankCount[c.rank] = (rankCount[c.rank] || 0) + 1
     for (const count of Object.values(rankCount)) if (count === 4) score += 8
@@ -186,7 +204,7 @@ export class AIPlayer {
         body: JSON.stringify({
           model: 'deepseek-chat',
           messages: [
-            { role: 'system', content: '你是斗地主高手。规则: 火箭>炸弹>普通牌型，3<4<...<K<A<2<小王<大王。只返回JSON。' },
+            { role: 'system', content: '你是斗地主高手。只返回JSON。' },
             { role: 'user', content: prompt },
           ],
           temperature: 0.2,
@@ -202,71 +220,75 @@ export class AIPlayer {
   }
 
   private async apiBid(hand: Card[], handCount: number[]): Promise<number> {
-    let strength = 0
-    const jokers: string[] = [], bombs: string[] = []
-    const rankCount: Record<string, number> = {}
-    for (const c of hand) {
-      strength += CARD_WEIGHTS[c.rank] || 0
-      rankCount[c.rank] = (rankCount[c.rank] || 0) + 1
-      if (c.rank === 'big_joker') jokers.push('大王')
-      if (c.rank === 'small_joker') jokers.push('小王')
-    }
-    for (const [rank, count] of Object.entries(rankCount)) if (count === 4) bombs.push(rank)
+    const prompt = `斗地主求助，请帮我决策叫分。数据如下：
 
-    const prompt = `【叫分】
-手牌(${hand.length}张): ${formatHand(hand)}
-结构: ${analyzeHandStructure(hand)}
-牌力: ${strength}分
-关键: ${jokers.join('+') || '无王'} ${bombs.length ? '炸弹:' + bombs.join(',') : ''}
-已出: ${analyzeAllPlayedCards()}
-对手: ${handCount.join(',')}张
+身份：农民
+我的手牌：[${formatHand(hand)}]（已排序）
+底牌：无
 
-叫分0-3，手牌强叫高分。返回: {"bid": 数字}`
+剩余大牌统计：${getRemainingBigCards()}
+
+手牌数量：我${hand.length}张，上家${handCount[1]}张，下家${handCount[2]}张
+
+请给出叫分建议（0-3分），并说明理由。`
 
     const result = await this.callAPI(prompt)
     if (result) {
-      const match = result.match(/"bid"\s*:\s*(\d)/)
+      const match = result.match(/(\d)/)
       if (match) { const bid = parseInt(match[1]); if (bid >= 0 && bid <= 3) return bid }
     }
     return this.localBid(hand)
   }
 
-  private async apiPlay(hand: Card[], mustFollow: PlayHand | null, handCount: number[], isLandlord: boolean): Promise<Card[] | null> {
+  private async apiPlay(hand: Card[], mustFollow: PlayHand | null, handCount: number[], isLandlord: boolean, myIdx: number): Promise<Card[] | null> {
     const validPlays = findAllValidPlays(hand, mustFollow)
     if (validPlays.length === 0) return null
 
     const validStr = validPlays.map((p, i) =>
-      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]})`
+      `[${i}] ${p.cards.map(c => RANK_NAMES[c.rank]).join('')} (${CARD_TYPE_NAMES[p.type]})`
     ).join('\n')
 
-    // 确定上家身份
-    let lastPlayerInfo = ''
-    if (mustFollow && playHistory.length > 0) {
-      const last = playHistory[playHistory.length - 1]
-      if (last) {
-        const role = last.player === 0 ? '你' : (last.player === findLandlordIndex() ? '地主' : '农民')
-        lastPlayerInfo = `上家是${role}`
-      }
+    // 分析当前桌面
+    let桌面牌型 = '过牌（暂无）'
+    let 牌面值 = ''
+    let 出牌者 = ''
+
+    if (mustFollow) {
+      桌面牌型 = CARD_TYPE_NAMES[mustFollow.type] || mustFollow.type
+      牌面值 = mustFollow.cards.map(c => RANK_NAMES[c.rank]).join('')
+      const lastPlayer = playHistory.length > 0 ? playHistory[playHistory.length - 1].player : -1
+      出牌者 = getRoleName(lastPlayer, isLandlord, myIdx)
     }
 
-    const prompt = `【出牌决策】
-身份: ${isLandlord ? '地主(1v2)' : '农民(配合队友)'}
-手牌(${hand.length}张): ${formatHand(hand)}
-结构: ${analyzeHandStructure(hand)}
-剩余大牌: ${getRemainingBigCards(hand)}
-对手: ${handCount.map((c, i) => `P${i}:${c}张`).join(', ')}
-${mustFollow ? `跟牌: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})${lastPlayerInfo}` : '首出'}
-已出: ${analyzeAllPlayedCards()}
-历史: ${getRecentHistory()}
-可选: ${validStr}
+    // 计算队友名
+    const 队友 = isLandlord ? '无（地主1v2）' : (myIdx === 0 ? '下家' : '上家')
 
-【关键规则】
-1. 队友出的牌不要压，让队友走
-2. 大王/小王只在对手≤5张或自己能走完时用
-3. 能一波走完就直接出
-4. 没把握就不出
+    // 计算手牌数量
+    const 我 = hand.length
+    const 上家 = handCount[(myIdx + 2) % 3]
+    const 下家 = handCount[(myIdx + 1) % 3]
 
-返回: {"action":"play","cards":[序号]} 或 {"action":"pass"}`
+    const prompt = `斗地主求助，请帮我决策出牌。数据如下：
+
+身份：${isLandlord ? '地主' : '农民'}
+我的手牌：[${formatHand(hand)}]（已排序）
+底牌：${isLandlord ? '有' : '无'}
+手牌分析：${analyzeHandStructure(hand)}
+
+当前桌面牌型：${桌面牌型}，牌值：${牌面值 || '无'}，由${出牌者 || '无'}打出
+${mustFollow ? '轮到我出牌：是' : '轮到我出牌：是（首出）'}
+
+剩余大牌统计：${getRemainingBigCards()}
+
+手牌数量：我${我}张，上家${上家}张，下家${下家}张，队友（${队友}）${isLandlord ? '无' : (myIdx === 0 ? 下家 : 上家) + '张'}
+
+出牌历史：
+${formatPlayHistory()}
+
+可选方案：
+${validStr}
+
+请给出最优出牌方案，并说明理由（提示：我是${isLandlord ? '地主' : '农民'}，${isLandlord ? '要主动控制局面' : '要配合队友走牌'}）。`
 
     const result = await this.callAPI(prompt)
     if (result) {
@@ -290,17 +312,11 @@ ${mustFollow ? `跟牌: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK
     return this.localBid(hand)
   }
 
-  async decidePlay(hand: Card[], mustFollow: PlayHand | null, handCount: number[] = [17, 17, 17], isLandlord = false): Promise<Card[] | null> {
+  async decidePlay(hand: Card[], mustFollow: PlayHand | null, handCount: number[] = [17, 17, 17], isLandlord = false, myIdx = 0): Promise<Card[] | null> {
     await this.apiReady
     if (this.useAPI) {
-      try { return await this.apiPlay(hand, mustFollow, handCount, isLandlord) } catch { return this.localPlay(hand, mustFollow) }
+      try { return await this.apiPlay(hand, mustFollow, handCount, isLandlord, myIdx) } catch { return this.localPlay(hand, mustFollow) }
     }
     return this.localPlay(hand, mustFollow)
   }
-}
-
-function findLandlordIndex(): number {
-  const last3 = playHistory.slice(-20)
-  // 简单判断：手牌最多的是地主（不准确，但作为fallback）
-  return 1
 }
