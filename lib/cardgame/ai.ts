@@ -42,7 +42,7 @@ export function resetPlayedCards() { playedCards = []; playHistory = [] }
 export function recordPlayedCards(cards: Card[]) { playedCards.push(...cards) }
 export function recordPlayHistory(player: number, cards: Card[] | null, playerName: string) {
   playHistory.push({ player, cards, playerName })
-  console.log('[出牌历史] 记录:', playerName, cards ? cards.map(c => c.display_name).join(' ') : '不出')
+  console.log('[出牌历史] 记录:', playerName, cards ? cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ') : '不出')
 }
 export function getPlayHistory() { return playHistory }
 
