@@ -74,13 +74,24 @@ export function shuffleDeck(deck: Card[]): Card[] {
 
 // 发牌
 export function dealCards(deck: Card[]): [Card[], Card[], Card[], Card[]] {
-  // 随机发牌，不要排序
   const shuffled = shuffleDeck([...deck])
+
+  // 排序函数：按点数从小到大，同点数按花色排
+  const sortCards = (cards: Card[]): Card[] => {
+    return [...cards].sort((a, b) => {
+      const powerDiff = getRankPower(a.rank) - getRankPower(b.rank)
+      if (powerDiff !== 0) return powerDiff
+      // 同点数按花色排
+      const suitOrder: Record<string, number> = { spade: 0, heart: 1, club: 2, diamond: 3, joker: 4 }
+      return (suitOrder[a.suit] || 0) - (suitOrder[b.suit] || 0)
+    })
+  }
+
   return [
-    shuffled.slice(0, 17),
-    shuffled.slice(17, 34),
-    shuffled.slice(34, 51),
-    shuffled.slice(51, 54),
+    sortCards(shuffled.slice(0, 17)),
+    sortCards(shuffled.slice(17, 34)),
+    sortCards(shuffled.slice(34, 51)),
+    sortCards(shuffled.slice(51, 54)),
   ]
 }
 

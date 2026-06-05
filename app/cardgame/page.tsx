@@ -33,8 +33,6 @@ export default function CardGamePage() {
   const [message, setMessage] = useState('')
   const [myIndex, setMyIndex] = useState(0)
   const [players, setPlayers] = useState<any[]>([])
-  const [apiKey, setApiKey] = useState('')
-  const [showApiInput, setShowApiInput] = useState(false)
 
   const supabaseRef = useRef<SupabaseClient | null>(null)
   const aiRef = useRef<AIPlayer | null>(null)
@@ -43,9 +41,6 @@ export default function CardGamePage() {
   useEffect(() => {
     supabaseRef.current = new SupabaseClient()
     aiRef.current = new AIPlayer()
-    // 从 localStorage 加载 API Key
-    const savedKey = localStorage.getItem('deepseek_api_key') || ''
-    setApiKey(savedKey)
     return () => { if (unsubscribeRef.current) unsubscribeRef.current() }
   }, [])
 

@@ -7,12 +7,25 @@ import { Card, CardType, classifyHand, findAllValidPlays, getRankPower, PlayHand
 // API 配置
 const API_URL = 'https://api.deepseek.com/chat/completions'
 
-// 从 localStorage 获取 API Key
-function getApiKey(): string {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('deepseek_api_key') || ''
+// 从服务器获取 API Key（缓存）
+let cachedApiKey: string | null = null
+let cacheTime = 0
+
+async function getApiKey(): Promise<string> {
+  // 缓存5分钟
+  if (cachedApiKey !== null && Date.now() - cacheTime < 300000) {
+    return cachedApiKey
   }
-  return ''
+
+  try {
+    const res = await fetch('/api/admin/cardgame-config')
+    const data = await res.json()
+    cachedApiKey = data.apiKey || ''
+    cacheTime = Date.now()
+    return cachedApiKey
+  } catch {
+    return ''
+  }
 }
 
 // 牌力权重
@@ -96,15 +109,13 @@ function formatHistory(history: { player: number, cards: Card[] | null, playerNa
 }
 
 export class AIPlayer {
-  private useAPI: boolean
+  private useAPI: boolean = false
 
   constructor() {
-    this.useAPI = !!getApiKey()
-  }
-
-  // 检查是否配置了API
-  isAPIConfigured(): boolean {
-    return !!getApiKey()
+    // 异步检查 API
+    getApiKey().then(key => {
+      this.useAPI = !!key
+    })
   }
 
   // 评估手牌强度
@@ -207,13 +218,11 @@ export class AIPlayer {
 
   // 调用 DeepSeek API
   private async callAPI(prompt: string): Promise<string | null> {
-    const apiKey = getApiKey()
+    const apiKey = await getApiKey()
     if (!apiKey) {
-      console.log('API未配置，使用本地AI')
       return null
     }
 
-    console.log('正在调用DeepSeek API...')
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -227,38 +236,21 @@ export class AIPlayer {
             {
               role: 'system',
               content: `你是专业斗地主AI，精通算牌和策略分析。
-
-核心能力:
-1. 算牌：记住所有出过的牌，推断对手手牌
-2. 概率计算：分析各种出牌的胜率
-3. 策略选择：根据身份(地主/农民)选择最优策略
-
-出牌原则:
-- 地主：主动控制局面，快速出完
-- 农民：配合队友，帮队友出完
-- 保留炸弹在关键时刻
-- 顺子/三带优先出
-
-只返回JSON，不要其他内容。`
+出牌原则: 地主主动控制, 农民配合队友, 保留炸弹关键时刻用。
+只返回JSON。`
             },
             { role: 'user', content: prompt },
           ],
           temperature: 0.2,
-          max_tokens: 300,
+          max_tokens: 200,
         }),
       })
 
-      if (!response.ok) {
-        console.error('API响应错误:', response.status)
-        return null
-      }
+      if (!response.ok) return null
 
       const data = await response.json()
-      const content = data.choices?.[0]?.message?.content
-      console.log('API返回:', content)
-      return content || null
-    } catch (error) {
-      console.error('API调用失败:', error)
+      return data.choices?.[0]?.message?.content || null
+    } catch {
       return null
     }
   }
