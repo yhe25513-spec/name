@@ -249,24 +249,24 @@ export class AIPlayer {
     ).join('\n')
 
     // 分析当前桌面
-    let桌面牌型 = '过牌（暂无）'
-    let 牌面值 = ''
-    let 出牌者 = ''
+    let tableType = '过牌（暂无）'
+    let cardValue = ''
+    let playerRole = ''
 
     if (mustFollow) {
-      桌面牌型 = CARD_TYPE_NAMES[mustFollow.type] || mustFollow.type
-      牌面值 = mustFollow.cards.map(c => RANK_NAMES[c.rank]).join('')
+      tableType = CARD_TYPE_NAMES[mustFollow.type] || mustFollow.type
+      cardValue = mustFollow.cards.map(c => RANK_NAMES[c.rank]).join('')
       const lastPlayer = playHistory.length > 0 ? playHistory[playHistory.length - 1].player : -1
-      出牌者 = getRoleName(lastPlayer, isLandlord, myIdx)
+      playerRole = getRoleName(lastPlayer, isLandlord, myIdx)
     }
 
     // 计算队友名
-    const 队友 = isLandlord ? '无（地主1v2）' : (myIdx === 0 ? '下家' : '上家')
+    const teammate = isLandlord ? '无（地主1v2）' : (myIdx === 0 ? '下家' : '上家')
 
     // 计算手牌数量
-    const 我 = hand.length
-    const 上家 = handCount[(myIdx + 2) % 3]
-    const 下家 = handCount[(myIdx + 1) % 3]
+    const myCount = hand.length
+    const upperCount = handCount[(myIdx + 2) % 3]
+    const lowerCount = handCount[(myIdx + 1) % 3]
 
     const prompt = `斗地主求助，请帮我决策出牌。数据如下：
 
@@ -275,12 +275,12 @@ export class AIPlayer {
 底牌：${isLandlord ? '有' : '无'}
 手牌分析：${analyzeHandStructure(hand)}
 
-当前桌面牌型：${桌面牌型}，牌值：${牌面值 || '无'}，由${出牌者 || '无'}打出
+当前桌面牌型：${tableType}，牌值：${cardValue || '无'}，由${playerRole || '无'}打出
 ${mustFollow ? '轮到我出牌：是' : '轮到我出牌：是（首出）'}
 
 剩余大牌统计：${getRemainingBigCards()}
 
-手牌数量：我${我}张，上家${上家}张，下家${下家}张，队友（${队友}）${isLandlord ? '无' : (myIdx === 0 ? 下家 : 上家) + '张'}
+手牌数量：我${myCount}张，上家${upperCount}张，下家${lowerCount}张，队友（${teammate}）${isLandlord ? '无' : (myIdx === 0 ? lowerCount : upperCount) + '张'}
 
 出牌历史：
 ${formatPlayHistory()}
