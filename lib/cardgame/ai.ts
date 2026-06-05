@@ -71,9 +71,9 @@ function analyzeHandStructure(hand: Card[]): string {
 }
 
 function getRemainingBigCards(hand: Card[]): string {
-  const allCards: Card[] = []
-  const suits = ['spade', 'heart', 'club', 'diamond']
+  const suits: Array<'spade' | 'heart' | 'club' | 'diamond'> = ['spade', 'heart', 'club', 'diamond']
   const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
+  const allCards: Card[] = []
   for (const suit of suits) for (const rank of ranks) allCards.push({ suit, rank })
   allCards.push({ suit: 'joker', rank: 'small_joker' })
   allCards.push({ suit: 'joker', rank: 'big_joker' })
