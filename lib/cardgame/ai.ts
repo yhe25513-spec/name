@@ -235,7 +235,7 @@ export class AIPlayer {
     console.log('AI: 调用DeepSeek API...')
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 10000)
+      const timeout = setTimeout(() => controller.abort(), 15000) // 15秒超时
 
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -248,23 +248,45 @@ export class AIPlayer {
           messages: [
             {
               role: 'system',
-              content: `你是顶级斗地主AI玩家，精通算牌、概率计算和策略分析。
+              content: `你是世界顶级斗地主AI玩家，拥有职业选手水平。你精通以下技能：
 
-核心原则:
-1. 算牌: 记住所有出过的牌，推断对手剩余手牌
-2. 概率: 分析各种出牌的胜率
-3. 策略: 地主主动控制局面，农民配合队友
-4. 时机: 炸弹只在关键时刻使用（对手快赢或自己能走完时）
+【核心能力】
+1. 精确算牌：记住所有出过的牌，精确推断每个对手的手牌组成
+2. 概率计算：计算各种出牌组合的胜率，选择期望值最高的打法
+3. 对手建模：分析对手的出牌风格，预测其后续行为
+4. 博弈论思维：在不完全信息下做出最优决策
 
-牌型大小: 火箭 > 炸弹 > 普通牌型（同类型比点数）
-点数排序: 3<4<5<6<7<8<9<10<J<Q<K<A<2<小王<大王
+【斗地主规则】
+- 牌力排序: 3<4<5<6<7<8<9<10<J<Q<K<A<2<小王<大王
+- 牌型: 单张/对子/三带/顺子(5+连续)/连对(3+连续对)/飞机/炸弹(4同)/火箭(双王)
+- 炸弹>普通牌型，火箭>一切
+
+【策略原则】
+地主:
+- 开局出小牌试探，保留大牌控制
+- 对手手牌少于5张时必须压制
+- 炸弹用在关键时刻（对手快赢时）
+- 顺子/三带优先出，减少手牌数量
+
+农民:
+- 配合队友，帮队友出完牌
+- 不要抢队友的牌
+- 地主手牌少时用炸弹压制
+- 用小牌消耗地主的大牌
+
+【思维链推理】
+请按以下步骤思考:
+1. 分析当前局势（谁领先、剩余牌数）
+2. 评估各种出牌选择的后果
+3. 预测对手的反应
+4. 选择最优策略
 
 只返回JSON格式，不要其他内容。`
             },
             { role: 'user', content: prompt },
           ],
-          temperature: 0.3,
-          max_tokens: 200,
+          temperature: 0.2,
+          max_tokens: 500, // 增加token让AI充分思考
         }),
         signal: controller.signal,
       })
@@ -288,13 +310,48 @@ export class AIPlayer {
 
   // API叫分
   private async apiBid(hand: Card[], handCount: number[]): Promise<number> {
-    const prompt = `斗地主叫分决策。
-手牌: ${formatHand(hand)}
-各玩家手牌数: ${handCount.join(', ')}
-${getRemainingAnalysis()}
+    // 分析手牌
+    const rankCount: Record<string, number> = {}
+    for (const c of hand) {
+      rankCount[RANK_NAMES[c.rank]] = (rankCount[RANK_NAMES[c.rank]] || 0) + 1
+    }
 
-根据手牌强度叫分(0-3)。有王/炸弹/2多叫高分。
-返回JSON: {"bid": 数字}`
+    // 计算牌力
+    let strength = 0
+    const bombs: string[] = []
+    const jokers: string[] = []
+    for (const c of hand) {
+      strength += CARD_WEIGHTS[c.rank] || 0
+      if (c.rank === 'big_joker') jokers.push('大王')
+      if (c.rank === 'small_joker') jokers.push('小王')
+    }
+    for (const [rank, count] of Object.entries(rankCount)) {
+      if (count === 4) bombs.push(rank)
+    }
+
+    const prompt = `【斗地主叫分决策】
+
+═══ 手牌分析 ═══
+手牌(${hand.length}张): ${formatHand(hand)}
+手牌结构: ${Object.entries(rankCount).map(([r, c]) => `${r}×${c}`).join(', ')}
+牌力评分: ${strength}分
+
+关键牌: ${jokers.length > 0 ? jokers.join('+') : '无王'} ${bombs.length > 0 ? '炸弹:' + bombs.join(',') : ''}
+剩余大牌: ${getRemainingAnalysis()}
+
+═══ 叫分规则 ═══
+0分 = 不叫（手牌太弱）
+1分 = 一般（有潜力）
+2分 = 较强（有大牌/炸弹）
+3分 = 很强（有火箭/多个炸弹/绝对优势）
+
+═══ 策略思考 ═══
+1. 评估手牌: 大牌数量？炸弹/火箭？
+2. 预估胜率: 这手牌能打赢吗？
+3. 风险评估: 叫高分输的代价大
+
+请分析后返回JSON:
+{"bid": 0-3, "reason": "简短理由"}`
 
     console.log('[AI] apiBid 开始调用API')
     const result = await this.callAPI(prompt)
@@ -329,33 +386,51 @@ ${getRemainingAnalysis()}
     if (validPlays.length === 0) return null
 
     const validStr = validPlays.map((p, i) =>
-      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]})`
+      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]}, 权重${p.mainPower})`
     ).join('\n')
 
-    const prompt = `你是斗地主高手，请分析并选择最佳出牌。
+    // 分析手牌结构
+    const rankCount: Record<string, number> = {}
+    for (const c of hand) {
+      rankCount[RANK_NAMES[c.rank]] = (rankCount[RANK_NAMES[c.rank]] || 0) + 1
+    }
+    const handAnalysis = Object.entries(rankCount)
+      .map(([rank, count]) => `${rank}×${count}`)
+      .join(', ')
 
-【身份】${isLandlord ? '地主（你单独对抗两个农民）' : '农民（你要和队友配合打赢地主）'}
+    // 计算手牌强度
+    let handStrength = 0
+    for (const c of hand) {
+      handStrength += CARD_WEIGHTS[c.rank] || 0
+    }
 
-【你的手牌】${hand.length}张: ${formatHand(hand)}
+    const prompt = `【斗地主高手决策】
 
-【对手手牌数】${handCount.map((c, i) => `玩家${i}: ${c}张`).join(', ')}
+═══ 局势分析 ═══
+身份: ${isLandlord ? '🔴 地主（1v2）' : '🔵 农民（队友配合）'}
+手牌: ${hand.length}张 | 强度: ${handStrength}分
+手牌结构: ${handAnalysis}
 
-【剩余大牌】${getRemainingAnalysis()}
+对手剩余: ${handCount.map((c, i) => `P${i}:${c}张`).join(' | ')}
+剩余大牌: ${getRemainingAnalysis()}
 
-${mustFollow ? `【上家出的牌】${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})` : '【首出】你可以出任意合法牌型'}
+${mustFollow ? `═══ 上家出牌 ═══
+${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})
 
-【可选出牌】
+你必须出同类型更大的牌，或用炸弹/火箭压制` : '═══ 首出 ═══你可以出任意合法牌型，选择最优开牌'}
+
+═══ 可选出牌 ═══
 ${validStr}
 
-【策略要点】
-1. 地主策略: 主动控制局面，先出小牌试探，对手手牌少时果断出牌
-2. 农民策略: 配合队友，帮队友出完牌，不要抢队友的牌
-3. 保留炸弹在关键时刻（对手快赢时）使用
-4. 顺子/三带优先出，容易出完
-5. 手牌少于5张时积极出牌
+═══ 策略思考 ═══
+1. 分析当前局势: 谁领先？谁手牌少？
+2. 评估每个选择: 出完后手牌变化？对手反应？
+3. 预测对手: 对手可能出什么？如何应对？
+4. 选择最优: 哪个选择胜率最高？
 
-请分析局势，选择最佳出牌。返回JSON:
-{"action": "play", "index": 序号} 或 {"action": "pass"}`
+请分析后返回JSON:
+{"action": "play", "index": 序号, "reason": "简短理由"}
+或 {"action": "pass", "reason": "简短理由"}`
 
     const result = await this.callAPI(prompt)
     if (result) {
