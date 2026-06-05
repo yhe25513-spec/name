@@ -110,13 +110,20 @@ function formatHistory(history: { player: number, cards: Card[] | null, playerNa
 
 export class AIPlayer {
   private useAPI: boolean = false
+  private apiReady: Promise<boolean>
 
   constructor() {
-    // 异步检查 API
-    getApiKey().then(key => {
+    // 异步检查 API，返回 Promise
+    this.apiReady = getApiKey().then(key => {
       this.useAPI = !!key
       console.log('AI初始化:', key ? '✅ 使用DeepSeek API' : '⚠️ 使用本地规则')
+      return !!key
     })
+  }
+
+  // 等待 API 就绪
+  async ensureAPIReady(): Promise<boolean> {
+    return this.apiReady
   }
 
   // 评估手牌强度
@@ -331,10 +338,14 @@ ${mustFollow ? `需要跟: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${R
 
   // 叫分
   async decideBid(hand: Card[], handCount: number[] = [17, 17, 17]): Promise<number> {
+    // 等待 API 就绪
+    await this.apiReady
+
     if (this.useAPI) {
       try {
         return await this.apiBid(hand, handCount)
-      } catch {
+      } catch (e) {
+        console.error('API叫分失败:', e)
         return this.localBid(hand)
       }
     }
@@ -350,10 +361,14 @@ ${mustFollow ? `需要跟: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${R
     playerName: string = 'AI',
     history: { player: number, cards: Card[] | null, playerName: string }[] = []
   ): Promise<Card[] | null> {
+    // 等待 API 就绪
+    await this.apiReady
+
     if (this.useAPI) {
       try {
         return await this.apiPlay(hand, mustFollow, handCount, isLandlord, playerName, history)
-      } catch {
+      } catch (e) {
+        console.error('API出牌失败:', e)
         return this.localPlay(hand, mustFollow)
       }
     }
