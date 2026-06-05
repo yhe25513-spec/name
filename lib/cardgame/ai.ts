@@ -270,6 +270,9 @@ ${getPlayHistoryStr()}
     const handStr = formatHand(hand)
     const handStructure = analyzeHandStructure(hand)
 
+    // 计算剩余大牌
+    const remainingBigs = this.analyzeRemainingBigs(hand)
+
     const prompt = `【斗地主出牌决策 - 职业级分析】
 
 ═══ 你的身份 ═══
@@ -285,6 +288,9 @@ ${handCount.map((c, i) => `玩家${i}: ${c}张${i === 0 ? ' ← 你' : ''}`).joi
 ═══ 已出牌统计 ═══
 ${getAllPlayedCards()}
 
+═══ 剩余大牌分析（关键！）══=
+${remainingBigs}
+
 ═══ 出牌历史 ═══
 ${getPlayHistoryStr()}
 
@@ -295,23 +301,37 @@ ${mustFollow ? `═══ 需要跟牌 ═══
 ═══ 可选方案 ═══
 ${validStr}
 
-═══ 核心策略（必须遵守）═══
+═══ 职业级策略（必须遵守）═══
+
+【记牌与算牌】
+- 根据已出牌统计，推算外面还剩几张2、几张A、几个炸弹
+- 已出完4张的点数 → 对手不可能有该点数的炸弹
+- 关键牌剩余少 → 你的大牌更有价值
+
 【地主策略】
-1. 大王/小王/2 是王牌，只在关键时刻使用（对手快赢时或自己能走完时）
-2. 先出小牌/对子/顺子试探，保留大牌控制
-3. 不要浪费 A、K 压小牌
-4. 炸弹留到对手手牌≤3张时使用
+1. 牌权意识：谁掌握出牌权谁主导局势
+2. 先出小牌/顺子/三带试探，保留大牌控制
+3. 大王/小王/2 是王牌，只在关键时刻使用：
+   - 对手手牌≤5张且可能一波走完时
+   - 自己能一波走完时
+4. 不要浪费A/K压小牌——看局势，对手牌多时可以放
+5. 炸弹时机：对手即将获胜时炸，不是硬卡3张
+6. 拆牌思维：必要时拆散组合换取牌权
 
-【农民策略】
-1. 配合队友！如果队友出牌，不要压制队友的牌
+【农民策略（配合是核心）】
+1. 队友出牌时，不要压制！让队友走
 2. 地主出小牌时，让队友去顶，你保留实力
-3. 地主手牌少时才用炸弹压制
-4. 不要抢队友的牌权
+3. 队友剩≤3张时，主动出能配合的牌型
+4. 自己剩≤2张时，优先出自己能走完的牌型
+5. 地主手牌少时才用炸弹压制
+6. 不要抢队友的牌权——农民之间不要互压
 
-【通用规则】
+【通用高手技巧】
 - 大王/小王是最后杀招，绝不要轻易使用
 - 顺子/三带优先出，减少手牌数量
-- 分析对手剩余牌，预测其手牌结构
+- 如果手牌能"一波走完"，直接出
+- 根据对手出牌节奏推断其手牌结构
+- 残局时（对手≤5张），提高警惕
 
 返回: {"action": "play", "cards": [序号]} 或 {"action": "pass"}`
 
@@ -327,6 +347,66 @@ ${validStr}
       }
     }
     return this.localPlay(hand, mustFollow)
+  }
+
+  private analyzeRemainingBigs(hand: Card[]): string {
+    // 分析剩余大牌
+    const allCards: Card[] = []
+    const suits: Array<'spade' | 'heart' | 'club' | 'diamond'> = ['spade', 'heart', 'club', 'diamond']
+    const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
+    for (const suit of suits) {
+      for (const rank of ranks) {
+        allCards.push({ suit, rank })
+      }
+    }
+    allCards.push({ suit: 'joker', rank: '小王' })
+    allCards.push({ suit: 'joker', rank: '大王' })
+
+    // 统计已出牌
+    const playedCounts: Record<string, number> = {}
+    for (const card of playedCards) {
+      const key = card.rank
+      playedCounts[key] = (playedCounts[key] || 0) + 1
+    }
+
+    // 统计手牌
+    const handCounts: Record<string, number> = {}
+    for (const card of hand) {
+      handCounts[card.rank] = (handCounts[card.rank] || 0) + 1
+    }
+
+    // 计算剩余
+    const maxCounts: Record<string, number> = {
+      '大王': 1, '小王': 1, '2': 4, 'A': 4, 'K': 4, 'Q': 4, 'J': 4,
+      '10': 4, '9': 4, '8': 4, '7': 4, '6': 4, '5': 4, '4': 4, '3': 4
+    }
+
+    const result: string[] = []
+    for (const rank of ['大王', '小王', '2', 'A', 'K', 'Q', 'J']) {
+      const max = maxCounts[rank] || 0
+      const played = playedCounts[rank] || 0
+      const inHand = handCounts[rank] || 0
+      const remaining = max - played - inHand
+      if (remaining > 0) {
+        result.push(`${rank}: 外面还剩${remaining}张`)
+      } else if (remaining === 0) {
+        result.push(`${rank}: 已全部出现`)
+      }
+    }
+
+    // 检查炸弹可能性
+    for (const rank of Object.keys(maxCounts)) {
+      if (rank === '大王' || rank === '小王') continue
+      const max = maxCounts[rank]
+      const played = playedCounts[rank] || 0
+      const inHand = handCounts[rank] || 0
+      const remaining = max - played - inHand
+      if (remaining === 4) {
+        result.push(`⚠️ ${rank}炸弹可能（外面还有4张）`)
+      }
+    }
+
+    return result.length > 0 ? result.join('\n') : '关键牌已基本出现'
   }
 
   async decideBid(hand: Card[], handCount: number[] = [17, 17, 17]): Promise<number> {
