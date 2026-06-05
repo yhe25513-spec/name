@@ -287,16 +287,23 @@ ${getRemainingAnalysis()}
 根据手牌强度叫分(0-3)。有王/炸弹/2多叫高分。
 返回JSON: {"bid": 数字}`
 
+    console.log('[AI] apiBid 开始调用API')
     const result = await this.callAPI(prompt)
+    console.log('[AI] apiBid API返回:', result)
+
     if (result) {
       try {
         const match = result.match(/\{[^}]*"bid"\s*:\s*(\d)[^}]*\}/)
         if (match) {
           const bid = parseInt(match[1])
+          console.log('[AI] apiBid 解析结果:', bid)
           if (bid >= 0 && bid <= 3) return bid
         }
-      } catch {}
+      } catch (e) {
+        console.log('[AI] apiBid 解析失败:', e)
+      }
     }
+    console.log('[AI] apiBid 使用本地规则')
     return this.localBid(hand)
   }
 
@@ -352,15 +359,20 @@ ${mustFollow ? `需要跟: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${R
   async decideBid(hand: Card[], handCount: number[] = [17, 17, 17]): Promise<number> {
     // 等待 API 就绪
     await this.apiReady
+    console.log('[AI] decideBid - useAPI:', this.useAPI, '手牌数:', hand.length)
 
     if (this.useAPI) {
       try {
-        return await this.apiBid(hand, handCount)
+        console.log('[AI] 调用 apiBid...')
+        const result = await this.apiBid(hand, handCount)
+        console.log('[AI] apiBid 结果:', result)
+        return result
       } catch (e) {
-        console.error('API叫分失败:', e)
+        console.error('[AI] API叫分失败:', e)
         return this.localBid(hand)
       }
     }
+    console.log('[AI] 使用本地规则叫分')
     return this.localBid(hand)
   }
 

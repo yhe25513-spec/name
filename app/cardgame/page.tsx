@@ -53,14 +53,21 @@ export default function CardGamePage() {
   // AI回合 - 叫分阶段监听 currentBidder，出牌阶段监听 currentPlayer
   useEffect(() => {
     if (!gameState || gameState.phase === 'finished') return
+    console.log('[AI useEffect] 触发, phase:', gameState.phase, 'currentBidder:', gameState.currentBidder, 'currentPlayer:', gameState.currentPlayer)
 
     // 根据阶段决定监听哪个玩家
     const activePlayer = gameState.phase === 'bidding' ? gameState.currentBidder : gameState.currentPlayer
     const current = gameState.players[activePlayer]
-    if (!current?.isAI) return
-    if (activePlayer === myIndex) return
+    if (!current?.isAI) {
+      console.log('[AI useEffect] 当前玩家不是AI:', activePlayer)
+      return
+    }
+    if (activePlayer === myIndex) {
+      console.log('[AI useEffect] 当前是玩家自己:', myIndex)
+      return
+    }
 
-    console.log('[AI触发] 玩家:', activePlayer, '阶段:', gameState.phase, '当前:', current.name)
+    console.log('[AI触发] 玩家:', activePlayer, '阶段:', gameState.phase, '当前:', current.name, 'currentBidder:', gameState.currentBidder)
 
     const timeout = setTimeout(async () => {
       const latest = gameStateRef.current
@@ -88,6 +95,7 @@ export default function CardGamePage() {
 
   // 同步游戏状态
   const syncGameState = async (newState: GameState) => {
+    console.log('[同步] 更新状态, currentBidder:', newState.currentBidder, '阶段:', newState.phase)
     setGameState(newState)
     if (roomCode && supabaseRef.current) {
       await supabaseRef.current.updateGameState(roomCode, newState)
@@ -185,6 +193,7 @@ export default function CardGamePage() {
     const deck = shuffleDeck(createDeck())
     const [h1, h2, h3, lc] = dealCards(deck)
     const firstBidder = Math.floor(Math.random() * 3)
+    console.log('[开始游戏] 首个叫分:', firstBidder, 'myIndex:', myIndex)
     setGameState({
       phase: 'bidding', hands: [h1, h2, h3], landlordCards: lc, landlord: null,
       currentPlayer: firstBidder, lastPlay: null, lastPlayer: null,
@@ -210,10 +219,10 @@ export default function CardGamePage() {
       console.log('[AI叫分] 手牌为空, playerIndex:', playerIndex)
       return
     }
-    console.log('[AI叫分] 手牌数:', hand.length, '当前叫分:', latest.currentBidder)
+    console.log('[AI叫分] 手牌数:', hand.length, '当前叫分:', latest.currentBidder, 'AI玩家:', latest.players[playerIndex].name)
     const handCount = latest.hands.map(h => h.length)
     const score = await aiRef.current.decideBid(hand, handCount)
-    console.log('[AI叫分] 结果:', score)
+    console.log('[AI叫分] 结果:', score, '玩家:', latest.players[playerIndex].name)
     await handleBid(score, playerIndex)
   }
 
@@ -245,10 +254,15 @@ export default function CardGamePage() {
       const landlordIndex = newBidScores.findIndex(s => s === maxScore)
       await setLandlord(landlordIndex, newBidScores)
     } else {
-      await syncGameState({
-        ...latest, bidScores: newBidScores, currentBidder: nextBidder,
+      // 创建新的状态对象，确保引用不同
+      const newState: GameState = {
+        ...latest,
+        bidScores: newBidScores,
+        currentBidder: nextBidder,
         message: `${latest.players[nextBidder].name} 请叫分`,
-      })
+      }
+      console.log('[叫分] 下一个叫分:', nextBidder, '玩家:', latest.players[nextBidder].name)
+      await syncGameState(newState)
     }
   }
 
