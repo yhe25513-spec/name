@@ -76,6 +76,7 @@ export class SupabaseClient {
 
   // 更新游戏状态
   async updateGameState(roomCode: string, gameState: any) {
+    // 先更新数据库
     const { error } = await supabase
       .from('doudizhu_rooms')
       .update({
@@ -89,13 +90,14 @@ export class SupabaseClient {
       return false
     }
 
-    // 通过 Broadcast 发送实时更新
+    // 同时通过 Broadcast 发送实时更新
     if (this.channel) {
       this.channel.send({
         type: 'broadcast',
         event: 'game-update',
         payload: { state: gameState, roomCode },
       })
+      console.log('[Supabase] 已广播游戏更新')
     }
 
     return true
@@ -133,24 +135,31 @@ export class SupabaseClient {
       supabase.removeChannel(this.channel)
     }
 
+    console.log('[Supabase] 订阅房间:', roomCode)
+
     this.channel = supabase
       .channel(`room:${roomCode}`)
       .on('broadcast', { event: 'game-update' }, (payload) => {
+        console.log('[Supabase] 收到游戏更新:', payload.payload.roomCode)
         if (payload.payload.roomCode === roomCode && callbacks.onGameUpdate) {
           callbacks.onGameUpdate(payload.payload.state)
         }
       })
       .on('broadcast', { event: 'game-start' }, (payload) => {
+        console.log('[Supabase] 收到游戏开始:', payload.payload.roomCode)
         if (payload.payload.roomCode === roomCode && callbacks.onGameStart) {
           callbacks.onGameStart(payload.payload.state)
         }
       })
       .on('broadcast', { event: 'player-join' }, (payload) => {
+        console.log('[Supabase] 收到玩家加入:', payload.payload.roomCode)
         if (payload.payload.roomCode === roomCode && callbacks.onPlayerJoin) {
           callbacks.onPlayerJoin(payload.payload.players)
         }
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[Supabase] 订阅状态:', status)
+      })
 
     // 也订阅数据库变化（用于玩家加入通知）
     const dbChannel = supabase
@@ -164,6 +173,7 @@ export class SupabaseClient {
           filter: `room_code=eq.${roomCode}`,
         },
         (payload) => {
+          console.log('[Supabase] 数据库更新:', payload)
           const newRoom = payload.new as any
           if (newRoom.status === 'playing' && newRoom.game_state && callbacks.onGameStart) {
             callbacks.onGameStart(newRoom.game_state)
