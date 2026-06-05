@@ -234,9 +234,8 @@ export class AIPlayer {
 
     console.log('AI: 调用DeepSeek API...')
     try {
-      // 添加超时控制
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 8000) // 8秒超时
+      const timeout = setTimeout(() => controller.abort(), 10000)
 
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -249,14 +248,23 @@ export class AIPlayer {
           messages: [
             {
               role: 'system',
-              content: `你是专业斗地主AI，精通算牌和策略分析。
-出牌原则: 地主主动控制, 农民配合队友, 保留炸弹关键时刻用。
-只返回JSON。`
+              content: `你是顶级斗地主AI玩家，精通算牌、概率计算和策略分析。
+
+核心原则:
+1. 算牌: 记住所有出过的牌，推断对手剩余手牌
+2. 概率: 分析各种出牌的胜率
+3. 策略: 地主主动控制局面，农民配合队友
+4. 时机: 炸弹只在关键时刻使用（对手快赢或自己能走完时）
+
+牌型大小: 火箭 > 炸弹 > 普通牌型（同类型比点数）
+点数排序: 3<4<5<6<7<8<9<10<J<Q<K<A<2<小王<大王
+
+只返回JSON格式，不要其他内容。`
             },
             { role: 'user', content: prompt },
           ],
-          temperature: 0.2,
-          max_tokens: 150,
+          temperature: 0.3,
+          max_tokens: 200,
         }),
         signal: controller.signal,
       })
@@ -269,8 +277,9 @@ export class AIPlayer {
       }
 
       const data = await response.json()
-      console.log('AI: API返回:', data.choices?.[0]?.message?.content)
-      return data.choices?.[0]?.message?.content || null
+      const content = data.choices?.[0]?.message?.content
+      console.log('AI: API返回:', content)
+      return content || null
     } catch (e) {
       console.log('AI: API调用失败，使用本地规则')
       return null
@@ -317,25 +326,36 @@ ${getRemainingAnalysis()}
     history: { player: number, cards: Card[] | null, playerName: string }[]
   ): Promise<Card[] | null> {
     const validPlays = findAllValidPlays(hand, mustFollow)
-    const validStr = validPlays.map(p =>
-      `[${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}] ${CARD_TYPE_NAMES[p.type] || p.type}`
+    if (validPlays.length === 0) return null
+
+    const validStr = validPlays.map((p, i) =>
+      `[${i}] ${p.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[p.type]})`
     ).join('\n')
 
-    const prompt = `斗地主出牌决策。
-身份: ${isLandlord ? '地主' : '农民'}
-手牌(${hand.length}张): ${formatHand(hand)}
-各玩家手牌数: ${handCount.join(', ')}
-${getRemainingAnalysis()}
-${mustFollow ? `需要跟: ${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})` : '首出，任意出'}
-可选出牌:\n${validStr || '无'}
+    const prompt = `你是斗地主高手，请分析并选择最佳出牌。
 
-策略提示:
-- 地主: 主动出牌控制局面，对手手牌少时用炸弹
-- 农民: 配合队友，用小牌帮队友出完
-- 手牌少时优先出顺子/三带
-- 保留炸弹在关键时刻使用
+【身份】${isLandlord ? '地主（你单独对抗两个农民）' : '农民（你要和队友配合打赢地主）'}
 
-选择最佳出牌或不出。返回JSON: {"action": "play"/"pass", "index": 数字(从0开始)}`
+【你的手牌】${hand.length}张: ${formatHand(hand)}
+
+【对手手牌数】${handCount.map((c, i) => `玩家${i}: ${c}张`).join(', ')}
+
+【剩余大牌】${getRemainingAnalysis()}
+
+${mustFollow ? `【上家出的牌】${mustFollow.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')} (${CARD_TYPE_NAMES[mustFollow.type]})` : '【首出】你可以出任意合法牌型'}
+
+【可选出牌】
+${validStr}
+
+【策略要点】
+1. 地主策略: 主动控制局面，先出小牌试探，对手手牌少时果断出牌
+2. 农民策略: 配合队友，帮队友出完牌，不要抢队友的牌
+3. 保留炸弹在关键时刻（对手快赢时）使用
+4. 顺子/三带优先出，容易出完
+5. 手牌少于5张时积极出牌
+
+请分析局势，选择最佳出牌。返回JSON:
+{"action": "play", "index": 序号} 或 {"action": "pass"}`
 
     const result = await this.callAPI(prompt)
     if (result) {
