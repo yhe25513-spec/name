@@ -72,8 +72,13 @@ export default function CardGamePage() {
         }
       } catch (e) {
         console.error('[AI错误]', e)
+        // 如果AI出错，跳到下一个玩家
+        if (latest.phase === 'bidding') {
+          const nextBidder = (latest.currentPlayer + 1) % 3
+          await syncGameState({ ...latest, currentBidder: nextBidder })
+        }
       }
-    }, 1200)
+    }, 800) // 减少延迟到800ms
     return () => clearTimeout(timeout)
   }, [gameState?.currentPlayer, gameState?.phase])
 

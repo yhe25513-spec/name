@@ -234,6 +234,10 @@ export class AIPlayer {
 
     console.log('AI: 调用DeepSeek API...')
     try {
+      // 添加超时控制
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000) // 8秒超时
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -252,15 +256,23 @@ export class AIPlayer {
             { role: 'user', content: prompt },
           ],
           temperature: 0.2,
-          max_tokens: 200,
+          max_tokens: 150,
         }),
+        signal: controller.signal,
       })
 
-      if (!response.ok) return null
+      clearTimeout(timeout)
+
+      if (!response.ok) {
+        console.log('AI: API响应错误:', response.status)
+        return null
+      }
 
       const data = await response.json()
+      console.log('AI: API返回:', data.choices?.[0]?.message?.content)
       return data.choices?.[0]?.message?.content || null
-    } catch {
+    } catch (e) {
+      console.log('AI: API调用失败，使用本地规则')
       return null
     }
   }
