@@ -318,15 +318,6 @@ export default function CardGamePage() {
     })
   }
 
-  // 保存 API Key
-  const saveApiKey = () => {
-    localStorage.setItem('deepseek_api_key', apiKey)
-    setShowApiInput(false)
-    setMessage('API Key 已保存')
-    // 重新初始化 AI
-    aiRef.current = new AIPlayer()
-  }
-
   const renderCard = (card: Card, selected = false, onClick?: () => void, small = false) => {
     const suit = SUIT_SYMBOLS[card.suit] || ''
     const color = SUIT_COLORS[card.suit] || '#000'
@@ -495,30 +486,6 @@ export default function CardGamePage() {
             </div>
           )}
           <button onClick={startAIGame} className="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold">🤖 单人模式</button>
-        </div>
-
-        {/* API Key 设置 */}
-        <div className="mt-4 pt-4 border-t border-gray-700">
-          {!showApiInput ? (
-            <button onClick={() => setShowApiInput(true)}
-              className="w-full text-xs text-gray-500 hover:text-gray-400">
-              {apiKey ? '✅ API Key 已配置' : '⚙️ 配置 API Key (让AI更聪明)'}
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <label className="block text-xs text-gray-400">DeepSeek API Key</label>
-              <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full px-3 py-2 bg-gray-700 rounded text-sm focus:ring-2 focus:ring-yellow-400 outline-none" />
-              <div className="flex gap-2">
-                <button onClick={saveApiKey}
-                  className="flex-1 py-1 bg-green-600 hover:bg-green-500 rounded text-sm">保存</button>
-                <button onClick={() => setShowApiInput(false)}
-                  className="flex-1 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm">取消</button>
-              </div>
-              <p className="text-xs text-gray-500">没有API也能玩，AI用本地规则</p>
-            </div>
-          )}
         </div>
         {message && <div className="mt-4 text-center text-sm text-gray-400">{message}</div>}
       </div>
