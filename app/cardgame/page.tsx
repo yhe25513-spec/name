@@ -57,14 +57,21 @@ export default function CardGamePage() {
     if (!current?.isAI) return
     if (gameState.currentPlayer === myIndex) return
 
+    console.log('[AI触发] 玩家:', gameState.currentPlayer, '阶段:', gameState.phase, '当前:', current.name)
+
     const timeout = setTimeout(async () => {
       const latest = gameStateRef.current
       if (!latest || latest.phase === 'finished') return
+      console.log('[AI执行] 玩家:', latest.currentPlayer, '阶段:', latest.phase)
 
-      if (latest.phase === 'bidding') {
-        await aiBid(latest.currentPlayer)
-      } else if (latest.phase === 'playing') {
-        await aiPlay(latest.currentPlayer)
+      try {
+        if (latest.phase === 'bidding') {
+          await aiBid(latest.currentPlayer)
+        } else if (latest.phase === 'playing') {
+          await aiPlay(latest.currentPlayer)
+        }
+      } catch (e) {
+        console.error('[AI错误]', e)
       }
     }, 1200)
     return () => clearTimeout(timeout)
@@ -185,11 +192,19 @@ export default function CardGamePage() {
   // AI叫分
   const aiBid = async (playerIndex: number) => {
     const latest = gameStateRef.current
-    if (!latest || !aiRef.current) return
+    if (!latest || !aiRef.current) {
+      console.log('[AI叫分] 状态为空')
+      return
+    }
     const hand = latest.hands[playerIndex]
-    if (!hand) return
+    if (!hand) {
+      console.log('[AI叫分] 手牌为空, playerIndex:', playerIndex)
+      return
+    }
+    console.log('[AI叫分] 手牌数:', hand.length, '当前叫分:', latest.currentBidder)
     const handCount = latest.hands.map(h => h.length)
     const score = await aiRef.current.decideBid(hand, handCount)
+    console.log('[AI叫分] 结果:', score)
     await handleBid(score, playerIndex)
   }
 
