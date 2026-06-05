@@ -40,21 +40,35 @@ let playHistory: { player: number, cards: Card[] | null, playerName: string }[] 
 
 export function resetPlayedCards() { playedCards = []; playHistory = [] }
 export function recordPlayedCards(cards: Card[]) { playedCards.push(...cards) }
-export function recordPlayHistory(player: number, cards: Card[] | null, playerName: string) { playHistory.push({ player, cards, playerName }) }
+export function recordPlayHistory(player: number, cards: Card[] | null, playerName: string) {
+  playHistory.push({ player, cards, playerName })
+  console.log('[出牌历史] 记录:', playerName, cards ? cards.map(c => c.display_name).join(' ') : '不出')
+}
 export function getPlayHistory() { return playHistory }
 
-function getPlayedCardsAnalysis(): string {
+function getAllPlayedCards(): string {
   if (playedCards.length === 0) return '暂无出牌记录'
+  // 按点数统计
   const counts: Record<string, number> = {}
-  for (const c of playedCards) counts[c.rank] = (counts[c.rank] || 0) + 1
-  return Object.entries(counts).map(([k, v]) => `${RANK_NAMES[k]}×${v}`).join(', ')
+  for (const c of playedCards) {
+    const name = RANK_NAMES[c.rank]
+    counts[name] = (counts[name] || 0) + 1
+  }
+  // 按大小排序显示
+  const sorted = Object.entries(counts).sort((a, b) => {
+    const order = ['3','4','5','6','7','8','9','10','J','Q','K','A','2','小王','大王']
+    return order.indexOf(a[0]) - order.indexOf(b[0])
+  })
+  return sorted.map(([k, v]) => `${k}×${v}`).join(', ')
 }
 
 function getPlayHistoryStr(): string {
-  if (playHistory.length === 0) return '暂无'
-  return playHistory.slice(-10).map(h => {
-    if (h.cards) return `${h.playerName}: ${h.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}`
-    return `${h.playerName}: 不出`
+  if (playHistory.length === 0) return '暂无出牌记录'
+  // 显示所有出牌历史（最多20条）
+  return playHistory.slice(-20).map((h, i) => {
+    const num = playHistory.length - 20 + i + 1
+    if (h.cards) return `${num}. ${h.playerName}: ${h.cards.map(c => `${SUIT_NAMES[c.suit]}${RANK_NAMES[c.rank]}`).join(' ')}`
+    return `${num}. ${h.playerName}: 不出`
   }).join('\n')
 }
 
@@ -219,7 +233,7 @@ ${hand.length}张: ${formatHand(hand)}
 关键牌: ${jokers.join('+') || '无王'} ${bombs.length ? '炸弹:' + bombs.join(',') : ''}
 
 ═══ 已出牌记录 ═══
-${getPlayedCardsAnalysis()}
+${getAllPlayedCards()}
 
 ═══ 最近出牌历史 ═══
 ${getPlayHistoryStr()}
@@ -266,9 +280,9 @@ ${hand.length}张: ${formatHand(hand)}
 ${handCount.map((c, i) => `玩家${i}: ${c}张${i === 0 ? ' ← 你' : ''}`).join('\n')}
 
 ═══ 已出牌记录（重要！用于推断对手手牌）══=
-${getPlayedCardsAnalysis()}
+${getAllPlayedCards()}
 
-═══ 最近出牌历史 ═══
+═══ 出牌历史（完整记录）══=
 ${getPlayHistoryStr()}
 
 ${mustFollow ? `═══ 需要跟牌 ═══
