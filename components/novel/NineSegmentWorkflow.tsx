@@ -85,6 +85,8 @@ export default function NineSegmentWorkflow({ novelId, onComplete }: { novelId: 
 
     setRunning(true)
     try {
+      const { getAISettings } = await import('./APISettings')
+      const aiSettings = getAISettings()
       const res = await fetch('/api/novel/workflow/nine-segment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,6 +94,7 @@ export default function NineSegmentWorkflow({ novelId, onComplete }: { novelId: 
           novelId,
           stage: currentStage,
           input,
+          aiSettings,
           previousResults: results,
         }),
       })

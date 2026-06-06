@@ -245,10 +245,25 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { stage, input, previousResults } = await req.json()
+    const { stage, input, previousResults, aiSettings } = await req.json()
 
     if (!stage || !input) {
       return NextResponse.json({ error: '缺少 stage 或 input' }, { status: 400 })
+    }
+
+    // 设置客户端传来的 AI 配置
+    if (aiSettings?.provider) process.env.AI_PROVIDER = aiSettings.provider
+    if (aiSettings?.apiKey) {
+      process.env.AI_API_KEY = aiSettings.apiKey
+      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
+    }
+    if (aiSettings?.baseUrl) {
+      process.env.AI_BASE_URL = aiSettings.baseUrl
+      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
+    }
+    if (aiSettings?.model) {
+      process.env.AI_MODEL = aiSettings.model
+      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
     }
 
     const systemPrompt = STAGE_SYSTEM_PROMPTS[stage]
