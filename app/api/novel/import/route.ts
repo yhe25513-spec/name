@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/novel/store'
 import { callAI, extractJson, getCurrentConfig } from '@/lib/novel/ai-config'
 import { requireNovelOwnership } from '@/lib/novel/auth'
@@ -163,7 +163,10 @@ const SETTING_TABLE_MAP: Record<string, { table: string; mapFn: (content: string
 
 async function analyzeCore(text: string): Promise<any> {
   const config = getCurrentConfig()
-  if (!config.hasApiKey && config.provider !== 'ollama') return null
+  if (!config.hasApiKey && config.provider !== 'ollama') {
+    console.warn('[Import] analyzeCore skipped: provider=' + config.provider + ', hasApiKey=false')
+    return null
+  }
 
   const systemPrompt = `你是小说分析专家。从文本中提取以下信息，输出严格JSON：
 
@@ -196,7 +199,10 @@ async function analyzeCore(text: string): Promise<any> {
 
 async function analyzeForeshadowsAndMysteries(text: string): Promise<any> {
   const config = getCurrentConfig()
-  if (!config.hasApiKey && config.provider !== 'ollama') return null
+  if (!config.hasApiKey && config.provider !== 'ollama') {
+    console.warn('[Import] analyzeForeshadowsAndMysteries skipped: no API key')
+    return null
+  }
 
   const systemPrompt = `你是叙事结构分析专家。从文本中识别伏笔和悬念，输出严格JSON：
 
@@ -222,7 +228,10 @@ async function analyzeForeshadowsAndMysteries(text: string): Promise<any> {
 
 async function analyzeRelationships(text: string, characterNames: string[]): Promise<any> {
   const config = getCurrentConfig()
-  if (!config.hasApiKey && config.provider !== 'ollama') return null
+  if (!config.hasApiKey && config.provider !== 'ollama') {
+    console.warn('[Import] analyzeRelationships skipped: no API key')
+    return null
+  }
 
   const charList = characterNames.join('、')
   const systemPrompt = `你是角色关系分析专家。分析以下角色之间的关系，输出严格JSON：
@@ -247,7 +256,10 @@ async function analyzeRelationships(text: string, characterNames: string[]): Pro
 
 async function analyzeSoulAndStyle(text: string, title: string): Promise<any> {
   const config = getCurrentConfig()
-  if (!config.hasApiKey && config.provider !== 'ollama') return null
+  if (!config.hasApiKey && config.provider !== 'ollama') {
+    console.warn('[Import] analyzeSoulAndStyle skipped: no API key')
+    return null
+  }
 
   const systemPrompt = `你是网文商业分析专家。分析这部小说的核心卖点和写作风格，输出严格JSON：
 
@@ -621,7 +633,8 @@ export async function POST(req: NextRequest) {
       totalChapters: allChapters.length,
       filesCount: files.length,
       analysis: analysisResult,
-      message: buildMessage(savedCount, savedSettings, stats.totalWords, files.length, analysisResult),
+      hasApiKey: !!getCurrentConfig().hasApiKey,
+      message: buildMessage(savedCount, savedSettings, stats.totalWords, files.length, analysisResult, getCurrentConfig().hasApiKey),
     })
   } catch (e: any) {
     console.error('Import error:', e)
@@ -629,11 +642,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function buildMessage(chapters: number, settings: number, words: number, files: number, analysis: any): string {
+function buildMessage(chapters: number, settings: number, words: number, files: number, analysis: any, hasApiKey?: boolean): string {
   let msg = `${files}个文件`
   if (settings > 0) msg += `，${settings}个设定文件已写入记忆层`
   if (chapters > 0) msg += `，${chapters}章（${words.toLocaleString()}字）已保存`
-  if (analysis) {
+  if (!hasApiKey && !analysis) {
+    msg += '（AI分析未执行：请在API设置中配置API Key，然后点击「AI分析填充记忆层」）'
+  } else if (analysis) {
     const parts = []
     if (analysis.savedChars) parts.push(`${analysis.savedChars}角色`)
     if (analysis.savedWorlds) parts.push(`${analysis.savedWorlds}世界观`)
@@ -837,3 +852,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
+

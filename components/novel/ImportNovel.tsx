@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import { Upload, FileText, CheckCircle, Loader2, Users, Globe, Clock, Eye, Link2, Brain, AlertTriangle } from 'lucide-react'
@@ -67,7 +67,11 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
 
       const data = await res.json()
       setResult(data)
-      toast.success(data.message)
+      if (data.hasApiKey === false && !data.analysis) {
+        toast.warning('AI分析未执行', { description: '请在「API设置」中配置API Key，然后点击「AI分析填充记忆层」' })
+      } else {
+        toast.success(data.message)
+      }
       onComplete?.()
     } catch (e: any) { toast.error(`导入失败: ${e.message}`) }
     setImporting(false)
@@ -262,3 +266,4 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
 
 // 需要导入 Zap 图标
 import { Zap } from 'lucide-react'
+
