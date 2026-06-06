@@ -1,30 +1,19 @@
 import { getNovelMeta } from './novels'
-import { getForeshadows, checkOverdue } from './foreshadows'
-import { getMysteries, getWritingConstraints } from './mysteries'
+import { getWritingConstraints } from './mysteries'
 import { getRelationships } from './relationships'
-import { readJSON, stylePath, characterCardPath } from './store'
-import { promises as fs } from 'fs'
-import path from 'path'
+import { checkOverdue } from './foreshadows'
+import { supabase } from './store'
 
 export async function generateWritingPrompt(novelId: string, chapter: number) {
   const meta = await getNovelMeta(novelId)
   const soul = meta.soul || {}
-  const style = await readJSON<any>(stylePath(novelId)).catch(() => ({}))
+  const style = meta.style || {}
   const constraints = await getWritingConstraints(novelId, chapter)
   const overdue = await checkOverdue(novelId, chapter)
   const rels = await getRelationships(novelId)
 
-  // Load character cards
-  const cardsDir = path.join(process.cwd(), 'data', 'novels', novelId, 'character_cards')
-  let cards: any[] = []
-  try {
-    const files = await fs.readdir(cardsDir)
-    for (const f of files) {
-      if (f.endsWith('.json')) {
-        cards.push(await readJSON(path.join(cardsDir, f)))
-      }
-    }
-  } catch { /* no cards */ }
+  // Load character cards from Supabase
+  const { data: cards } = await supabase.from('chapters').select('content').eq('novel_id', novelId).eq('chapter_num', 0).limit(1)
 
   const parts: string[] = []
 
@@ -33,7 +22,7 @@ export async function generateWritingPrompt(novelId: string, chapter: number) {
 你正在写一本叫《${meta.title}》的小说。
 
 ## 作品灵魂
-- 核心卖点: ${(soul.core_hooks || []).join(', ')}
+- 核心卖点: ${(soul.core_selling_points || soul.core_hooks || []).join(', ')}
 - 禁止方向: ${(soul.forbidden_directions || []).join(', ')}
 - 调性: ${soul.tone || ''}
 - 读者承诺: ${soul.reader_promise || ''}
@@ -50,17 +39,6 @@ ${(style.vocabulary_rules?.banned_ai_phrases || []).map((p: string) => '- ' + p)
 
 ## 对话风格
 ${style.description_style?.dialogue_style || '自然'}`)
-
-  if (cards.length > 0) {
-    parts.push('\n## 本章出场角色')
-    for (const card of cards) {
-      parts.push(`\n### ${card.name || '未知'}
-- 性格: ${(card.core_traits || []).join(', ')}
-- 核心信念: ${card.core_belief || ''}
-- 说话语气: ${card.dialogue_profile?.tone || ''}
-- 禁用表达: ${(card.dialogue_profile?.forbidden || []).join(', ')}`)
-    }
-  }
 
   const relEntries = Object.entries(rels.relationships || {})
   if (relEntries.length > 0) {

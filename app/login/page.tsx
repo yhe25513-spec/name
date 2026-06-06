@@ -177,6 +177,13 @@ export default function LoginPage() {
         .animate-shake {
           animation: shake 0.4s ease-in-out;
         }
+        @keyframes loading-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+          50% { box-shadow: 0 0 20px 4px rgba(251, 191, 36, 0.35); }
+        }
+        .animate-loading-pulse {
+          animation: loading-pulse 1.5s ease-in-out infinite;
+        }
       `}</style>
 
       <div className="relative min-h-screen flex items-center justify-center bg-zinc-950 overflow-hidden isolate">
@@ -217,10 +224,10 @@ export default function LoginPage() {
         <div className="relative z-10 w-full max-w-md px-4 animate-in fade-in duration-700 fill-mode-both">
           {/* Logo 区域 */}
           <div className="text-center mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 fill-mode-both">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-500/25 mb-4 shadow-[0_0_20px_rgba(251,191,36,0.08)]">
-              <Sword className="w-8 h-8 text-amber-400" />
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-500/25 mb-4 shadow-[0_0_20px_rgba(251,191,36,0.08)]">
+              <Sword className="w-6 h-6 sm:w-8 sm:h-8 text-amber-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">文字冒险</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">文字冒险</h1>
             <p className="text-zinc-500 mt-1.5 text-sm">AI 驱动的沉浸式文字游戏</p>
           </div>
 
@@ -299,7 +306,7 @@ export default function LoginPage() {
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-amber-500 hover:bg-amber-400 hover:shadow-[0_0_20px_rgba(251,191,36,0.25)] text-black font-semibold transition-all duration-200 active:scale-[0.98]"
+                        className={`w-full bg-amber-500 hover:bg-amber-400 hover:shadow-[0_0_20px_rgba(251,191,36,0.25)] text-black font-semibold transition-all duration-200 active:scale-[0.98] min-h-[44px]${loading ? ' animate-loading-pulse' : ''}`}
                       >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                         登录
@@ -403,7 +410,7 @@ export default function LoginPage() {
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-amber-500 hover:bg-amber-400 hover:shadow-[0_0_20px_rgba(251,191,36,0.25)] text-black font-semibold transition-all duration-200 active:scale-[0.98]"
+                        className={`w-full bg-amber-500 hover:bg-amber-400 hover:shadow-[0_0_20px_rgba(251,191,36,0.25)] text-black font-semibold transition-all duration-200 active:scale-[0.98] min-h-[44px]${loading ? ' animate-loading-pulse' : ''}`}
                       >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                         注册并开始冒险
@@ -467,7 +474,7 @@ export default function LoginPage() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-amber-500 hover:bg-amber-400 hover:shadow-[0_0_16px_rgba(251,191,36,0.2)] text-black transition-all duration-200"
+                    className={`flex-1 bg-amber-500 hover:bg-amber-400 hover:shadow-[0_0_16px_rgba(251,191,36,0.2)] text-black transition-all duration-200 min-h-[44px]${loading ? ' animate-loading-pulse' : ''}`}
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     发送重置链接

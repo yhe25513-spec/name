@@ -1,57 +1,59 @@
-import { Relationship, RelationshipStore } from './types'
-import { readJSON, writeJSON, relationshipsPath } from './store'
+import { supabase } from './store'
 
-export async function getRelationships(novelId: string): Promise<RelationshipStore> {
-  try {
-    return await readJSON<RelationshipStore>(relationshipsPath(novelId))
-  } catch {
-    return { novel_id: novelId, relationships: {}, trust_decay_rate: 0.5, trust_change_alert_threshold: 10 }
+export async function getRelationships(novelId: string) {
+  const { data } = await supabase.from('relationships').select('*').eq('novel_id', novelId)
+  const rels: Record<string, any> = {}
+  for (const r of (data || [])) {
+    rels[`${r.from_char}->${r.to_char}`] = {
+      type: r.rel_type, trust_level: r.trust_level,
+      trust_history: r.trust_history || [],
+      last_updated_chapter: r.last_updated_chapter,
+    }
   }
-}
-
-export async function saveRelationships(novelId: string, data: RelationshipStore) {
-  await writeJSON(relationshipsPath(novelId), data)
+  return { novel_id: novelId, relationships: rels, trust_change_alert_threshold: 10 }
 }
 
 export async function updateTrust(novelId: string, from: string, to: string, delta: number, chapter: number, reason = '', relType?: string) {
-  const data = await getRelationships(novelId)
-  const key = `${from}->${to}`
-  const alertThreshold = data.trust_change_alert_threshold
+  const alertThreshold = 10
   const warnings: string[] = []
 
-  if (!data.relationships[key]) {
-    data.relationships[key] = {
-      type: relType || '未知', trust_level: 0, trust_history: [],
-      emotional_distance: 50, power_dynamic: '', tags: [],
-      last_updated_chapter: chapter,
-    }
-  }
-
-  const rel = data.relationships[key]
   if (Math.abs(delta) > alertThreshold) {
-    warnings.push(`关系 ${key} 单章变化 ${delta} 超过阈值 ${alertThreshold}`)
+    warnings.push(`关系 ${from}->${to} 单章变化 ${delta} 超过阈值`)
     delta = Math.max(-alertThreshold, Math.min(alertThreshold, delta))
   }
 
-  const newTrust = Math.max(-100, Math.min(100, rel.trust_level + delta))
-  rel.trust_history.push({ chapter, value: newTrust, reason })
-  rel.trust_level = newTrust
-  rel.last_updated_chapter = chapter
-  if (relType) rel.type = relType
+  // Check if relationship exists
+  const { data: existing } = await supabase.from('relationships')
+    .select('*').eq('novel_id', novelId).eq('from_char', from).eq('to_char', to).single()
 
-  await saveRelationships(novelId, data)
-  return { success: true, new_value: newTrust, warnings }
+  if (existing) {
+    const newTrust = Math.max(-100, Math.min(100, (existing.trust_level || 0) + delta))
+    const history = [...(existing.trust_history || []), { chapter, value: newTrust, reason }]
+    const { error } = await supabase.from('relationships').update({
+      trust_level: newTrust, trust_history: history,
+      rel_type: relType || existing.rel_type,
+      last_updated_chapter: chapter, updated_at: new Date().toISOString(),
+    }).eq('id', existing.id)
+    if (error) throw new Error(error.message)
+    return { success: true, new_value: newTrust, warnings }
+  } else {
+    const newTrust = Math.max(-100, Math.min(100, delta))
+    const { error } = await supabase.from('relationships').insert({
+      novel_id: novelId, from_char: from, to_char: to,
+      rel_type: relType || '未知', trust_level: newTrust,
+      trust_history: [{ chapter, value: newTrust, reason }],
+      last_updated_chapter: chapter,
+    })
+    if (error) throw new Error(error.message)
+    return { success: true, new_value: newTrust, warnings }
+  }
 }
 
 export async function getRelationshipReport(novelId: string) {
-  const data = await getRelationships(novelId)
-  const sorted = Object.entries(data.relationships)
-    .sort((a, b) => b[1].trust_level - a[1].trust_level)
+  const { data } = await supabase.from('relationships').select('*').eq('novel_id', novelId)
+  const sorted = (data || []).sort((a, b) => (b.trust_level || 0) - (a.trust_level || 0))
   return {
-    most_trusted: sorted.slice(0, 3).map(([k, v]) => ({ key: k, ...v })),
-    least_trusted: sorted.slice(-3).map(([k, v]) => ({ key: k, ...v })),
-    recent_changes: sorted.flatMap(([k, v]) =>
-      v.trust_history.slice(-1).map(h => ({ key: k, ...h }))
-    ).sort((a, b) => b.chapter - a.chapter).slice(0, 5),
+    most_trusted: sorted.slice(0, 3),
+    least_trusted: sorted.slice(-3),
   }
 }

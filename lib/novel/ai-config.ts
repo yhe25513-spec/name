@@ -78,11 +78,16 @@ function getProvider(): string {
 function getApiKey(): string {
   const provider = getProvider()
   // 按优先级查找 API Key
-  return process.env[`${provider.toUpperCase()}_API_KEY`]
+  const key = process.env[`${provider.toUpperCase()}_API_KEY`]
     || process.env.AI_API_KEY
     || process.env.DEEPSEEK_API_KEY
     || process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY
     || ''
+
+  // 调试日志
+  console.log(`[AI Config] Provider: ${provider}, Key found: ${!!key}, Key prefix: ${key ? key.slice(0, 8) + '...' : 'none'}`)
+
+  return key
 }
 
 // 获取 Base URL

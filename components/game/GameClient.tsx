@@ -58,12 +58,13 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
     initialSave.conversation_history || []
   )
   const [state, setState] = useState<GameState>({
-    hp: 100,
-    maxHp: 100,
-    attributes: {},
-    inventory: [],
-    flags: {},
-    ...initialSave.current_state,
+    hp: initialSave.current_state?.hp ?? 100,
+    maxHp: initialSave.current_state?.maxHp ?? 100,
+    attributes: initialSave.current_state?.attributes ?? {},
+    inventory: initialSave.current_state?.inventory ?? [],
+    flags: initialSave.current_state?.flags ?? {},
+    location: initialSave.current_state?.location,
+    realm: initialSave.current_state?.realm,
   })
   const [turnCount, setTurnCount] = useState(initialSave.turn_count)
   const [saveId, setSaveId] = useState(initialSave.id)

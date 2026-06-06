@@ -1,8 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { BookOpen, PenTool, Database, Heart, Eye, Clock, AlertTriangle, ChevronLeft, ChevronRight, Plus, Trash2, RefreshCw, Zap, Target, Link2 } from 'lucide-react'
+import { BookOpen, PenTool, Database, Heart, Eye, Clock, AlertTriangle, ChevronLeft, ChevronRight, Plus, Trash2, RefreshCw, Zap, Target, Link2, Download, Sparkles, Brain, Upload, BookMarked, Layers, Settings } from 'lucide-react'
 import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import MemoryLayer from './MemoryLayer'
+import WorkflowPanel from './WorkflowPanel'
+import ImportNovel from './ImportNovel'
+import NovelReader from './NovelReader'
+import NineSegmentWorkflow from './NineSegmentWorkflow'
+import APISettings from './APISettings'
 
 const API_BASE = '/api/novel'
 
@@ -58,8 +67,14 @@ interface Relationship {
 export default function NovelStudio() {
   const [novels, setNovels] = useState<Novel[]>([])
   const [currentNovel, setCurrentNovel] = useState<string | null>(null)
-  const [view, setView] = useState<'dashboard' | 'editor' | 'data'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'editor' | 'data' | 'memory' | 'import' | 'reader' | 'nine-segment'>('dashboard')
+  const [readerChapters, setReaderChapters] = useState<any[]>([])
+  const [readerIdx, setReaderIdx] = useState(0)
+  const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newNovel, setNewNovel] = useState({ id: '', title: '', genre: '玄幻' })
+  const [creating, setCreating] = useState(false)
 
   const loadNovels = useCallback(async () => {
     try {
@@ -68,7 +83,7 @@ export default function NovelStudio() {
       const current = data.find((n: Novel) => n.is_current)
       if (current) setCurrentNovel(current.id)
     } catch (e: any) {
-      toast.error('无法连接到Python后端', { description: '请确保已启动: python web/backend/main.py' })
+      toast.error('无法连接到服务器', { description: '请检查网络连接或刷新页面重试' })
     }
     setLoading(false)
   }, [])
@@ -83,18 +98,21 @@ export default function NovelStudio() {
   }
 
   const createNovel = async () => {
-    const id = prompt('小说ID (英文，如 jingubang):')
-    if (!id) return
-    const title = prompt('小说标题:')
-    if (!title) return
-    const genre = prompt('类型:', '玄幻') || '未分类'
+    if (!newNovel.id.trim() || !newNovel.title.trim()) {
+      toast.error('请填写小说ID和标题')
+      return
+    }
+    setCreating(true)
     try {
-      await api('novels', { method: 'POST', body: JSON.stringify({ id, title, genre }) })
-      toast.success(`小说《${title}》创建成功`)
+      await api('novels', { method: 'POST', body: JSON.stringify({ id: newNovel.id.trim(), title: newNovel.title.trim(), genre: newNovel.genre }) })
+      toast.success(`小说《${newNovel.title}》创建成功`)
+      setShowCreateDialog(false)
+      setNewNovel({ id: '', title: '', genre: '玄幻' })
       loadNovels()
     } catch (e: any) {
       toast.error(e.message)
     }
+    setCreating(false)
   }
 
   if (loading) {
@@ -138,7 +156,7 @@ export default function NovelStudio() {
               </div>
             </button>
           ))}
-          <button onClick={createNovel} className="w-full text-left px-3 py-2 rounded-lg text-sm mt-2 border border-dashed transition-all hover:border-solid" style={{ borderColor: '#3a3d45', color: '#5e6ad2' }}>
+          <button onClick={() => setShowCreateDialog(true)} className="w-full text-left px-3 py-2 rounded-lg text-sm mt-2 border border-dashed transition-all hover:border-solid" style={{ borderColor: '#3a3d45', color: '#5e6ad2' }}>
             <Plus className="w-3.5 h-3.5 inline mr-1.5" />
             新建小说
           </button>
@@ -150,6 +168,9 @@ export default function NovelStudio() {
               { key: 'dashboard', icon: BookOpen, label: '仪表盘' },
               { key: 'editor', icon: PenTool, label: '写章节' },
               { key: 'data', icon: Database, label: '数据管理' },
+              { key: 'memory', icon: Brain, label: '记忆层' },
+              { key: 'import', icon: Upload, label: '导入小说' },
+              { key: 'nine-segment', icon: Layers, label: '九段式创作' },
             ].map(item => (
               <button
                 key={item.key}
@@ -165,6 +186,18 @@ export default function NovelStudio() {
             ))}
           </div>
         )}
+
+        {/* Settings button at bottom */}
+        <div className="p-3 border-t" style={{ borderColor: '#23252a' }}>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-white/5 transition-all"
+            style={{ color: '#8a8f98' }}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            API 设置
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
@@ -178,19 +211,114 @@ export default function NovelStudio() {
             </div>
           </div>
         ) : view === 'dashboard' ? (
-          <DashboardView novelId={currentNovel} onEdit={(ch) => { setView('editor') }} />
+          <DashboardView novelId={currentNovel} onEdit={(ch) => { setView('editor') }} onRead={async () => {
+            const data = await api(`novels/${currentNovel}/chapters`)
+            setReaderChapters(data)
+            setView('reader')
+          }} />
         ) : view === 'editor' ? (
           <EditorView novelId={currentNovel} />
+        ) : view === 'memory' ? (
+          <MemoryLayer novelId={currentNovel} />
+        ) : view === 'import' ? (
+          <div className="p-6 max-w-2xl mx-auto">
+            <h1 className="text-xl font-bold mb-2" style={{ color: '#f7f8f8' }}>📥 导入已有小说</h1>
+            <p className="text-xs mb-6" style={{ color: '#8a8f98' }}>上传 TXT/MD 文件，AI 自动解析章节、识别角色、提取世界观</p>
+            <ImportNovel novelId={currentNovel} onComplete={() => loadNovels()} />
+          </div>
+        ) : view === 'nine-segment' ? (
+          <NineSegmentWorkflow novelId={currentNovel} />
+        ) : view === 'reader' ? (
+          <NovelReader
+            title={novels.find(n => n.id === currentNovel)?.title || ''}
+            chapters={readerChapters}
+            novelId={currentNovel}
+            initialChapter={readerIdx}
+            onClose={() => setView('editor')}
+          />
         ) : (
           <DataView novelId={currentNovel} />
         )}
       </main>
+
+      {/* Create Novel Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#141516', borderColor: '#23252a' }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: '#f7f8f8' }}>新建小说</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs mb-1.5 block" style={{ color: '#8a8f98' }}>小说ID（英文，如 jingubang）</label>
+              <Input
+                value={newNovel.id}
+                onChange={e => setNewNovel({ ...newNovel, id: e.target.value })}
+                placeholder="my-novel"
+                style={{ backgroundColor: '#0a0b0c', borderColor: '#23252a', color: '#f7f8f8' }}
+              />
+            </div>
+            <div>
+              <label className="text-xs mb-1.5 block" style={{ color: '#8a8f98' }}>小说标题</label>
+              <Input
+                value={newNovel.title}
+                onChange={e => setNewNovel({ ...newNovel, title: e.target.value })}
+                placeholder="我的小说标题"
+                style={{ backgroundColor: '#0a0b0c', borderColor: '#23252a', color: '#f7f8f8' }}
+              />
+            </div>
+            <div>
+              <label className="text-xs mb-1.5 block" style={{ color: '#8a8f98' }}>类型</label>
+              <div className="flex flex-wrap gap-2">
+                {['玄幻', '悬疑', '都市', '言情', '科幻', '仙侠', '历史', '恐怖', '未分类'].map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setNewNovel({ ...newNovel, genre: g })}
+                    className="px-3 py-1.5 rounded-lg text-xs border transition-all"
+                    style={newNovel.genre === g
+                      ? { backgroundColor: '#5e6ad2', borderColor: '#5e6ad2', color: 'white' }
+                      : { borderColor: '#23252a', color: '#d0d6e0' }
+                    }
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              style={{ borderColor: '#23252a', color: '#d0d6e0' }}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={createNovel}
+              disabled={creating || !newNovel.id.trim() || !newNovel.title.trim()}
+              style={{ backgroundColor: '#5e6ad2', color: 'white' }}
+            >
+              {creating ? '创建中...' : '创建'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* API Settings Dialog */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto" style={{ backgroundColor: '#141516', borderColor: '#23252a' }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: '#f7f8f8' }}>⚙️ API 设置</DialogTitle>
+          </DialogHeader>
+          <APISettings onClose={() => setShowSettings(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
 // ========== Dashboard ==========
-function DashboardView({ novelId, onEdit }: { novelId: string; onEdit: (ch: number) => void }) {
+function DashboardView({ novelId, onEdit, onRead }: { novelId: string; onEdit: (ch: number) => void; onRead?: () => void }) {
   const [status, setStatus] = useState<any>(null)
   const [health, setHealth] = useState<any>(null)
 
@@ -232,7 +360,7 @@ function DashboardView({ novelId, onEdit }: { novelId: string; onEdit: (ch: numb
             核心卖点
           </h3>
           <div className="flex flex-wrap gap-2">
-            {status.soul.core_hooks.map((h: string, i: number) => (
+            {(status.soul.core_selling_points || status.soul.core_hooks || []).map((h: string, i: number) => (
               <span key={i} className="px-2.5 py-1 rounded-full text-xs" style={{ backgroundColor: 'rgba(94,106,210,0.12)', color: '#5e6ad2' }}>{h}</span>
             ))}
           </div>
@@ -241,13 +369,41 @@ function DashboardView({ novelId, onEdit }: { novelId: string; onEdit: (ch: numb
 
       <div className="p-4 rounded-xl border" style={{ borderColor: '#23252a', backgroundColor: '#141516' }}>
         <h3 className="text-sm font-semibold mb-3">快速开始</h3>
-        <button
-          onClick={() => onEdit(status.chapter + 1)}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
-          style={{ backgroundColor: '#5e6ad2', color: 'white' }}
-        >
-          写第{(status.chapter || 0) + 1}章 →
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => onEdit(status.chapter + 1)}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
+            style={{ backgroundColor: '#5e6ad2', color: 'white' }}
+          >
+            写第{(status.chapter || 0) + 1}章 →
+          </button>
+          {onRead && status.chapter > 0 && (
+            <button
+              onClick={onRead}
+              className="px-4 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-white/5 flex items-center gap-1.5"
+              style={{ borderColor: '#4ade80', color: '#4ade80' }}
+            >
+              <BookMarked className="w-3.5 h-3.5" />
+              阅读小说
+            </button>
+          )}
+          <button
+            onClick={() => window.open(`/api/novel/export?novelId=${novelId}&format=txt`, '_blank')}
+            className="px-4 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-white/5 flex items-center gap-1.5"
+            style={{ borderColor: '#23252a', color: '#d0d6e0' }}
+          >
+            <Download className="w-3.5 h-3.5" />
+            导出 TXT
+          </button>
+          <button
+            onClick={() => window.open(`/api/novel/export?novelId=${novelId}&format=md`, '_blank')}
+            className="px-4 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-white/5 flex items-center gap-1.5"
+            style={{ borderColor: '#23252a', color: '#d0d6e0' }}
+          >
+            <Download className="w-3.5 h-3.5" />
+            导出 MD
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -262,7 +418,16 @@ function EditorView({ novelId }: { novelId: string }) {
   const [prep, setPrep] = useState<any>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [chapterList, setChapterList] = useState<{ chapter: number; title: string; word_count: number }[]>([])
+  const [generating, setGenerating] = useState(false)
+  const [generatedText, setGeneratedText] = useState('')
 
+  // Load chapter list
+  useEffect(() => {
+    api(`novels/${novelId}/chapters`).then(setChapterList).catch(() => setChapterList([]))
+  }, [novelId])
+
+  // Load chapter content
   useEffect(() => {
     if (chapter > 0) {
       api(`novels/${novelId}/chapters/${chapter}`)
@@ -292,19 +457,10 @@ function EditorView({ novelId }: { novelId: string }) {
         body: JSON.stringify({ content }),
       })
 
-      // Auto-extract & sync
-      const extractRes = await api(`novels/${novelId}/chapters/${chapter}`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      })
-
-      await api(`novels/${novelId}/sync/${chapter}`, {
-        method: 'POST',
-        body: JSON.stringify({ chapter, extraction: extractRes.extraction }),
-      })
-
-      setMessage(`✅ 已保存并同步 (${content.length}字)`)
+      setMessage(`✅ 已保存 (${content.length}字)`)
       toast.success(`第${chapter}章已保存`)
+      // Refresh chapter list
+      api(`novels/${novelId}/chapters`).then(setChapterList).catch(() => {})
     } catch (e: any) {
       setMessage(`❌ ${e.message}`)
       toast.error(e.message)
@@ -312,63 +468,198 @@ function EditorView({ novelId }: { novelId: string }) {
     setSaving(false)
   }
 
+  const generateWithAI = async () => {
+    setGenerating(true)
+    setGeneratedText('')
+    try {
+      // First get the prompt
+      const promptData = await api(`novels/${novelId}/prompt/${chapter}`)
+      const writingPrompt = promptData.prompt
+
+      // Call streaming generation endpoint
+      const { getAISettings } = await import('./APISettings')
+      const aiSettings = getAISettings()
+      const res = await fetch('/api/novel/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novelId, chapter, prompt: writingPrompt, aiSettings }),
+      })
+
+      if (!res.ok) throw new Error('生成失败')
+
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ''
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          // Parse SSE format
+          const lines = chunk.split('\n')
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') break
+              try {
+                const parsed = JSON.parse(data)
+                const delta = parsed.choices?.[0]?.delta?.content || ''
+                fullText += delta
+                setGeneratedText(fullText)
+              } catch {}
+            }
+          }
+        }
+      }
+
+      if (fullText) {
+        setContent(fullText)
+        toast.success('AI 生成完成，可以编辑后保存')
+      }
+    } catch (e: any) {
+      toast.error(`生成失败: ${e.message}`)
+    }
+    setGenerating(false)
+  }
+
   return (
     <div className="flex h-full">
-      {/* Left: Controls */}
-      <div className="w-56 border-r p-4 flex flex-col gap-4" style={{ borderColor: '#23252a', backgroundColor: '#0a0b0c' }}>
-        <div className="flex items-center justify-between">
-          <button onClick={() => setChapter(Math.max(1, chapter - 1))} className="p-1.5 rounded border hover:bg-white/5" style={{ borderColor: '#23252a', color: '#8a8f98' }}>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-semibold">第{chapter}章</span>
-          <button onClick={() => setChapter(chapter + 1)} className="p-1.5 rounded border hover:bg-white/5" style={{ borderColor: '#23252a', color: '#8a8f98' }}>
-            <ChevronRight className="w-4 h-4" />
+      {/* Left: Chapter List + Controls */}
+      <div className="w-56 border-r flex flex-col" style={{ borderColor: '#23252a', backgroundColor: '#0a0b0c' }}>
+        {/* Chapter List */}
+        <div className="flex-1 overflow-y-auto p-2">
+          <p className="text-[10px] uppercase tracking-widest mb-2 px-2" style={{ color: '#8a8f98' }}>章节列表（{chapterList.length}章）</p>
+          {chapterList.length === 0 ? (
+            <p className="text-xs px-2 py-4" style={{ color: '#8a8f98' }}>暂无章节，开始写第1章</p>
+          ) : (
+            chapterList.map(ch => (
+              <div
+                key={ch.chapter}
+                className={`group flex items-center gap-1 rounded text-xs mb-0.5 transition-all cursor-pointer ${
+                  ch.chapter === chapter ? 'text-white' : 'hover:bg-white/5'
+                }`}
+                style={ch.chapter === chapter ? { backgroundColor: '#5e6ad2' } : { color: '#d0d6e0' }}
+                onClick={() => setChapter(ch.chapter)}
+              >
+                <span className="flex-1 truncate px-2 py-1.5">{ch.title || `第${ch.chapter}章`}</span>
+                <span className="text-[10px] shrink-0" style={{ color: ch.chapter === chapter ? 'rgba(255,255,255,0.6)' : '#8a8f98' }}>
+                  {ch.word_count || 0}字
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm(`确定删除"${ch.title || `第${ch.chapter}章`}"？`)) {
+                      api(`novels/${novelId}/chapters/${ch.chapter}`, { method: 'DELETE' })
+                        .then(() => {
+                          toast.success('已删除')
+                          // 刷新章节列表
+                          api(`novels/${novelId}/chapters`).then(setChapterList).catch(() => {})
+                          if (chapter === ch.chapter) setChapter(Math.max(1, ch.chapter - 1))
+                        })
+                        .catch((err: any) => toast.error(err.message))
+                    }
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10 transition-all shrink-0"
+                  style={{ color: '#f87171' }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))
+          )}
+          {/* New chapter button */}
+          <button
+            onClick={() => {
+              const nextCh = chapterList.length > 0 ? Math.max(...chapterList.map(c => c.chapter)) + 1 : 1
+              setChapter(nextCh)
+              setContent('')
+            }}
+            className="w-full text-left px-2 py-1.5 rounded text-xs mt-1 border border-dashed transition-all hover:border-solid"
+            style={{ borderColor: '#3a3d45', color: '#5e6ad2' }}
+          >
+            <Plus className="w-3 h-3 inline mr-1" />
+            新章节
           </button>
         </div>
 
-        <button onClick={loadPrep} className="w-full px-3 py-2 rounded-lg text-sm border hover:bg-white/5 flex items-center gap-2" style={{ borderColor: '#23252a', color: '#d0d6e0' }}>
-          <Zap className="w-4 h-4" style={{ color: '#5e6ad2' }} />
-          查看约束
-        </button>
-        <button onClick={loadPrompt} className="w-full px-3 py-2 rounded-lg text-sm border hover:bg-white/5 flex items-center gap-2" style={{ borderColor: '#23252a', color: '#d0d6e0' }}>
-          <BookOpen className="w-4 h-4" style={{ color: '#5e6ad2' }} />
-          生成写作提示
-        </button>
-
-        {prep && (
-          <div className="text-xs space-y-2 p-3 rounded-lg border" style={{ borderColor: '#23252a', backgroundColor: '#141516' }}>
-            <p className="font-semibold" style={{ color: '#5e6ad2' }}>本章约束</p>
-            <p style={{ color: '#d0d6e0' }}>悬念: {prep.constraints?.mysteries?.length || 0}个可揭露</p>
-            <p style={{ color: '#d0d6e0' }}>到期伏笔: {prep.overdue?.length || 0}个</p>
-            {prep.overdue?.map((f: any) => (
-              <p key={f.id} className="flex items-center gap-1" style={{ color: '#fbbf24' }}>
-                <AlertTriangle className="w-3 h-3" /> {f.content}
-              </p>
-            ))}
+        {/* Controls */}
+        <div className="p-3 border-t space-y-2" style={{ borderColor: '#23252a' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold" style={{ color: '#f7f8f8' }}>第{chapter}章</span>
+            <span className="text-[10px]" style={{ color: '#8a8f98' }}>{chapterList.length}章</span>
           </div>
-        )}
+          <button onClick={loadPrep} className="w-full px-3 py-1.5 rounded-lg text-xs border hover:bg-white/5 flex items-center gap-2" style={{ borderColor: '#23252a', color: '#d0d6e0' }}>
+            <Zap className="w-3.5 h-3.5" style={{ color: '#5e6ad2' }} />
+            查看约束
+          </button>
+          <button onClick={loadPrompt} className="w-full px-3 py-1.5 rounded-lg text-xs border hover:bg-white/5 flex items-center gap-2" style={{ borderColor: '#23252a', color: '#d0d6e0' }}>
+            <BookOpen className="w-3.5 h-3.5" style={{ color: '#5e6ad2' }} />
+            生成写作提示
+          </button>
+          <button
+            onClick={generateWithAI}
+            disabled={generating}
+            className="w-full px-3 py-1.5 rounded-lg text-xs border hover:bg-white/5 flex items-center gap-2 transition-all"
+            style={{ borderColor: generating ? '#3a3d45' : '#5e6ad2', color: generating ? '#8a8f98' : '#5e6ad2' }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {generating ? '生成中...' : 'AI 自动生成'}
+          </button>
+
+          {prep && (
+            <div className="text-xs space-y-2 p-3 rounded-lg border" style={{ borderColor: '#23252a', backgroundColor: '#141516' }}>
+              <p className="font-semibold" style={{ color: '#5e6ad2' }}>本章约束</p>
+              <p style={{ color: '#d0d6e0' }}>悬念: {prep.constraints?.mysteries?.length || 0}个可揭露</p>
+              <p style={{ color: '#d0d6e0' }}>到期伏笔: {prep.overdue?.length || 0}个</p>
+              {prep.overdue?.map((f: any) => (
+                <p key={f.id} className="flex items-center gap-1" style={{ color: '#fbbf24' }}>
+                  <AlertTriangle className="w-3 h-3" /> {f.content}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Agent Workflow */}
+          <div className="mt-2">
+            <WorkflowPanel novelId={novelId} chapter={chapter} onComplete={() => {
+              // 工作流完成后刷新章节列表
+              api(`novels/${novelId}/chapters`).then(setChapterList).catch(() => {})
+            }} />
+          </div>
+        </div>
       </div>
 
       {/* Center: Editor */}
       <div className="flex-1 flex flex-col">
         <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: '#23252a' }}>
-          <span className="text-xs" style={{ color: '#8a8f98' }}>{content.length}字</span>
-          {message && <span className="text-xs" style={{ color: message.startsWith('✅') ? '#4ade80' : '#f87171' }}>{message}</span>}
-          <button
-            onClick={save}
-            disabled={saving}
-            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
-            style={{ backgroundColor: '#5e6ad2', color: 'white' }}
-          >
-            {saving ? '保存中...' : '💾 保存并同步'}
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs" style={{ color: '#8a8f98' }}>{content.length}字</span>
+            {generating && (
+              <span className="text-xs flex items-center gap-1" style={{ color: '#5e6ad2' }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#5e6ad2' }} />
+                AI 正在生成...
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {message && <span className="text-xs" style={{ color: message.startsWith('✅') ? '#4ade80' : '#f87171' }}>{message}</span>}
+            <button
+              onClick={save}
+              disabled={saving || generating}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+              style={{ backgroundColor: '#5e6ad2', color: 'white' }}
+            >
+              {saving ? '保存中...' : '💾 保存'}
+            </button>
+          </div>
         </div>
         <textarea
           value={content}
           onChange={e => setContent(e.target.value)}
           className="flex-1 w-full p-6 bg-transparent resize-none outline-none text-base leading-relaxed"
           style={{ color: '#f7f8f8', fontFamily: 'var(--font-noto-serif), serif' }}
-          placeholder={`在这里写第${chapter}章...\n\n点击"生成写作提示"获取AI写作指导`}
+          placeholder={generating ? 'AI 正在生成内容...' : `在这里写第${chapter}章...\n\n点击"AI 自动生成"或"生成写作提示"开始`}
         />
       </div>
 

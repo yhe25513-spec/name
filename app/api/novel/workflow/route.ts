@@ -84,10 +84,27 @@ async function buildContext(novelId: string, chapter: number) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { novelId, chapter } = await req.json()
+    const { novelId, chapter, aiSettings } = await req.json()
 
     if (!novelId || !chapter) {
       return new Response(JSON.stringify({ error: '缺少 novelId 或 chapter' }), { status: 400 })
+    }
+
+    // 如果客户端传了 AI 设置，设置环境变量
+    if (aiSettings?.provider) {
+      process.env.AI_PROVIDER = aiSettings.provider
+    }
+    if (aiSettings?.apiKey) {
+      process.env.AI_API_KEY = aiSettings.apiKey
+      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
+    }
+    if (aiSettings?.baseUrl) {
+      process.env.AI_BASE_URL = aiSettings.baseUrl
+      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
+    }
+    if (aiSettings?.model) {
+      process.env.AI_MODEL = aiSettings.model
+      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
     }
 
     // 构建上下文

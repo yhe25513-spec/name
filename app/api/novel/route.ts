@@ -108,6 +108,10 @@ export async function POST(req: NextRequest) {
       await createNovel(d.id, d.title, d.genre)
       return NextResponse.json({ ok: true })
     }
+    if (s[0] === 'novels' && s[2] === 'switch') {
+      // Switch is handled client-side, just return success
+      return NextResponse.json({ ok: true })
+    }
     if (s[0] === 'novels' && s[2] === 'chapters' && s[3]) {
       const userId = await getUserId(req)
       if (userId && !(await verifyNovelOwnership(s[1], userId))) {
