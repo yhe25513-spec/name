@@ -521,14 +521,31 @@ export function GameClient({ initialSave, isSandbox = false }: GameClientProps) 
         throw new Error(err.error || 'API error')
       }
 
-      const reader = res.body!.getReader()
+      if (!res.body) throw new Error('No response body')
+      const reader = res.body.getReader()
       const decoder = new TextDecoder('utf-8')
       let fullText = ''
       let lineBuf = ''
 
+      // Timeout after 120 seconds of no data
+      let lastChunkTime = Date.now()
+      const TIMEOUT_MS = 120_000
+
       while (true) {
-        const { done, value } = await reader.read()
+        const { done, value } = await Promise.race([
+          reader.read(),
+          new Promise<{ done: true; value: undefined }>((resolve) => {
+            const checkInterval = setInterval(() => {
+              if (Date.now() - lastChunkTime > TIMEOUT_MS) {
+                clearInterval(checkInterval)
+                reader.cancel()
+                resolve({ done: true, value: undefined })
+              }
+            }, 5000)
+          }),
+        ])
         if (done) break
+        lastChunkTime = Date.now()
 
         const chunk = decoder.decode(value, { stream: true })
         const parts = (lineBuf + chunk).split('\n')
