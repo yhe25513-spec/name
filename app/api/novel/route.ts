@@ -6,6 +6,32 @@ import { getMysteries, addMystery, revealMystery, getWritingConstraints } from '
 import { getRelationships, updateTrust, getRelationshipReport } from '@/lib/novel/relationships'
 import { generateWritingPrompt } from '@/lib/novel/prompt'
 import { listNovels } from '@/lib/novel/novels'
+import { createClient } from '@supabase/supabase-js'
+
+// User-facing Supabase client (respects RLS)
+function getUserSupabase(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  const token = authHeader?.replace('Bearer ', '')
+  if (!token) return null
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  )
+}
+
+async function getUserId(req: NextRequest): Promise<string | null> {
+  const userClient = getUserSupabase(req)
+  if (!userClient) return null
+  const { data: { user } } = await userClient.auth.getUser()
+  return user?.id || null
+}
+
+async function verifyNovelOwnership(novelId: string, userId: string): Promise<boolean> {
+  const { data } = await supabase.from('novels').select('user_id').eq('id', novelId).single()
+  return data?.user_id === userId
+}
 
 function parsePath(req: NextRequest) {
   return (req.nextUrl.searchParams.get('path') || '').split('/').filter(Boolean)
@@ -19,7 +45,10 @@ export async function GET(req: NextRequest) {
   try {
     const s = parsePath(req)
 
-    if (s[0] === 'novels' && !s[1]) return NextResponse.json(await listNovels())
+    if (s[0] === 'novels' && !s[1]) {
+      const userId = await getUserId(req)
+      return NextResponse.json(await listNovels(userId || undefined))
+    }
     if (s[0] === 'novels' && s[2] === 'status') return NextResponse.json(await getNovelStatus(s[1]))
     if (s[0] === 'novels' && s[2] === 'health') {
       const st = await getNovelStatus(s[1])
@@ -39,10 +68,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ chapter: ch, constraints: await getWritingConstraints(s[1], ch), overdue: await checkOverdue(s[1], ch) })
     }
     if (s[0] === 'novels' && s[2] === 'chapters' && !s[3]) {
+      const userId = await getUserId(req)
+      if (userId && !(await verifyNovelOwnership(s[1], userId))) {
+        return NextResponse.json({ error: '无权访问' }, { status: 403 })
+      }
       const { data } = await supabase.from('chapters').select('chapter_num, title, word_count').eq('novel_id', s[1]).order('chapter_num')
       return NextResponse.json((data || []).map(c => ({ chapter: c.chapter_num, title: c.title || `第${c.chapter_num}章`, word_count: c.word_count || 0 })))
     }
     if (s[0] === 'novels' && s[2] === 'chapters' && s[3]) {
+      const userId = await getUserId(req)
+      if (userId && !(await verifyNovelOwnership(s[1], userId))) {
+        return NextResponse.json({ error: '无权访问' }, { status: 403 })
+      }
       const { data } = await supabase.from('chapters').select('content').eq('novel_id', s[1]).eq('chapter_num', parseInt(s[3])).single()
       return NextResponse.json({ chapter: parseInt(s[3]), content: data?.content || '' })
     }
@@ -72,6 +109,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
     if (s[0] === 'novels' && s[2] === 'chapters' && s[3]) {
+      const userId = await getUserId(req)
+      if (userId && !(await verifyNovelOwnership(s[1], userId))) {
+        return NextResponse.json({ error: '无权访问' }, { status: 403 })
+      }
       const ch = parseInt(s[3])
       const { error } = await supabase.from('chapters').upsert({
         novel_id: s[1], chapter_num: ch, content: d.content || '',
