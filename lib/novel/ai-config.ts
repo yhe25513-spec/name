@@ -15,8 +15,8 @@ export const AI_PROVIDERS: Record<string, AIProvider> = {
     id: 'deepseek',
     name: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
-    defaultModel: 'deepseek-chat',
+    models: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner'],
+    defaultModel: 'deepseek-v4-flash',
   },
   openai: {
     id: 'openai',

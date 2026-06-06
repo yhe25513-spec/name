@@ -14,7 +14,7 @@ interface AISettings {
 }
 
 const PROVIDERS = [
-  { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'], defaultUrl: 'https://api.deepseek.com', defaultModel: 'deepseek-chat' },
+  { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner'], defaultUrl: 'https://api.deepseek.com', defaultModel: 'deepseek-v4-flash' },
   { id: 'openai', name: 'OpenAI', models: ['gpt-5', 'gpt-5-mini', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'o3'], defaultUrl: 'https://api.openai.com', defaultModel: 'gpt-4o-mini' },
   { id: 'anthropic', name: 'Anthropic (Claude)', models: ['claude-opus-4', 'claude-sonnet-4', 'claude-haiku-3-5'], defaultUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4' },
   { id: 'google', name: 'Google Gemini', models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'], defaultUrl: 'https://generativelanguage.googleapis.com/v1beta', defaultModel: 'gemini-2.5-flash' },
