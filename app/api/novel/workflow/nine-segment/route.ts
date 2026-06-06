@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { supabase } from '@/lib/novel/store'
-import { getCurrentConfig } from '@/lib/novel/ai-config'
+import { getCurrentConfig, parseJsonFromLLM as parseJson } from '@/lib/novel/ai-config'
 
 function getLLM() {
   const config = getCurrentConfig()
@@ -13,16 +13,6 @@ function getLLM() {
     temperature: 0.7,
     maxTokens: 4096,
   })
-}
-
-function parseJson(text: string): any {
-  const match = text.match(/\{[\s\S]*\}/)
-  if (match) {
-    try { return JSON.parse(match[0]) } catch {
-      try { return JSON.parse(match[0].replace(/\bundefined\b/g, 'null')) } catch { return text }
-    }
-  }
-  return text
 }
 
 const STAGE_SYSTEM_PROMPTS: Record<number, string> = {
