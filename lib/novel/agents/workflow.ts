@@ -53,6 +53,9 @@ const ChapterState = Annotation.Root({
   editorReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
   logicReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
   characterReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
+  styleGuardReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
+  foreshadowReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
+  powerSystemReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
   directorReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
 
   // 最终结果
@@ -202,7 +205,7 @@ async function reviewByStyleGuard(state: State): Promise<Partial<State>> {
   const review = parseJsonFromLLM(response.content as string)
   logs.push(`📊 [风格守卫Agent] 检查完成，AI痕迹${review?.ai_patterns_detected?.length || 0}处`)
 
-  return { characterReview: { ...state.characterReview, styleGuard: review }, logs }
+  return { styleGuardReview: review, logs }
 }
 
 // 5.6 伏笔审查节点
@@ -219,7 +222,7 @@ async function reviewByForeshadow(state: State): Promise<Partial<State>> {
   const review = parseJsonFromLLM(response.content as string)
   logs.push(`📊 [伏笔Agent] 检查完成，回收${review?.foreshadows_harvested?.length || 0}个，新埋${review?.foreshadows_planted?.length || 0}个`)
 
-  return { characterReview: { ...state.characterReview, foreshadow: review }, logs }
+  return { foreshadowReview: review, logs }
 }
 
 // 5.7 战力审查节点
@@ -237,7 +240,7 @@ async function reviewByPowerSystem(state: State): Promise<Partial<State>> {
   const violations = review?.power_violations || []
   logs.push(`📊 [战力Agent] 检查完成，${violations.length}个战力违规`)
 
-  return { characterReview: { ...state.characterReview, powerSystem: review }, logs }
+  return { powerSystemReview: review, logs }
 }
 
 // 6. 总导演审查节点
@@ -290,6 +293,9 @@ async function synthesizeReviews(state: State): Promise<Partial<State>> {
     editor: state.editorReview,
     logic: state.logicReview,
     character: state.characterReview,
+    styleGuard: state.styleGuardReview,
+    foreshadow: state.foreshadowReview,
+    powerSystem: state.powerSystemReview,
     director: directorReview,
     readerScore,
     editorAvg: editorScores ? Math.round((editorScores.pacing + editorScores.commercial_value + editorScores.character_development + editorScores.chapter_structure) / 4) : 0,
@@ -394,6 +400,9 @@ export async function runChapterWorkflow(
     editorReview: null,
     logicReview: null,
     characterReview: null,
+    styleGuardReview: null,
+    foreshadowReview: null,
+    powerSystemReview: null,
     finalDraft: '',
     allScores: {},
     isApproved: false,
