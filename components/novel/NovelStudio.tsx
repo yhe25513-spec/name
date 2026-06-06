@@ -577,6 +577,85 @@ function EditorView({ novelId }: { novelId: string }) {
     setGenerating(false)
   }
 
+  // 通用编辑模式生成
+  const generateWithMode = async (mode: string, stylePrompt?: string, selectedText?: string) => {
+    setGenerating(true)
+    setGeneratedText('')
+    try {
+      const { getAISettings } = await import('./APISettings')
+      const aiSettings = getAISettings()
+      const res = await fetch('/api/novel/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          novelId, chapter,
+          prompt: stylePrompt || '',
+          mode,
+          selectedText: selectedText || undefined,
+          aiSettings,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || '生成失败')
+      }
+
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ''
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          const lines = chunk.split('\n')
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') break
+              try {
+                const parsed = JSON.parse(data)
+                const delta = parsed.choices?.[0]?.delta?.content || ''
+                fullText += delta
+                setGeneratedText(fullText)
+              } catch {}
+            }
+          }
+        }
+      }
+
+      if (fullText) {
+        if (mode === 'polish' || mode === 'expand' || mode === 'condense') {
+          // 局部编辑：替换选中部分
+          const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+          if (textarea) {
+            const start = textarea.selectionStart
+            const end = textarea.selectionEnd
+            const newContent = content.substring(0, start) + fullText + content.substring(end)
+            setContent(newContent)
+            toast.success(`${mode === 'polish' ? '润色' : mode === 'expand' ? '扩写' : '缩写'}完成，已替换选中内容`)
+          } else {
+            setContent(fullText)
+            toast.success('生成完成')
+          }
+        } else {
+          // 整体替换（重写/续写/风格迁移）
+          if (mode === 'continue') {
+            setContent(content + fullText)
+            toast.success('续写完成，已追加到末尾')
+          } else {
+            setContent(fullText)
+            toast.success(`${mode === 'rewrite' ? '重写' : '风格迁移'}完成，可编辑后保存`)
+          }
+        }
+      }
+    } catch (e: any) {
+      toast.error(`生成失败: ${e.message}`)
+    }
+    setGenerating(false)
+  }
+
   return (
     <div className="flex h-full">
       {/* Left: Chapter List + Controls */}
@@ -660,6 +739,50 @@ function EditorView({ novelId }: { novelId: string }) {
             <Sparkles className="w-3.5 h-3.5" />
             {generating ? '生成中...' : 'AI 自动生成'}
           </button>
+
+          {/* 编辑工具 */}
+          <div className="mt-1">
+            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#8a8f98' }}>编辑工具</p>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { mode: 'rewrite', icon: '🔄', label: '重写' },
+                { mode: 'polish', icon: '✨', label: '润色选中' },
+                { mode: 'expand', icon: '📝', label: '扩写选中' },
+                { mode: 'condense', icon: '✂️', label: '缩写选中' },
+                { mode: 'continue', icon: '➡️', label: '续写' },
+                { mode: 'style', icon: '🎨', label: '风格迁移' },
+              ].map(btn => (
+                <button
+                  key={btn.mode}
+                  onClick={() => {
+                    const textarea = document.querySelector('textarea')
+                    const selected = textarea ? textarea.value.substring(textarea.selectionStart, textarea.selectionEnd) : ''
+                    if ((btn.mode === 'polish' || btn.mode === 'expand' || btn.mode === 'condense') && !selected) {
+                      toast.error('请先在编辑器中选中要操作的文字')
+                      return
+                    }
+                    if (btn.mode === 'style') {
+                      const style = prompt('请输入目标风格（如：轻松幽默、热血爽文、悬疑紧张、文艺清新）：')
+                      if (!style) return
+                      generateWithMode('style', style)
+                    } else if (btn.mode === 'rewrite') {
+                      if (!content.trim()) { toast.error('章节内容为空'); return }
+                      generateWithMode('rewrite')
+                    } else if (btn.mode === 'continue') {
+                      generateWithMode('continue')
+                    } else {
+                      generateWithMode(btn.mode, undefined, selected)
+                    }
+                  }}
+                  disabled={generating}
+                  className="px-2 py-1.5 rounded text-[11px] border hover:bg-white/5 transition-all text-left"
+                  style={{ borderColor: '#23252a', color: '#d0d6e0' }}
+                >
+                  {btn.icon} {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {prep && (
             <div className="text-xs space-y-2 p-3 rounded-lg border" style={{ borderColor: '#23252a', backgroundColor: '#141516' }}>
