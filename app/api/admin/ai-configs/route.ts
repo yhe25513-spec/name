@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { encrypt, decrypt, isEncrypted } from '@/lib/encryption'
 
 // 检查管理员权限
 async function requireAdmin() {
@@ -25,7 +26,23 @@ export async function GET() {
     .order('created_at', { ascending: true })
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
-  return NextResponse.json({ configs: data })
+  // Decrypt API keys for display
+  const configs = (data || []).map((c: any) => ({
+    ...c,
+    api_key: c.api_key ? (isEncrypted(c.api_key) ? '****' : c.api_key) : '',
+    api_key_display: c.api_key
+      ? (isEncrypted(c.api_key) ? decrypt(c.api_key) : c.api_key)
+      : '',
+  }))
+  // Mask the display key
+  for (const c of configs) {
+    if (c.api_key_display.length > 8) {
+      c.api_key_display = c.api_key_display.slice(0, 4) + '****' + c.api_key_display.slice(-4)
+    } else if (c.api_key_display) {
+      c.api_key_display = '****'
+    }
+  }
+  return NextResponse.json({ configs })
 }
 
 // POST - 创建新配置
@@ -49,7 +66,7 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       provider: provider || 'custom',
       model: model || 'gpt-3.5-turbo',
-      api_key: api_key || '',
+      api_key: api_key ? encrypt(api_key) : '',
       api_base_url: api_base_url || null,
       temperature: temperature ?? 0.8,
       max_tokens: max_tokens ?? 1024,
@@ -76,7 +93,7 @@ export async function PATCH(req: NextRequest) {
   if (name !== undefined) updates.name = name.trim()
   if (provider !== undefined) updates.provider = provider
   if (model !== undefined) updates.model = model
-  if (api_key !== undefined) updates.api_key = api_key
+  if (api_key !== undefined) updates.api_key = api_key ? encrypt(api_key) : ''
   if (api_base_url !== undefined) updates.api_base_url = api_base_url || null
   if (temperature !== undefined) updates.temperature = temperature
   if (max_tokens !== undefined) updates.max_tokens = max_tokens

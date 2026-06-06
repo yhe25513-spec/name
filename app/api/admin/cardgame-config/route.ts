@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createAuthClient } from '@/lib/supabase/server'
+import { encrypt, decrypt, isEncrypted } from '@/lib/encryption'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -32,9 +33,12 @@ export async function GET() {
       return NextResponse.json({ apiKey: '' })
     }
 
-    // Mask the key for display
-    const key = data.value || ''
-    const masked = key.length > 8 ? key.slice(0, 4) + '****' + key.slice(-4) : '****'
+    // Decrypt and mask the key for display
+    const rawKey = data.value || ''
+    const decryptedKey = isEncrypted(rawKey) ? decrypt(rawKey) : rawKey
+    const masked = decryptedKey.length > 8
+      ? decryptedKey.slice(0, 4) + '****' + decryptedKey.slice(-4)
+      : decryptedKey ? '****' : ''
     return NextResponse.json({ apiKey: masked })
   } catch {
     return NextResponse.json({ apiKey: '' })
@@ -59,12 +63,12 @@ export async function POST(request: NextRequest) {
     if (existing) {
       await supabase
         .from('app_config')
-        .update({ value: apiKey, updated_at: new Date().toISOString() })
+        .update({ value: apiKey ? encrypt(apiKey) : '', updated_at: new Date().toISOString() })
         .eq('key', 'cardgame_api_key')
     } else {
       await supabase
         .from('app_config')
-        .insert({ key: 'cardgame_api_key', value: apiKey })
+        .insert({ key: 'cardgame_api_key', value: apiKey ? encrypt(apiKey) : '' })
     }
 
     return NextResponse.json({ success: true })
