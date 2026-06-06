@@ -13,6 +13,15 @@ export async function generateWritingPrompt(novelId: string, chapter: number) {
   const overdue = await checkOverdue(novelId, chapter)
   const rels = await getRelationships(novelId)
 
+  // 获取上一章内容（最后2000字）
+  let previousSummary = '这是第一章，请从开头写起。'
+  if (chapter > 1) {
+    const { data: prevCh } = await supabase.from('chapters').select('content').eq('novel_id', novelId).eq('chapter_num', chapter - 1).single()
+    if (prevCh?.content) {
+      previousSummary = prevCh.content.slice(-2000)
+    }
+  }
+
   // 读取悬念揭露约束
   let mysteryConstraintsText = ''
   try {
@@ -83,7 +92,10 @@ ${style.description_style?.dialogue_style || '自然'}`)
     parts.push(`\n## 悬念揭露约束（重要！）\n${mysteryConstraintsText}`)
   }
 
-  parts.push(`\n## 写作指令
+  parts.push(`\n## 前文摘要（上一章最后部分，你紧接着这里续写）
+${previousSummary}
+
+## 写作指令
 
 请写第${chapter}章，要求：
 1. 字数: ${style.chapter_stats?.avg_word_count || 2500}字左右

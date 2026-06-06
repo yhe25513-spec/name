@@ -86,13 +86,14 @@ export function buildWriterPrompt(context: {
     ? `视角角色: ${context.chapterOutline.pov || '未指定'}\n场景: ${context.chapterOutline.setting || '未指定'}\n核心冲突: ${context.chapterOutline.coreConflict || '未指定'}\n摘要: ${context.chapterOutline.summary || context.outline || '请根据前文自然推进'}\n情感基调: ${context.chapterOutline.emotionalBeat || '未指定'}\n章末钩子: ${context.chapterOutline.hook || '未指定'}`
     : context.outline || '请根据前文自然推进'
 
+  // 【缓存优化】静态内容在前，动态内容在后
+  // DeepSeek prompt cache 按前缀匹配，相同前缀的请求可以复用缓存
   return `${WRITER_SYSTEM_PROMPT}
 
 ## 写作任务书
 
 ### 作品信息
 - 书名：《${context.title}》
-- 当前章节：第${context.chapter}章
 
 ### 世界观设定
 ${context.worldSetting || '暂无'}
@@ -100,25 +101,31 @@ ${context.worldSetting || '暂无'}
 ### 角色信息
 ${context.characters || '暂无'}
 
-### 前文摘要
-${context.previousSummary || '这是第一章'}
-
-### 本章大纲
-${outlineText}
-
 ### 写作约束
 ${context.constraints || '无特殊约束'}
-
-### 到期伏笔（必须回收）
-${context.overdueForeshadows || '无'}
 
 ### 悬念状态
 ${context.mysteryState || '无悬念控制'}
 
-${context.mysteryConstraints ? `### 悬念揭露约束（重要！）\n${context.mysteryConstraints}\n` : ''}
-### 剧情状态机（重要！）
+### 剧情状态机
 ${context.storyStateText || '暂无剧情状态数据'}
 
+---
+
+### ⚡ 本章任务（以下内容每章不同）
+
+当前章节：第${context.chapter}章
+
+### 前文摘要（上一章最后部分，你紧接着这里续写）
+${context.previousSummary || '这是第一章，请从开头写起。'}
+
+### 本章大纲
+${outlineText}
+
+### 到期伏笔（必须在本章回收）
+${context.overdueForeshadows || '无'}
+
+${context.mysteryConstraints ? `### 悬念揭露约束\n${context.mysteryConstraints}\n` : ''}
 ---
 
 请根据以上信息，写出第${context.chapter}章的正文。`;

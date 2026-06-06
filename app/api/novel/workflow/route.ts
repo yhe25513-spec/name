@@ -29,19 +29,25 @@ async function buildContext(novelId: string, chapter: number) {
     return `【${c.name}】${c.identity ? ' ' + c.identity : ''}${c.faction ? ' · ' + c.faction : ''}${c.realm ? ' · ' + c.realm : ''}\n性格: ${traits || '未知'}\n信念: ${c.beliefs || '未知'}\n弱点: ${c.weaknesses || '未知'}`
   }).join('\n\n')
 
-  // 获取前一章摘要
-  let previousSummary = '这是第一章'
+  // 获取前一章摘要（取最后2000字，让 Agent 有足够的上下文续写）
+  let previousSummary = '这是第一章，请从开头写起。'
   if (chapter > 1) {
     const { data: prevCh } = await supabase.from('chapters').select('content').eq('novel_id', novelId).eq('chapter_num', chapter - 1).single()
     if (prevCh?.content) {
-      // 取最后500字作为摘要
-      previousSummary = prevCh.content.slice(-500)
+      previousSummary = prevCh.content.slice(-2000)
     }
   }
 
-  // 获取大纲（如果有）
+  // 获取大纲：当前章标题 + 相邻章节标题提供上下文
   const { data: chapters } = await supabase.from('chapters').select('chapter_num, title, extraction').eq('novel_id', novelId).eq('chapter_num', chapter).single()
-  const outline = chapters?.title ? `第${chapter}章: ${chapters.title}` : ''
+  const { data: nearbyChapters } = await supabase.from('chapters').select('chapter_num, title').eq('novel_id', novelId).gte('chapter_num', Math.max(1, chapter - 1)).lte('chapter_num', chapter + 2).order('chapter_num')
+
+  let outline = chapters?.title ? `第${chapter}章: ${chapters.title}` : ''
+  // 附加相邻章节标题作为上下文
+  if (nearbyChapters && nearbyChapters.length > 1) {
+    const nearby = nearbyChapters.map((c: any) => `第${c.chapter_num}章: ${c.title || '未命名'}`).join('\n')
+    outline += `\n\n前后章节参考:\n${nearby}`
+  }
 
   // 获取伏笔
   const { data: foreshadows } = await supabase.from('foreshadows').select('*').eq('novel_id', novelId).eq('status', '未回收')
