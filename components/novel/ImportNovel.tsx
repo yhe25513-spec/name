@@ -40,10 +40,18 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
     if (files.length === 0) return
     setImporting(true)
     try {
+      // 获取 AI 设置
+      const { getAISettings } = await import('./APISettings')
+      const aiSettings = getAISettings()
+
       const formData = new FormData()
       files.forEach(f => formData.append('files', f))
       formData.append('novelId', novelId)
       formData.append('analyze', String(analyzeWithAI))
+      if (aiSettings.provider) formData.append('aiProvider', aiSettings.provider)
+      if (aiSettings.apiKey) formData.append('aiApiKey', aiSettings.apiKey)
+      if (aiSettings.baseUrl) formData.append('aiBaseUrl', aiSettings.baseUrl)
+      if (aiSettings.model) formData.append('aiModel', aiSettings.model)
 
       const res = await fetch('/api/novel/import', { method: 'POST', body: formData })
       if (!res.ok) { const err = await res.json(); throw new Error(err.error) }
@@ -181,7 +189,14 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
           </button>
           <button onClick={async () => {
             toast.info('正在 AI 分析记忆层...')
-            const res = await fetch(`/api/novel/import?novelId=${novelId}&action=analyze`)
+            const { getAISettings } = await import('./APISettings')
+            const aiSettings = getAISettings()
+            const params = new URLSearchParams({ novelId, action: 'analyze' })
+            if (aiSettings.provider) params.set('aiProvider', aiSettings.provider)
+            if (aiSettings.apiKey) params.set('aiApiKey', aiSettings.apiKey)
+            if (aiSettings.baseUrl) params.set('aiBaseUrl', aiSettings.baseUrl)
+            if (aiSettings.model) params.set('aiModel', aiSettings.model)
+            const res = await fetch(`/api/novel/import?${params.toString()}`)
             const data = await res.json()
             if (data.ok) {
               toast.success(`AI 分析完成：${data.analysis.savedChars}角色，${data.analysis.savedWorlds}世界观，${data.analysis.savedEvents}事件`)

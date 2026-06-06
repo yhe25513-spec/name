@@ -40,12 +40,31 @@ export async function POST(req: NextRequest) {
     const files = formData.getAll('files') as File[]
     const novelId = formData.get('novelId') as string
     const analyzeWithAI = formData.get('analyze') === 'true'
+    const aiProvider = formData.get('aiProvider') as string
+    const aiApiKey = formData.get('aiApiKey') as string
+    const aiBaseUrl = formData.get('aiBaseUrl') as string
+    const aiModel = formData.get('aiModel') as string
 
     if (!files || files.length === 0 || !novelId) {
       return NextResponse.json({ error: '缺少文件或 novelId' }, { status: 400 })
     }
 
-    console.log(`Import started: ${files.length} files, novelId=${novelId}, analyze=${analyzeWithAI}`)
+    // 设置客户端传来的 AI 配置
+    if (aiProvider) process.env.AI_PROVIDER = aiProvider
+    if (aiApiKey) {
+      process.env.AI_API_KEY = aiApiKey
+      process.env[`${aiProvider?.toUpperCase()}_API_KEY`] = aiApiKey
+    }
+    if (aiBaseUrl) {
+      process.env.AI_BASE_URL = aiBaseUrl
+      process.env[`${aiProvider?.toUpperCase()}_BASE_URL`] = aiBaseUrl
+    }
+    if (aiModel) {
+      process.env.AI_MODEL = aiModel
+      process.env[`${aiProvider?.toUpperCase()}_MODEL`] = aiModel
+    }
+
+    console.log(`Import started: ${files.length} files, novelId=${novelId}, analyze=${analyzeWithAI}, provider=${aiProvider || 'default'}`)
 
     const { splitChapters, getNovelStats } = await import('@/lib/novel/parser')
 
@@ -209,6 +228,25 @@ export async function GET(req: NextRequest) {
     }
 
     if (action === 'analyze') {
+      // 设置客户端传来的 AI 配置
+      const aiProvider = req.nextUrl.searchParams.get('aiProvider')
+      const aiApiKey = req.nextUrl.searchParams.get('aiApiKey')
+      const aiBaseUrl = req.nextUrl.searchParams.get('aiBaseUrl')
+      const aiModel = req.nextUrl.searchParams.get('aiModel')
+      if (aiProvider) process.env.AI_PROVIDER = aiProvider
+      if (aiApiKey) {
+        process.env.AI_API_KEY = aiApiKey
+        process.env[`${aiProvider?.toUpperCase()}_API_KEY`] = aiApiKey
+      }
+      if (aiBaseUrl) {
+        process.env.AI_BASE_URL = aiBaseUrl
+        process.env[`${aiProvider?.toUpperCase()}_BASE_URL`] = aiBaseUrl
+      }
+      if (aiModel) {
+        process.env.AI_MODEL = aiModel
+        process.env[`${aiProvider?.toUpperCase()}_MODEL`] = aiModel
+      }
+
       // 重新分析所有章节并填充记忆层
       const { data: chapters } = await supabase.from('chapters')
         .select('chapter_num, title, content')
