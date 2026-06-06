@@ -45,14 +45,20 @@ export async function saveNovelMeta(novelId: string, updates: Record<string, any
 
 export async function getNovelStatus(novelId: string) {
   const meta = await getNovelMeta(novelId)
+
+  // 实时统计章节数和字数（不依赖缓存）
+  const { count: chapterCount } = await supabase.from('chapters').select('*', { count: 'exact', head: true }).eq('novel_id', novelId)
+  const { data: chapters } = await supabase.from('chapters').select('word_count').eq('novel_id', novelId)
+  const totalWords = (chapters || []).reduce((sum, ch) => sum + (ch.word_count || 0), 0)
+
   const { count: fsCount } = await supabase.from('foreshadows').select('*', { count: 'exact', head: true }).eq('novel_id', novelId)
   const { count: mysCount } = await supabase.from('mysteries').select('*', { count: 'exact', head: true }).eq('novel_id', novelId)
   const { count: relCount } = await supabase.from('relationships').select('*', { count: 'exact', head: true }).eq('novel_id', novelId)
 
   return {
     novel_id: novelId, title: meta.title, genre: meta.genre,
-    chapter: meta.progress?.current_chapter || 0,
-    words: meta.progress?.total_words || 0,
+    chapter: chapterCount || 0,
+    words: totalWords,
     foreshadows: { total: fsCount || 0 },
     mysteries: mysCount || 0,
     relationships: relCount || 0,

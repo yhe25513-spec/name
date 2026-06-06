@@ -207,6 +207,25 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    // DELETE novels/{id} - 删除整本小说及所有相关数据
+    if (s[0] === 'novels' && s[1] && !s[2]) {
+      const novelId = s[1]
+      // 删除所有关联数据
+      await supabase.from('chapters').delete().eq('novel_id', novelId)
+      await supabase.from('foreshadows').delete().eq('novel_id', novelId)
+      await supabase.from('mysteries').delete().eq('novel_id', novelId)
+      await supabase.from('relationships').delete().eq('novel_id', novelId)
+      await supabase.from('timelines').delete().eq('novel_id', novelId)
+      await supabase.from('story_states').delete().eq('novel_id', novelId)
+      await supabase.from('worlds').delete().eq('novel_id', novelId)
+      await supabase.from('characters').delete().eq('novel_id', novelId)
+      await supabase.from('novel_souls').delete().eq('novel_id', novelId)
+      // 删除小说本身
+      const { error } = await supabase.from('novels').delete().eq('id', novelId)
+      if (error) throw new Error(error.message)
+      return NextResponse.json({ ok: true })
+    }
+
     return NextResponse.json({ error: '未知路径' }, { status: 404 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
