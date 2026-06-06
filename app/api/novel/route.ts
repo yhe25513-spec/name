@@ -23,6 +23,15 @@ function forbidden(msg = '无权访问该小说') {
   return NextResponse.json({ error: msg }, { status: 403 })
 }
 
+// 带缓存的 JSON 响应（用于读接口）
+function cachedJson(data: any, maxAge = 30) {
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': `public, s-maxage=${maxAge}, stale-while-revalidate=${maxAge * 2}`,
+    },
+  })
+}
+
 export async function GET(req: NextRequest) {
   try {
     const s = parsePath(req)
@@ -40,31 +49,31 @@ export async function GET(req: NextRequest) {
       const { userId, error } = await requireNovelOwnership(req, novelId)
       if (error) return error
 
-      if (s[2] === 'status') return NextResponse.json(await getNovelStatus(novelId))
+      if (s[2] === 'status') return cachedJson(await getNovelStatus(novelId), 10)
       if (s[2] === 'health') {
         const st = await getNovelStatus(novelId)
         const overdue = await checkOverdue(novelId, st.chapter || 1)
-        return NextResponse.json({ health_score: Math.max(0, 100 - overdue.length * 5), overdue: overdue.length })
+        return cachedJson({ health_score: Math.max(0, 100 - overdue.length * 5), overdue: overdue.length }, 10)
       }
-      if (s[2] === 'foreshadows' && !s[3]) return NextResponse.json(await getForeshadows(novelId))
-      if (s[2] === 'mysteries' && !s[3]) return NextResponse.json(await getMysteries(novelId))
-      if (s[2] === 'relationships' && !s[3]) return NextResponse.json(await getRelationships(novelId))
-      if (s[2] === 'relationships' && s[3] === 'report') return NextResponse.json(await getRelationshipReport(novelId))
+      if (s[2] === 'foreshadows' && !s[3]) return cachedJson(await getForeshadows(novelId))
+      if (s[2] === 'mysteries' && !s[3]) return cachedJson(await getMysteries(novelId))
+      if (s[2] === 'relationships' && !s[3]) return cachedJson(await getRelationships(novelId))
+      if (s[2] === 'relationships' && s[3] === 'report') return cachedJson(await getRelationshipReport(novelId))
       if (s[2] === 'prompt' && s[3]) {
         const prompt = await generateWritingPrompt(novelId, parseInt(s[3]))
-        return NextResponse.json({ chapter: parseInt(s[3]), prompt })
+        return cachedJson({ chapter: parseInt(s[3]), prompt }, 60)
       }
       if (s[2] === 'prep' && s[3]) {
         const ch = parseInt(s[3])
-        return NextResponse.json({ chapter: ch, constraints: await getWritingConstraints(novelId, ch), overdue: await checkOverdue(novelId, ch) })
+        return cachedJson({ chapter: ch, constraints: await getWritingConstraints(novelId, ch), overdue: await checkOverdue(novelId, ch) }, 10)
       }
       if (s[2] === 'chapters' && !s[3]) {
         const { data } = await supabase.from('chapters').select('chapter_num, title, word_count').eq('novel_id', novelId).order('chapter_num')
-        return NextResponse.json((data || []).map(c => ({ chapter: c.chapter_num, title: c.title || `第${c.chapter_num}章`, word_count: c.word_count || 0 })))
+        return cachedJson((data || []).map(c => ({ chapter: c.chapter_num, title: c.title || `第${c.chapter_num}章`, word_count: c.word_count || 0 })))
       }
       if (s[2] === 'chapters' && s[3]) {
         const { data } = await supabase.from('chapters').select('content').eq('novel_id', novelId).eq('chapter_num', parseInt(s[3])).single()
-        return NextResponse.json({ chapter: parseInt(s[3]), content: data?.content || '' })
+        return cachedJson({ chapter: parseInt(s[3]), content: data?.content || '' }, 60)
       }
       if (s[2] === 'soul') {
         const meta = await getNovelMeta(novelId)

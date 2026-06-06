@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/novel/store'
 import { requireNovelOwnership } from '@/lib/novel/auth'
 
+// 带缓存的 JSON 响应
+function cachedJson(data: any, maxAge = 30) {
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': `public, s-maxage=${maxAge}, stale-while-revalidate=${maxAge * 2}`,
+    },
+  })
+}
+
 // ========== 世界观 ==========
 async function getWorlds(novelId: string) {
   const { data } = await supabase.from('worlds').select('*').eq('novel_id', novelId).order('importance', { ascending: false })
@@ -137,25 +146,25 @@ export async function GET(req: NextRequest) {
     if (authError) return authError
 
     // /memory/worlds?novelId=xxx
-    if (s[0] === 'worlds') return NextResponse.json(await getWorlds(novelId))
+    if (s[0] === 'worlds') return cachedJson(await getWorlds(novelId))
     // /memory/characters?novelId=xxx
-    if (s[0] === 'characters') return NextResponse.json(await getCharacters(novelId))
+    if (s[0] === 'characters') return cachedJson(await getCharacters(novelId))
     // /memory/timelines?novelId=xxx&chapter=1
     if (s[0] === 'timelines') {
       const chapter = req.nextUrl.searchParams.get('chapter')
-      return NextResponse.json(await getTimelines(novelId, chapter ? parseInt(chapter) : undefined))
+      return cachedJson(await getTimelines(novelId, chapter ? parseInt(chapter) : undefined))
     }
     // /memory/story-states?novelId=xxx
-    if (s[0] === 'story-states') return NextResponse.json(await getStoryStates(novelId))
+    if (s[0] === 'story-states') return cachedJson(await getStoryStates(novelId))
     // /memory/soul?novelId=xxx
-    if (s[0] === 'soul') return NextResponse.json(await getNovelSoul(novelId))
+    if (s[0] === 'soul') return cachedJson(await getNovelSoul(novelId))
     // /memory/stats?novelId=xxx
     if (s[0] === 'stats') {
       const worlds = await getWorlds(novelId)
       const characters = await getCharacters(novelId)
       const timelines = await getTimelines(novelId)
       const states = await getStoryStates(novelId)
-      return NextResponse.json({
+      return cachedJson({
         worlds: worlds.length,
         characters: characters.length,
         events: timelines.length,
