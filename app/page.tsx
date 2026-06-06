@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BookOpen, Image, Sparkles, ArrowRight, CookingPot, Gamepad2 } from 'lucide-react'
+import { BookOpen, Image, Sparkles, ArrowRight, CookingPot, Gamepad2, PenTool } from 'lucide-react'
 
 const features = [
   {
@@ -39,6 +39,15 @@ const features = [
     icon: Sparkles,
     href: '/create?mode=video',
     badge: '新功能',
+  },
+  {
+    id: 'novel',
+    title: 'AI 小说工作室',
+    subtitle: '笔落惊风',
+    description: '多Agent协作写长篇小说，伏笔/悬念/关系全自动管理',
+    icon: PenTool,
+    href: '/novel',
+    badge: '创作',
   },
   {
     id: 'hotpot',
@@ -120,7 +129,7 @@ export default function HomePage() {
           </div>
 
           {/* 功能卡片 — 横向排列 */}
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 max-w-5xl mx-auto">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
             {features.map((feature) => (
               <button
                 key={feature.id}

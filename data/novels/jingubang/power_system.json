@@ -1,0 +1,14 @@
+{
+  "novel_id": "jingubang",
+  "realms": [],
+  "characters_current": {
+    "wukong": {
+      "character_id": "wukong",
+      "realm": "大罗金仙",
+      "sub_realm": "后期",
+      "last_updated_chapter": 40
+    }
+  },
+  "power_consistency_rules": [],
+  "violations": []
+}

@@ -1,0 +1,154 @@
+{
+  "novel_id": "jingubang",
+  "foreshadows": [
+    {
+      "content": "飞升台能量波动方向异常",
+      "importance": "支线",
+      "tier": "sub",
+      "category": "world_rule",
+      "expected_reveal_range": [
+        38,
+        45
+      ],
+      "chapter_planted": 34,
+      "status": "已回收",
+      "urgency_score": 0.0,
+      "evidence": "第34章原文",
+      "id": "fs_001",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06",
+      "actual_reveal_chapter": 38
+    },
+    {
+      "content": "秦煌提到'那个人'时表情异常",
+      "importance": "支线",
+      "tier": "sub",
+      "category": "character_secret",
+      "expected_reveal_range": [
+        42,
+        50
+      ],
+      "chapter_planted": 35,
+      "status": "已回收",
+      "urgency_score": 0.0,
+      "evidence": "第35章原文",
+      "id": "fs_002",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06",
+      "actual_reveal_chapter": 37
+    },
+    {
+      "content": "副本规则似乎被人为修改过",
+      "importance": "主线",
+      "tier": "core",
+      "category": "mystery",
+      "expected_reveal_range": [
+        40,
+        55
+      ],
+      "chapter_planted": 36,
+      "status": "已回收",
+      "urgency_score": 0.0,
+      "evidence": "第36章原文",
+      "id": "fs_003",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06",
+      "actual_reveal_chapter": 44
+    },
+    {
+      "content": "主神似乎在筛选特定类型的灵魂",
+      "importance": "主线",
+      "tier": "core",
+      "category": "mystery",
+      "expected_reveal_range": [
+        50,
+        65
+      ],
+      "chapter_planted": 38,
+      "status": "未回收",
+      "urgency_score": 0.0,
+      "evidence": "第38章原文",
+      "id": "fs_004",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06"
+    },
+    {
+      "content": "突破时悟空短暂看到了飞升台的全貌",
+      "importance": "支线",
+      "tier": "sub",
+      "category": "world_rule",
+      "expected_reveal_range": [
+        48,
+        58
+      ],
+      "chapter_planted": 40,
+      "status": "未回收",
+      "urgency_score": 0.0,
+      "evidence": "第40章原文",
+      "id": "fs_005",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06"
+    },
+    {
+      "content": "宗门对秦煌下了最后通牒",
+      "importance": "支线",
+      "tier": "sub",
+      "category": "plot_hook",
+      "expected_reveal_range": [
+        45,
+        55
+      ],
+      "chapter_planted": 41,
+      "status": "未回收",
+      "urgency_score": 0.0,
+      "evidence": "第41章原文",
+      "id": "fs_006",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06"
+    },
+    {
+      "content": "一股神秘力量正在逼近",
+      "importance": "主线",
+      "tier": "core",
+      "category": "mystery",
+      "expected_reveal_range": [
+        50,
+        60
+      ],
+      "chapter_planted": 43,
+      "status": "未回收",
+      "urgency_score": 0.0,
+      "evidence": "第43章原文",
+      "id": "fs_007",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06"
+    },
+    {
+      "content": "飞升台的神秘身影睁开了眼睛",
+      "importance": "主线",
+      "tier": "core",
+      "category": "mystery",
+      "related_entities": [
+        "wukong",
+        "fly_platform"
+      ],
+      "expected_reveal_range": [
+        50,
+        60
+      ],
+      "evidence": "第44章: 那个身影缓缓睁开了眼睛",
+      "id": "fs_008",
+      "chapter_planted": 44,
+      "status": "未回收",
+      "created_at": "2026-06-06",
+      "updated_at": "2026-06-06",
+      "urgency_score": 0.0
+    }
+  ],
+  "stats": {
+    "total": 8,
+    "unresolved": 5,
+    "overdue": 0,
+    "avg_age_chapters": 2.8
+  }
+}

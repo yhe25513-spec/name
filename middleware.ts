@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 未登录访问需要登录的页面 → 重定向到登录页
-  if (!user && (pathname === '/' || pathname.startsWith('/game') || pathname.startsWith('/admin') || pathname.startsWith('/create'))) {
+  if (!user && (pathname === '/' || pathname.startsWith('/game') || pathname.startsWith('/admin') || pathname.startsWith('/create') || pathname.startsWith('/novel'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -51,5 +51,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/game/:path*', '/admin/:path*', '/create/:path*', '/login'],
+  matcher: ['/', '/game/:path*', '/admin/:path*', '/create/:path*', '/novel/:path*', '/login'],
 }
