@@ -11,6 +11,7 @@ import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints } 
 import { parseJsonFromLLM } from '../ai-config'
 import { STYLE_GUARD_SYSTEM_PROMPT, FORESHADOW_AGENT_SYSTEM_PROMPT, POWER_SYSTEM_AGENT_PROMPT, IP_DIRECTOR_SYSTEM_PROMPT } from './missing-agents'
 import { detectAiTells, getAiTellScore, formatAiTellReport } from './ai-tells'
+import { analyzeStyle, formatStyleReport, profileToStyleConfig } from './style-analyzer'
 
 // ========== LLM 配置 ==========
 import { getCurrentConfig } from '../ai-config'
@@ -417,8 +418,20 @@ async function synthesizeReviews(state: State): Promise<Partial<State>> {
   }
 
   if (isApproved) {
+    // 自动分析文风并保存
+    const styleProfile = analyzeStyle(state.draft)
+    const styleReport = formatStyleReport(styleProfile)
     logs.push(`✅ [汇总] 通过！读者:${readerScore} 编辑:${allScores.editorAvg} 总导演:${directorReview?.verdict}`)
-    return { finalDraft: state.draft, allScores, isApproved: true, status: 'approved', logs }
+    logs.push(`📊 [文风] ${styleReport.split('\n')[0]}`)
+
+    return {
+      finalDraft: state.draft,
+      allScores: { ...allScores, styleProfile, styleReport },
+      isApproved: true,
+      status: 'approved',
+      logs,
+      styleConfig: profileToStyleConfig(styleProfile, state.context.genre || ''),
+    }
   } else {
     const reasons: string[] = []
     if (readerScore < 70) reasons.push(`读者${readerScore}<70`)
@@ -573,6 +586,7 @@ export async function runChapterWorkflow(
     status: finalState?.status || 'unknown',
     revisionCount: finalState?.revisionCount || 0,
     logs: finalState?.logs || [],
+    styleConfig: finalState?.styleConfig || null,
   }
 }
 

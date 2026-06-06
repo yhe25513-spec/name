@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/novel/store'
-import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints } from '@/lib/novel/agents/state-machine'
+import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints, updateStoryStates } from '@/lib/novel/agents/state-machine'
 import { closeForeshadow, addForeshadow } from '@/lib/novel/foreshadows'
 import { updateProgress } from '@/lib/novel/novels'
 import { requireNovelOwnership } from '@/lib/novel/auth'
@@ -231,13 +231,65 @@ export async function POST(req: NextRequest) {
                 })
               } catch {}
 
-              // 3. 更新进度
+              // 3. 更新剧情状态机（主线/支线进度、悬念揭露）
+              try {
+                // 推进所有主线剧情状态的进度
+                const { data: storyStates } = await supabase
+                  .from('story_states')
+                  .select('id, progress, current_stage, max_stages')
+                  .eq('novel_id', novelId)
+
+                if (storyStates && storyStates.length > 0) {
+                  const progressChanges = storyStates.map((s: any) => ({
+                    id: s.id,
+                    delta: 5, // 每章推进5%
+                    note: `第${chapter}章完成`,
+                  }))
+                  await updateStoryStates(novelId, chapter, { progressChanges })
+                }
+
+                // 更新悬念揭露进度（从审查结果中提取）
+                const mysteryReview = result.scores?.foreshadow
+                if (mysteryReview?.mysteries_revealed) {
+                  for (const m of mysteryReview.mysteries_revealed) {
+                    if (m.id && m.delta) {
+                      const { data: mystery } = await supabase
+                        .from('mysteries')
+                        .select('id')
+                        .eq('id', m.id)
+                        .eq('novel_id', novelId)
+                        .single()
+                      if (mystery) {
+                        const { revealMystery } = await import('@/lib/novel/mysteries')
+                        await revealMystery(novelId, m.id, chapter, m.delta, m.note || '').catch(() => {})
+                      }
+                    }
+                  }
+                }
+
+                sendLog(`📊 剧情状态机已更新: ${storyStates?.length || 0}条剧情进度推进`)
+              } catch (e: any) {
+                sendLog(`⚠️ 状态机更新失败: ${e.message}`)
+              }
+
+              // 4. 更新进度
               await updateProgress(novelId, chapter, result.draft.length)
 
               sendLog(`📊 故事状态已更新: 伏笔回收${foreshadowReview?.foreshadows_harvested?.length || 0}个, 新埋${foreshadowReview?.foreshadows_planted?.length || 0}个`)
             } catch (e: any) {
               sendLog(`⚠️ 状态更新部分失败: ${e.message}`)
             }
+          }
+
+          // 章节通过时自动更新文风配置
+          if (result.isApproved && result.styleConfig) {
+            try {
+              await supabase.from('novels').update({
+                style: result.styleConfig,
+                updated_at: new Date().toISOString(),
+              }).eq('id', novelId)
+              sendLog(`📊 文风配置已自动更新`)
+            } catch {}
           }
 
           sendProgress({
