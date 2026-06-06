@@ -9,6 +9,7 @@ import { getAISettings } from './APISettings'
 interface ImportResult {
   stats: { chapterCount: number; totalWords: number; avgWordsPerChapter: number }
   savedCount: number
+  savedSettings: number
   totalChapters: number
   filesCount: number
   analysis?: {
@@ -97,6 +98,13 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
             <div className="text-[10px]" style={{ color: '#8a8f98' }}>个文件</div>
           </div>
         </div>
+
+        {result.savedSettings > 0 && (
+          <div className="p-3 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'rgba(94,106,210,0.08)', border: '1px solid rgba(94,106,210,0.2)' }}>
+            <Brain className="w-4 h-4" style={{ color: '#5e6ad2' }} />
+            <span className="text-xs" style={{ color: '#5e6ad2' }}>{result.savedSettings} 个设定文件已写入记忆层（世界观/角色/势力/地点等）</span>
+          </div>
+        )}
 
         {result.analysis && (
           <div className="p-3 rounded-lg" style={{ backgroundColor: '#0a0b0c', border: '1px solid #23252a' }}>
