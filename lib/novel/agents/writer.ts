@@ -86,6 +86,19 @@ export function buildWriterPrompt(context: {
     ? `视角角色: ${context.chapterOutline.pov || '未指定'}\n场景: ${context.chapterOutline.setting || '未指定'}\n核心冲突: ${context.chapterOutline.coreConflict || '未指定'}\n摘要: ${context.chapterOutline.summary || context.outline || '请根据前文自然推进'}\n情感基调: ${context.chapterOutline.emotionalBeat || '未指定'}\n章末钩子: ${context.chapterOutline.hook || '未指定'}`
     : context.outline || '请根据前文自然推进'
 
+  // 上下文预算控制：限制各部分最大字符数，防止超出模型上下文窗口
+  // 总预算：system prompt ~2000 + 任务书 ~8000 = ~10000 字符安全余量
+  const MAX = {
+    worldSetting: 3000,   // 世界观最多3000字
+    characters: 2000,     // 角色最多2000字
+    previousSummary: 2000, // 前文摘要最多2000字
+    mysteryState: 500,    // 悬念状态最多500字
+    storyStateText: 1000, // 剧情状态机最多1000字
+  }
+
+  const truncate = (text: string, max: number) =>
+    text.length > max ? text.slice(0, max) + `\n...(已截断，共${text.length}字)` : text
+
   // 【缓存优化】静态内容在前，动态内容在后
   // DeepSeek prompt cache 按前缀匹配，相同前缀的请求可以复用缓存
   return `${WRITER_SYSTEM_PROMPT}
@@ -96,19 +109,19 @@ export function buildWriterPrompt(context: {
 - 书名：《${context.title}》
 
 ### 世界观设定
-${context.worldSetting || '暂无'}
+${truncate(context.worldSetting || '暂无', MAX.worldSetting)}
 
 ### 角色信息
-${context.characters || '暂无'}
+${truncate(context.characters || '暂无', MAX.characters)}
 
 ### 写作约束
 ${context.constraints || '无特殊约束'}
 
 ### 悬念状态
-${context.mysteryState || '无悬念控制'}
+${truncate(context.mysteryState || '无悬念控制', MAX.mysteryState)}
 
 ### 剧情状态机
-${context.storyStateText || '暂无剧情状态数据'}
+${truncate(context.storyStateText || '暂无剧情状态数据', MAX.storyStateText)}
 
 ---
 

@@ -10,6 +10,7 @@ import { reviewByDirector } from './director'
 import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints } from './state-machine'
 import { parseJsonFromLLM } from '../ai-config'
 import { STYLE_GUARD_SYSTEM_PROMPT, FORESHADOW_AGENT_SYSTEM_PROMPT, POWER_SYSTEM_AGENT_PROMPT, IP_DIRECTOR_SYSTEM_PROMPT } from './missing-agents'
+import { detectAiTells, getAiTellScore, formatAiTellReport } from './ai-tells'
 
 // ========== LLM 配置 ==========
 import { getCurrentConfig } from '../ai-config'
@@ -59,6 +60,7 @@ const ChapterState = Annotation.Root({
   styleGuardReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
   foreshadowReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
   powerSystemReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
+  aiTellsResult: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
   directorReview: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
 
   // 最终结果
@@ -77,7 +79,7 @@ const ChapterState = Annotation.Root({
 type State = typeof ChapterState.State
 
 // ========== 工具函数 ==========
-function calculatePassGrade(readerScore: number, editorScores: any, logicIssues: any[], characterIssues: any[]): boolean {
+function calculatePassGrade(readerScore: number, editorScores: any, logicIssues: any[], characterIssues: any[], aiTellsResult?: any): boolean {
   if (readerScore < 70) return false
   if (editorScores) {
     const avg = (editorScores.pacing + editorScores.commercial_value + editorScores.character_development + editorScores.chapter_structure) / 4
@@ -85,6 +87,8 @@ function calculatePassGrade(readerScore: number, editorScores: any, logicIssues:
   }
   if (logicIssues?.some((i: any) => i.severity === 'critical' && i.blocking)) return false
   if (characterIssues?.some((i: any) => i.severity === 'critical' && i.blocking)) return false
+  // AI痕迹：critical级别超过3个则不通过
+  if (aiTellsResult?.tells?.filter((t: any) => t.severity === 'critical').length > 3) return false
   return true
 }
 
@@ -139,6 +143,14 @@ function buildStructuredFeedback(state: State): string {
   const powerViolations = state.powerSystemReview?.power_violations || []
   for (const v of powerViolations) {
     parts.push(`${itemNum}. [战力] ${v.character} 使用了 ${v.used_ability}（需要${v.required_realm}境界）`)
+    itemNum++
+  }
+
+  // AI 痕迹
+  const aiTells = (state.aiTellsResult?.tells || []).slice(0, 10)
+  for (const t of aiTells) {
+    const sev = t.severity === 'critical' ? '🔴' : t.severity === 'high' ? '🟡' : ''
+    parts.push(`${itemNum}. ${sev}[AI痕迹] ${t.location} "${t.pattern}" → ${t.fix}`)
     itemNum++
   }
 
@@ -322,6 +334,17 @@ async function reviewByPowerSystem(state: State): Promise<Partial<State>> {
   return { powerSystemReview: review, logs }
 }
 
+// AI 痕迹检测（本地规则，不调用 LLM）
+function reviewByAiTells(state: State): Partial<State> {
+  const tells = detectAiTells(state.draft)
+  const score = getAiTellScore(tells)
+  const critical = tells.filter(t => t.severity === 'critical').length
+  const high = tells.filter(t => t.severity === 'high').length
+  const logs: string[] = []
+  logs.push(`🤖 [AI痕迹] 检测到${tells.length}处（🔴${critical} 🟡${high}），评分${score}/100`)
+  return { aiTellsResult: { tells, score, report: formatAiTellReport(tells) }, logs }
+}
+
 // 6. 总导演审查（并行审查完成后）
 async function reviewByDirectorNode(state: State): Promise<Partial<State>> {
   const logs: string[] = []
@@ -355,7 +378,7 @@ async function synthesizeReviews(state: State): Promise<Partial<State>> {
 
   const directorApproved = directorReview?.verdict === 'approved'
   const directorConditional = directorReview?.verdict === 'conditional'
-  const qualityApproved = calculatePassGrade(readerScore, editorScores, logicIssues, characterIssues)
+  const qualityApproved = calculatePassGrade(readerScore, editorScores, logicIssues, characterIssues, state.aiTellsResult)
   const isApproved = qualityApproved && (directorApproved || directorConditional)
 
   // 构建结构化修改清单
@@ -388,6 +411,7 @@ async function synthesizeReviews(state: State): Promise<Partial<State>> {
       style: (state.styleGuardReview?.deviations || []).map((d: any) => d.description),
       aiPatterns: (state.styleGuardReview?.ai_patterns_detected || []).map((p: any) => `${p.pattern} @${p.location} → ${p.fix}`),
       power: (state.powerSystemReview?.power_violations || []).map((v: any) => `${v.character} 使用 ${v.used_ability}`),
+      aiTells: (state.aiTellsResult?.tells || []).slice(0, 10).map((t: any) => `[${t.severity}] ${t.location} "${t.pattern}" → ${t.fix}`),
       director: directorReview?.revisionDirective ? [directorReview.revisionDirective] : [],
     }
   }
@@ -401,6 +425,8 @@ async function synthesizeReviews(state: State): Promise<Partial<State>> {
     if (allScores.editorAvg < 65) reasons.push(`编辑${allScores.editorAvg}<65`)
     if (allScores.criticalLogicIssues > 0) reasons.push(`${allScores.criticalLogicIssues}逻辑阻断`)
     if (allScores.criticalOocIssues > 0) reasons.push(`${allScores.criticalOocIssues}角色阻断`)
+    const aiTellCritical = state.aiTellsResult?.tells?.filter((t: any) => t.severity === 'critical').length || 0
+    if (aiTellCritical > 3) reasons.push(`${aiTellCritical}处AI痕迹(critical>3)`)
     if (!directorApproved) reasons.push(`总导演:${directorReview?.verdict}`)
 
     logs.push(`❌ [汇总] 未通过（${reasons.join('；')}）→ ${structuredFeedback.split('\n').filter(l => l.match(/^\d/)).length}项待改`)
@@ -441,6 +467,7 @@ function buildChapterWorkflow() {
     .addNode('reviewStyle', reviewByStyleGuard)
     .addNode('reviewForeshadow', reviewByForeshadow)
     .addNode('reviewPower', reviewByPowerSystem)
+    .addNode('reviewAiTells', reviewByAiTells)
     .addNode('reviewDirector', reviewByDirectorNode)
     .addNode('synthesize', synthesizeReviews)
 
@@ -461,8 +488,9 @@ function buildChapterWorkflow() {
     .addEdge('write', 'reviewStyle')
     .addEdge('write', 'reviewForeshadow')
     .addEdge('write', 'reviewPower')
+    .addEdge('write', 'reviewAiTells')
 
-    // 7个审查 Agent → 总导演（等所有审查完成后）
+    // 8个审查 Agent → 总导演（等所有审查完成后）
     .addEdge('reviewReader', 'reviewDirector')
     .addEdge('reviewEditor', 'reviewDirector')
     .addEdge('reviewLogic', 'reviewDirector')
@@ -470,6 +498,7 @@ function buildChapterWorkflow() {
     .addEdge('reviewStyle', 'reviewDirector')
     .addEdge('reviewForeshadow', 'reviewDirector')
     .addEdge('reviewPower', 'reviewDirector')
+    .addEdge('reviewAiTells', 'reviewDirector')
 
     // 总导演 → 汇总
     .addEdge('reviewDirector', 'synthesize')
@@ -515,7 +544,7 @@ export async function runChapterWorkflow(
     preCheckResult: null,
     readerReview: null, editorReview: null, logicReview: null,
     characterReview: null, styleGuardReview: null,
-    foreshadowReview: null, powerSystemReview: null,
+    foreshadowReview: null, powerSystemReview: null, aiTellsResult: null,
     directorReview: null,
     finalDraft: '', allScores: {}, isApproved: false, status: '',
     logs: [],

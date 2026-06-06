@@ -457,6 +457,14 @@ function DashboardView({ novelId, onEdit, onRead }: { novelId: string; onEdit: (
             <Download className="w-3.5 h-3.5" />
             导出 MD
           </button>
+          <button
+            onClick={() => window.open(`/api/novel/export?novelId=${novelId}&format=epub`, '_blank')}
+            className="px-4 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-white/5 flex items-center gap-1.5"
+            style={{ borderColor: '#23252a', color: '#d0d6e0' }}
+          >
+            <Download className="w-3.5 h-3.5" />
+            导出 EPUB
+          </button>
         </div>
       </div>
     </div>
