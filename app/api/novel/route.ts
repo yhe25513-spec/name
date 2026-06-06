@@ -83,19 +83,42 @@ export async function POST(req: NextRequest) {
     if (s[0] === 'novels' && s[2] === 'sync' && s[3]) {
       const ch = parseInt(s[3])
       const ext = d.extraction || {}
+      const errors: string[] = []
+
       for (const f of ext.new_foreshadows || []) {
-        await addForeshadow(s[1], f.content, ch, f.importance, f.tier, f.category, f.expected_reveal_range).catch(() => {})
+        try {
+          await addForeshadow(s[1], f.content, ch, f.importance, f.tier, f.category, f.expected_reveal_range)
+        } catch (e: any) {
+          errors.push(`伏笔: ${e.message}`)
+        }
       }
       for (const id of ext.closed_foreshadows || []) {
-        await closeForeshadow(s[1], id, ch).catch(() => {})
+        try {
+          await closeForeshadow(s[1], id, ch)
+        } catch (e: any) {
+          errors.push(`关闭伏笔 ${id}: ${e.message}`)
+        }
       }
       for (const r of ext.revelations || []) {
-        await revealMystery(s[1], r.mystery_id, ch, r.delta, r.note).catch(() => {})
+        try {
+          await revealMystery(s[1], r.mystery_id, ch, r.delta, r.note)
+        } catch (e: any) {
+          errors.push(`悬念 ${r.mystery_id}: ${e.message}`)
+        }
       }
       for (const r of ext.relationship_updates || []) {
-        await updateTrust(s[1], r.from, r.to, r.trust_delta || r.delta || 0, ch, r.reason, r.type).catch(() => {})
+        try {
+          await updateTrust(s[1], r.from, r.to, r.trust_delta || r.delta || 0, ch, r.reason, r.type)
+        } catch (e: any) {
+          errors.push(`关系 ${r.from}->${r.to}: ${e.message}`)
+        }
       }
+
       await updateProgress(s[1], ch, ext.word_count || 0)
+
+      if (errors.length > 0) {
+        return NextResponse.json({ ok: true, warnings: errors })
+      }
       return NextResponse.json({ ok: true })
     }
     if (s[0] === 'novels' && s[2] === 'foreshadows' && !s[3]) {
