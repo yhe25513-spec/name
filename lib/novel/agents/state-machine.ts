@@ -242,7 +242,7 @@ export function checkMysteryConstraints(snapshot: StoryStateSnapshot, chapter: n
 } {
   const notes: string[] = []
   const blockedMysteries: string[] = []
-  let maxRevelationAllowed = 100
+  let totalMaxDelta = 0
 
   // 检查每个谜团的揭露约束
   const allMysteries = [...snapshot.characterMysteries, ...snapshot.worldMysteries]
@@ -270,11 +270,12 @@ export function checkMysteryConstraints(snapshot: StoryStateSnapshot, chapter: n
     const maxDelta = remainingStages > 0 ? Math.min(remainingProgress, 100 / mystery.maxStages) : 0
 
     notes.push(`${mystery.name}: 本章最多揭露 ${maxDelta.toFixed(0)}%`)
+    totalMaxDelta += maxDelta
   }
 
   return {
     canReveal: blockedMysteries.length === 0,
-    maxRevelationAllowed,
+    maxRevelationAllowed: totalMaxDelta,
     blockedMysteries,
     notes,
   }
