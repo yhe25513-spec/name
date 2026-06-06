@@ -15,13 +15,15 @@ interface AISettings {
 
 const PROVIDERS = [
   { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'], defaultUrl: 'https://api.deepseek.com', defaultModel: 'deepseek-chat' },
-  { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'], defaultUrl: 'https://api.openai.com', defaultModel: 'gpt-4o-mini' },
-  { id: 'anthropic', name: 'Anthropic (Claude)', models: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'], defaultUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514' },
-  { id: 'moonshot', name: '月之暗面 (Kimi)', models: ['moonshot-v1-8k', 'moonshot-v1-32k'], defaultUrl: 'https://api.moonshot.cn', defaultModel: 'moonshot-v1-8k' },
-  { id: 'zhipu', name: '智谱 AI (GLM)', models: ['glm-4-flash', 'glm-4-plus'], defaultUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-flash' },
-  { id: 'qwen', name: '通义千问 (Qwen)', models: ['qwen-turbo', 'qwen-plus', 'qwen-max'], defaultUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-turbo' },
-  { id: 'siliconflow', name: '硅基流动', models: ['deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct'], defaultUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'deepseek-ai/DeepSeek-V3' },
-  { id: 'ollama', name: 'Ollama (本地)', models: ['llama3', 'qwen2', 'mistral'], defaultUrl: 'http://localhost:11434/v1', defaultModel: 'qwen2' },
+  { id: 'openai', name: 'OpenAI', models: ['gpt-5', 'gpt-5-mini', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'o3'], defaultUrl: 'https://api.openai.com', defaultModel: 'gpt-4o-mini' },
+  { id: 'anthropic', name: 'Anthropic (Claude)', models: ['claude-opus-4', 'claude-sonnet-4', 'claude-haiku-3-5'], defaultUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4' },
+  { id: 'google', name: 'Google Gemini', models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'], defaultUrl: 'https://generativelanguage.googleapis.com/v1beta', defaultModel: 'gemini-2.5-flash' },
+  { id: 'moonshot', name: '月之暗面 (Kimi)', models: ['kimi-latest', 'kimi-k2-0711-preview', 'moonshot-v1-8k', 'moonshot-v1-128k'], defaultUrl: 'https://api.moonshot.cn/v1', defaultModel: 'kimi-latest' },
+  { id: 'zhipu', name: '智谱 AI (GLM)', models: ['glm-4-plus', 'glm-z1', 'glm-4-flash'], defaultUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-plus' },
+  { id: 'qwen', name: '通义千问 (Qwen)', models: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'Qwen3-32B'], defaultUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-turbo' },
+  { id: 'siliconflow', name: '硅基流动', models: ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1', 'Qwen/Qwen2.5-72B-Instruct'], defaultUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'deepseek-ai/DeepSeek-V3' },
+  { id: 'xiaomi', name: '小米 MiMo', models: ['xiaomi/MiMo-7B'], defaultUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'xiaomi/MiMo-7B' },
+  { id: 'ollama', name: 'Ollama (本地)', models: ['qwen2', 'llama3', 'mistral'], defaultUrl: 'http://localhost:11434/v1', defaultModel: 'qwen2' },
 ]
 
 const STORAGE_KEY = 'novel-studio-ai-settings'

@@ -9,7 +9,7 @@ export interface AIProvider {
   defaultModel: string
 }
 
-// 支持的 AI 提供商
+// 支持的 AI 提供商（2026年6月最新）
 export const AI_PROVIDERS: Record<string, AIProvider> = {
   deepseek: {
     id: 'deepseek',
@@ -22,49 +22,63 @@ export const AI_PROVIDERS: Record<string, AIProvider> = {
     id: 'openai',
     name: 'OpenAI',
     baseUrl: 'https://api.openai.com',
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    models: ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'o3', 'o3-mini'],
     defaultModel: 'gpt-4o-mini',
   },
   anthropic: {
     id: 'anthropic',
     name: 'Anthropic (Claude)',
     baseUrl: 'https://api.anthropic.com',
-    models: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414', 'claude-3-5-sonnet-20241022'],
-    defaultModel: 'claude-sonnet-4-20250514',
+    models: ['claude-opus-4', 'claude-sonnet-4', 'claude-haiku-3-5'],
+    defaultModel: 'claude-sonnet-4',
+  },
+  google: {
+    id: 'google',
+    name: 'Google Gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+    defaultModel: 'gemini-2.5-flash',
   },
   moonshot: {
     id: 'moonshot',
-    name: 'Moonshot (月之暗面)',
-    baseUrl: 'https://api.moonshot.cn',
-    models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
-    defaultModel: 'moonshot-v1-8k',
+    name: 'Moonshot (月之暗面/Kimi)',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    models: ['kimi-latest', 'kimi-k2-0711-preview', 'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+    defaultModel: 'kimi-latest',
   },
   zhipu: {
     id: 'zhipu',
     name: '智谱 AI (GLM)',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    models: ['glm-4-flash', 'glm-4-plus', 'glm-4'],
-    defaultModel: 'glm-4-flash',
+    models: ['glm-4-plus', 'glm-z1', 'glm-4-flash', 'glm-4-long'],
+    defaultModel: 'glm-4-plus',
   },
   qwen: {
     id: 'qwen',
     name: '通义千问 (Qwen)',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    models: ['qwen-turbo', 'qwen-plus', 'qwen-max', 'qwen-long'],
+    models: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'Qwen3-32B', 'Qwen3-14B'],
     defaultModel: 'qwen-turbo',
   },
   siliconflow: {
     id: 'siliconflow',
     name: 'SiliconFlow (硅基流动)',
     baseUrl: 'https://api.siliconflow.cn/v1',
-    models: ['deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct', 'THUDM/glm-4-9b-chat'],
+    models: ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1', 'Qwen/Qwen2.5-72B-Instruct', 'Pro/deepseek-ai/DeepSeek-V3'],
     defaultModel: 'deepseek-ai/DeepSeek-V3',
+  },
+  xiaomi: {
+    id: 'xiaomi',
+    name: '小米 MiMo',
+    baseUrl: 'https://api.siliconflow.cn/v1', // MiMo 托管在 SiliconFlow
+    models: ['xiaomi/MiMo-7B'],
+    defaultModel: 'xiaomi/MiMo-7B',
   },
   ollama: {
     id: 'ollama',
     name: 'Ollama (本地)',
     baseUrl: 'http://localhost:11434/v1',
-    models: ['llama3', 'qwen2', 'mistral', 'codellama'],
+    models: ['qwen2', 'llama3', 'mistral', 'codellama'],
     defaultModel: 'qwen2',
   },
 }
@@ -122,6 +136,11 @@ export function getHeaders(): Record<string, string> {
     }
   }
 
+  // Google Gemini 使用 URL 参数认证
+  if (provider === 'google') {
+    return { 'Content-Type': 'application/json' }
+  }
+
   // Ollama 不需要 API Key
   if (provider === 'ollama') {
     return { 'Content-Type': 'application/json' }
@@ -138,10 +157,17 @@ export function getHeaders(): Record<string, string> {
 export function getChatUrl(): string {
   const provider = getProvider()
   const baseUrl = getBaseUrl()
+  const apiKey = getApiKey()
+  const model = getModel()
 
   // Anthropic 使用不同的端点
   if (provider === 'anthropic') {
     return `${baseUrl}/v1/messages`
+  }
+
+  // Google Gemini 使用不同的端点格式
+  if (provider === 'google') {
+    return `${baseUrl}/models/${model}:generateContent?key=${apiKey}`
   }
 
   // Ollama
@@ -176,6 +202,14 @@ export function buildMessages(
     }
   }
 
+  // Google Gemini 格式
+  if (provider === 'google') {
+    return {
+      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${userContent}` }] }],
+      generationConfig: { temperature, maxOutputTokens: maxTokens },
+    }
+  }
+
   // OpenAI 兼容格式（适用于 DeepSeek/OpenAI/Moonshot/Qwen 等）
   return {
     model,
@@ -195,6 +229,11 @@ export function parseResponse(data: any): string {
   // Anthropic 格式
   if (provider === 'anthropic') {
     return data.content?.[0]?.text || ''
+  }
+
+  // Google Gemini 格式
+  if (provider === 'google') {
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   }
 
   // OpenAI 兼容格式
