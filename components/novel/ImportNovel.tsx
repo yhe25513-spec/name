@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Upload, FileText, CheckCircle, Loader2, Users, Globe, Clock, Eye, Link2, Brain } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Upload, FileText, CheckCircle, Loader2, Users, Globe, Clock, Eye, Link2, Brain, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { getAISettings } from './APISettings'
 
 interface ImportResult {
   stats: { chapterCount: number; totalWords: number; avgWordsPerChapter: number }
@@ -23,7 +24,13 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
   const [result, setResult] = useState<ImportResult | null>(null)
   const [analyzeWithAI, setAnalyzeWithAI] = useState(true)
   const [dragOver, setDragOver] = useState(false)
+  const [apiConfigured, setApiConfigured] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const settings = getAISettings()
+    setApiConfigured(!!settings.apiKey || settings.provider === 'ollama')
+  }, [])
 
   const handleFiles = (newFiles: FileList | File[]) => {
     const arr = Array.from(newFiles).filter(f => f.name.endsWith('.txt') || f.name.endsWith('.md'))
@@ -124,6 +131,19 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
 
   return (
     <div className="space-y-4">
+      {/* API 未配置警告 */}
+      {!apiConfigured && (
+        <div className="rounded-xl border p-4 flex items-start gap-3" style={{ borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.08)' }}>
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: '#fbbf24' }} />
+          <div>
+            <p className="text-xs font-semibold" style={{ color: '#fbbf24' }}>未配置 AI API</p>
+            <p className="text-[11px] mt-1" style={{ color: '#8a8f98' }}>
+              请先点击左下角「API 设置」配置 DeepSeek 或其他 AI 提供商的 API Key，否则 AI 分析功能无法使用。
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 拖拽上传区 */}
       <div
         className={`rounded-xl border-2 border-dashed p-8 text-center transition-all cursor-pointer ${dragOver ? 'scale-[1.02]' : ''}`}
@@ -188,9 +208,13 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
             修复章节标题
           </button>
           <button onClick={async () => {
-            toast.info('正在 AI 分析记忆层...')
             const { getAISettings } = await import('./APISettings')
             const aiSettings = getAISettings()
+            if (!aiSettings.apiKey && aiSettings.provider !== 'ollama') {
+              toast.error('请先在「API 设置」中配置 API Key')
+              return
+            }
+            toast.info('正在 AI 分析记忆层...')
             const params = new URLSearchParams({ novelId, action: 'analyze' })
             if (aiSettings.provider) params.set('aiProvider', aiSettings.provider)
             if (aiSettings.apiKey) params.set('aiApiKey', aiSettings.apiKey)
