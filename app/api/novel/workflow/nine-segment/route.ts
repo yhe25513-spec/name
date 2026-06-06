@@ -3,6 +3,7 @@ import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { supabase } from '@/lib/novel/store'
 import { getCurrentConfig, parseJsonFromLLM as parseJson } from '@/lib/novel/ai-config'
+import { requireNovelOwnership } from '@/lib/novel/auth'
 
 function getLLM() {
   const config = getCurrentConfig()
@@ -251,6 +252,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '缺少 stage 或 input' }, { status: 400 })
     }
 
+    // 鉴权：验证小说所有权
+    const novelId = req.nextUrl.searchParams.get('novelId') || ''
+    if (novelId) {
+      const { error: authError } = await requireNovelOwnership(req, novelId)
+      if (authError) return authError
+    }
+
     // 设置客户端传来的 AI 配置（在调用 LLM 前一次性设置）
     if (aiSettings?.provider) process.env.AI_PROVIDER = aiSettings.provider
     if (aiSettings?.apiKey) {
@@ -290,7 +298,6 @@ export async function POST(req: NextRequest) {
     const result = parseJson(response.content as string)
 
     // 根据阶段保存结果到数据库
-    const novelId = req.nextUrl.searchParams.get('novelId') || ''
     if (novelId) {
       try {
         await saveStageResult(novelId, stage, result)

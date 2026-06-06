@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/novel/store'
+import { requireNovelOwnership } from '@/lib/novel/auth'
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,6 +10,10 @@ export async function GET(req: NextRequest) {
     if (!novelId) {
       return new Response(JSON.stringify({ error: '缺少 novelId' }), { status: 400 })
     }
+
+    // 鉴权
+    const { error: authError } = await requireNovelOwnership(req, novelId)
+    if (authError) return authError
 
     // Get novel meta
     const { data: novel } = await supabase.from('novels').select('title, genre').eq('id', novelId).single()

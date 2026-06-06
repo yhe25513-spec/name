@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getCurrentConfig, getHeaders, buildMessages, getChatUrl } from '@/lib/novel/ai-config'
+import { requireNovelOwnership } from '@/lib/novel/auth'
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,6 +8,12 @@ export async function POST(req: NextRequest) {
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: '缺少写作提示' }), { status: 400 })
+    }
+
+    // 鉴权
+    if (novelId) {
+      const { error: authError } = await requireNovelOwnership(req, novelId)
+      if (authError) return authError
     }
 
     // 如果客户端传了 AI 设置，设置环境变量

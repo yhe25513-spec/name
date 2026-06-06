@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/novel/store'
+import { requireNovelOwnership } from '@/lib/novel/auth'
 
 // ========== 世界观 ==========
 async function getWorlds(novelId: string) {
@@ -131,6 +132,10 @@ export async function GET(req: NextRequest) {
 
     if (!novelId) return NextResponse.json({ error: '缺少 novelId' }, { status: 400 })
 
+    // 鉴权
+    const { error: authError } = await requireNovelOwnership(req, novelId)
+    if (authError) return authError
+
     // /memory/worlds?novelId=xxx
     if (s[0] === 'worlds') return NextResponse.json(await getWorlds(novelId))
     // /memory/characters?novelId=xxx
@@ -180,6 +185,10 @@ export async function POST(req: NextRequest) {
 
     if (!novelId) return NextResponse.json({ error: '缺少 novelId' }, { status: 400 })
 
+    // 鉴权
+    const { error: authError } = await requireNovelOwnership(req, novelId)
+    if (authError) return authError
+
     if (s[0] === 'worlds') return NextResponse.json(await addWorld(novelId, d))
     if (s[0] === 'characters') return NextResponse.json(await addCharacter(novelId, d))
     if (s[0] === 'timelines') return NextResponse.json(await addTimeline(novelId, d))
@@ -200,6 +209,17 @@ export async function PUT(req: NextRequest) {
 
     if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
 
+    // 鉴权：查找记录所属小说并验证所有权
+    const tableMap: Record<string, string> = { worlds: 'worlds', characters: 'characters', timelines: 'timelines', 'story-states': 'story_states' }
+    const table = tableMap[s[0]]
+    if (table) {
+      const { data: record } = await supabase.from(table).select('novel_id').eq('id', id).single()
+      if (record?.novel_id) {
+        const { error: authError } = await requireNovelOwnership(req, record.novel_id)
+        if (authError) return authError
+      }
+    }
+
     if (s[0] === 'worlds') { await updateWorld(id, d); return NextResponse.json({ ok: true }) }
     if (s[0] === 'characters') { await updateCharacter(id, d); return NextResponse.json({ ok: true }) }
     if (s[0] === 'timelines') { await updateTimeline(id, d); return NextResponse.json({ ok: true }) }
@@ -217,6 +237,17 @@ export async function DELETE(req: NextRequest) {
     const id = req.nextUrl.searchParams.get('id') || ''
 
     if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
+
+    // 鉴权：查找记录所属小说并验证所有权
+    const tableMap: Record<string, string> = { worlds: 'worlds', characters: 'characters', timelines: 'timelines', 'story-states': 'story_states' }
+    const table = tableMap[s[0]]
+    if (table) {
+      const { data: record } = await supabase.from(table).select('novel_id').eq('id', id).single()
+      if (record?.novel_id) {
+        const { error: authError } = await requireNovelOwnership(req, record.novel_id)
+        if (authError) return authError
+      }
+    }
 
     if (s[0] === 'worlds') { await deleteWorld(id); return NextResponse.json({ ok: true }) }
     if (s[0] === 'characters') { await deleteCharacter(id); return NextResponse.json({ ok: true }) }

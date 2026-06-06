@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/novel/store'
 import { callAI, extractJson, getCurrentConfig } from '@/lib/novel/ai-config'
+import { requireNovelOwnership } from '@/lib/novel/auth'
 
 // ========== 分阶段 AI 分析 ==========
 
@@ -192,6 +193,10 @@ export async function POST(req: NextRequest) {
     if (!files || files.length === 0 || !novelId) {
       return NextResponse.json({ error: '缺少文件或 novelId' }, { status: 400 })
     }
+
+    // 鉴权
+    const { error: authError } = await requireNovelOwnership(req, novelId)
+    if (authError) return authError
 
     // 设置 AI 配置
     if (aiProvider) process.env.AI_PROVIDER = aiProvider
@@ -501,6 +506,10 @@ export async function GET(req: NextRequest) {
     if (!novelId) {
       return NextResponse.json({ error: '缺少 novelId' }, { status: 400 })
     }
+
+    // 鉴权
+    const { error: authError } = await requireNovelOwnership(req, novelId)
+    if (authError) return authError
 
     if (action === 'fix-titles') {
       const { data: chapters } = await supabase.from('chapters')

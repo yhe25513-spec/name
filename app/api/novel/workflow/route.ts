@@ -3,6 +3,7 @@ import { supabase } from '@/lib/novel/store'
 import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints } from '@/lib/novel/agents/state-machine'
 import { closeForeshadow, addForeshadow } from '@/lib/novel/foreshadows'
 import { updateProgress } from '@/lib/novel/novels'
+import { requireNovelOwnership } from '@/lib/novel/auth'
 
 // 动态导入 workflow（避免 SSR 问题）
 async function getWorkflow() {
@@ -145,6 +146,10 @@ export async function POST(req: NextRequest) {
     if (!novelId || !chapter) {
       return new Response(JSON.stringify({ error: '缺少 novelId 或 chapter' }), { status: 400 })
     }
+
+    // 鉴权：验证小说所有权
+    const { error: authError } = await requireNovelOwnership(req, novelId)
+    if (authError) return authError
 
     // 构建上下文
     const context = await buildContext(novelId, chapter)
