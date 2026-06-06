@@ -151,7 +151,7 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
       if (result.rules) {
         for (const rule of result.rules) {
           await safeInsert('worlds', {
-            id: `world_nine_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: `world_nine_${crypto.randomUUID().slice(0, 8)}`,
             novel_id: novelId,
             name: rule.name,
             title: rule.name,
@@ -164,7 +164,7 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
       if (result.factions) {
         for (const f of result.factions) {
           await safeInsert('worlds', {
-            id: `world_nine_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: `world_nine_${crypto.randomUUID().slice(0, 8)}`,
             novel_id: novelId,
             name: f.name,
             title: f.name,
@@ -177,7 +177,7 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
       if (result.locations) {
         for (const loc of result.locations) {
           await safeInsert('worlds', {
-            id: `world_nine_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: `world_nine_${crypto.randomUUID().slice(0, 8)}`,
             novel_id: novelId,
             name: loc.name,
             title: loc.name,
@@ -193,7 +193,7 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
       if (result.characters) {
         for (const char of result.characters) {
           await safeInsert('characters', {
-            id: `char_nine_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: `char_nine_${crypto.randomUUID().slice(0, 8)}`,
             novel_id: novelId,
             name: char.name,
             identity: char.role || '',
@@ -214,7 +214,7 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
       if (result.foreshadowing) {
         for (const fs of result.foreshadowing) {
           await safeInsert('foreshadows', {
-            id: `fs_nine_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: `fs_nine_${crypto.randomUUID().slice(0, 8)}`,
             novel_id: novelId,
             content: fs.planted,
             chapter_planted: 1,
@@ -251,7 +251,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '缺少 stage 或 input' }, { status: 400 })
     }
 
-    // 设置客户端传来的 AI 配置
+    // 设置客户端传来的 AI 配置（在调用 LLM 前一次性设置）
     if (aiSettings?.provider) process.env.AI_PROVIDER = aiSettings.provider
     if (aiSettings?.apiKey) {
       process.env.AI_API_KEY = aiSettings.apiKey

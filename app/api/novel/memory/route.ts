@@ -8,7 +8,7 @@ async function getWorlds(novelId: string) {
 }
 
 async function addWorld(novelId: string, world: any) {
-  const id = `world_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+  const id = `world_${crypto.randomUUID().slice(0, 8)}`
   const { data, error } = await supabase.from('worlds').insert({ id, novel_id: novelId, ...world }).select().single()
   if (error) throw new Error(error.message)
   return data
@@ -32,7 +32,7 @@ async function getCharacters(novelId: string) {
 }
 
 async function addCharacter(novelId: string, char: any) {
-  const id = `char_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+  const id = `char_${crypto.randomUUID().slice(0, 8)}`
   const { data, error } = await supabase.from('characters').insert({ id, novel_id: novelId, ...char }).select().single()
   if (error) throw new Error(error.message)
   return data
@@ -80,7 +80,7 @@ async function getStoryStates(novelId: string) {
 }
 
 async function addStoryState(novelId: string, state: any) {
-  const id = `state_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+  const id = `state_${crypto.randomUUID().slice(0, 8)}`
   const { data, error } = await supabase.from('story_states').insert({ id, novel_id: novelId, ...state }).select().single()
   if (error) throw new Error(error.message)
   return data

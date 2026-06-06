@@ -8,7 +8,7 @@ export async function getMysteries(novelId: string) {
 export async function addMystery(novelId: string, name: string, tier = '支线') {
   const { data: existing } = await supabase.from('mysteries').select('id').eq('novel_id', novelId)
   const nextNum = (existing?.length || 0) + 1
-  const id = `mystery_${String(nextNum).padStart(3, '0')}`
+  const id = `mystery_${crypto.randomUUID().slice(0, 8)}`
 
   const { error } = await supabase.from('mysteries').insert({
     id, novel_id: novelId, name, tier,

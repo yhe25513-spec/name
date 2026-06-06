@@ -3,6 +3,7 @@ import { getWritingConstraints } from './mysteries'
 import { getRelationships } from './relationships'
 import { checkOverdue } from './foreshadows'
 import { supabase } from './store'
+import { generateStateSnapshot, checkMysteryConstraints } from './agents/state-machine'
 
 export async function generateWritingPrompt(novelId: string, chapter: number) {
   const meta = await getNovelMeta(novelId)
@@ -11,6 +12,19 @@ export async function generateWritingPrompt(novelId: string, chapter: number) {
   const constraints = await getWritingConstraints(novelId, chapter)
   const overdue = await checkOverdue(novelId, chapter)
   const rels = await getRelationships(novelId)
+
+  // 读取悬念揭露约束
+  let mysteryConstraintsText = ''
+  try {
+    const snapshot = await generateStateSnapshot(novelId, chapter)
+    const mc = checkMysteryConstraints(snapshot, chapter)
+    if (mc.blockedMysteries.length > 0) {
+      mysteryConstraintsText = `⚠️ 以下悬念不能在本章揭露: ${mc.blockedMysteries.join('、')}`
+    }
+    if (mc.notes.length > 0) {
+      mysteryConstraintsText += (mysteryConstraintsText ? '\n' : '') + mc.notes.join('\n')
+    }
+  } catch {}
 
   // Load character cards from Supabase
   const { data: cards } = await supabase.from('chapters').select('content').eq('novel_id', novelId).eq('chapter_num', 0).limit(1)
@@ -63,6 +77,10 @@ ${style.description_style?.dialogue_style || '自然'}`)
     for (const f of overdue) {
       parts.push(`- ⚠️ ${f.id}: ${f.content} (埋设于第${f.chapter_planted}章)`)
     }
+  }
+
+  if (mysteryConstraintsText) {
+    parts.push(`\n## 悬念揭露约束（重要！）\n${mysteryConstraintsText}`)
   }
 
   parts.push(`\n## 写作指令

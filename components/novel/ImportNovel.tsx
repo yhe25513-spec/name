@@ -14,6 +14,7 @@ interface ImportResult {
   analysis?: {
     savedChars: number; savedWorlds: number; savedEvents: number
     savedForeshadows: number; savedMysteries: number; savedRelationships: number
+    hasSoul: boolean; hasStyle: boolean
   } | null
   message: string
 }
@@ -109,7 +110,7 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
                 { icon: Globe, label: '世界观', value: result.analysis.savedWorlds, color: '#fbbf24' },
                 { icon: Clock, label: '事件', value: result.analysis.savedEvents, color: '#5e6ad2' },
                 { icon: Eye, label: '伏笔', value: result.analysis.savedForeshadows, color: '#4ade80' },
-                { icon: Zap, label: '悬念', value: result.analysis.savedMysteries, color: '#f87171' },
+                { icon: AlertTriangle, label: '悬念', value: result.analysis.savedMysteries, color: '#f87171' },
                 { icon: Link2, label: '关系', value: result.analysis.savedRelationships, color: '#06b6d4' },
               ].map((item, i) => (
                 <div key={i} className="p-2 rounded" style={{ backgroundColor: '#141516' }}>
@@ -118,6 +119,14 @@ export default function ImportNovel({ novelId, onComplete }: { novelId: string; 
                   <div className="text-[9px]" style={{ color: '#8a8f98' }}>{item.label}</div>
                 </div>
               ))}
+            </div>
+            <div className="flex gap-2 mt-2 justify-center">
+              {result.analysis.hasSoul && (
+                <span className="text-[10px] px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ade80' }}>🎯 灵魂设定已提取</span>
+              )}
+              {result.analysis.hasStyle && (
+                <span className="text-[10px] px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(94,106,210,0.12)', color: '#5e6ad2' }}>✍️ 写作风格已提取</span>
+              )}
             </div>
           </div>
         )}

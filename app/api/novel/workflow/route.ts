@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/novel/store'
-import { generateStateSnapshot, formatStateForAgents } from '@/lib/novel/agents/state-machine'
+import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints } from '@/lib/novel/agents/state-machine'
+import { closeForeshadow, addForeshadow } from '@/lib/novel/foreshadows'
+import { updateProgress } from '@/lib/novel/novels'
 
 // 动态导入 workflow（避免 SSR 问题）
 async function getWorkflow() {
@@ -66,6 +68,57 @@ async function buildContext(novelId: string, chapter: number) {
     storyStateText = '暂无剧情状态数据'
   }
 
+  // 读取九段式产出的结构化数据
+  let chapterOutline: any = null
+  let novelSoul: any = soul || {}
+  let storyStatesData: any[] = []
+  let mysteryConstraints = ''
+
+  try {
+    // 章节大纲（九段式阶段5产出）
+    const { data: outlineData } = await supabase
+      .from('chapters')
+      .select('extraction')
+      .eq('novel_id', novelId)
+      .eq('chapter_num', chapter)
+      .single()
+    chapterOutline = outlineData?.extraction?.outline || null
+
+    // 小说灵魂（优先用 novel_souls 表，九段式阶段1产出）
+    const { data: soulData } = await supabase
+      .from('novel_souls')
+      .select('*')
+      .eq('novel_id', novelId)
+      .single()
+    if (soulData) {
+      novelSoul = {
+        core_selling_points: soulData.core_selling_points || [],
+        forbidden_directions: soulData.forbidden_directions || [],
+        tone: soulData.tone || '',
+        reader_promise: soulData.reader_promise || '',
+      }
+    }
+
+    // 剧情状态机数据
+    const { data: statesData } = await supabase
+      .from('story_states')
+      .select('*')
+      .eq('novel_id', novelId)
+    storyStatesData = statesData || []
+
+    // 悬念揭露约束
+    const snapshot = await generateStateSnapshot(novelId, chapter)
+    const constraints = checkMysteryConstraints(snapshot, chapter)
+    if (constraints.blockedMysteries.length > 0) {
+      mysteryConstraints = `⚠️ 以下悬念不能在本章揭露: ${constraints.blockedMysteries.join('、')}`
+    }
+    if (constraints.notes.length > 0) {
+      mysteryConstraints += (mysteryConstraints ? '\n' : '') + constraints.notes.join('\n')
+    }
+  } catch {
+    // 降级处理：九段式数据缺失不影响写作
+  }
+
   return {
     title: novel?.title || '未命名',
     chapter,
@@ -76,9 +129,12 @@ async function buildContext(novelId: string, chapter: number) {
     constraints,
     overdueForeshadows,
     mysteryState,
-    soul,
+    soul: novelSoul,
     style,
-    storyStateText, // 新增：结构化剧情状态
+    storyStateText,
+    chapterOutline,
+    storyStatesData,
+    mysteryConstraints,
   }
 }
 
@@ -88,23 +144,6 @@ export async function POST(req: NextRequest) {
 
     if (!novelId || !chapter) {
       return new Response(JSON.stringify({ error: '缺少 novelId 或 chapter' }), { status: 400 })
-    }
-
-    // 如果客户端传了 AI 设置，设置环境变量
-    if (aiSettings?.provider) {
-      process.env.AI_PROVIDER = aiSettings.provider
-    }
-    if (aiSettings?.apiKey) {
-      process.env.AI_API_KEY = aiSettings.apiKey
-      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
-    }
-    if (aiSettings?.baseUrl) {
-      process.env.AI_BASE_URL = aiSettings.baseUrl
-      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
-    }
-    if (aiSettings?.model) {
-      process.env.AI_MODEL = aiSettings.model
-      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
     }
 
     // 构建上下文
@@ -133,7 +172,7 @@ export async function POST(req: NextRequest) {
 
           const result = await runWorkflow(novelId, chapter, context, (log) => {
             sendLog(log)
-          })
+          }, aiSettings)
 
           // 保存最终结果到数据库
           if (result.draft) {
@@ -146,14 +185,48 @@ export async function POST(req: NextRequest) {
               extraction: { scores: result.scores },
             }, { onConflict: 'novel_id,chapter_num' })
 
-            // 更新进度
-            const { data: novel } = await supabase.from('novels').select('progress').eq('id', novelId).single()
-            const progress = novel?.progress || { current_chapter: 0, total_words: 0 }
-            if (chapter > progress.current_chapter) {
-              progress.current_chapter = chapter
+            // 自动更新故事状态（打通状态机）
+            try {
+              // 1. 提取伏笔变化并更新
+              const foreshadowReview = result.scores?.foreshadow
+              if (foreshadowReview?.foreshadows_harvested) {
+                for (const f of foreshadowReview.foreshadows_harvested) {
+                  if (f.id) {
+                    await closeForeshadow(novelId, f.id, chapter).catch((e: any) => {
+                      sendLog(`⚠️ 回收伏笔 ${f.id} 失败: ${e.message}`)
+                    })
+                  }
+                }
+              }
+              if (foreshadowReview?.foreshadows_planted) {
+                for (const f of foreshadowReview.foreshadows_planted) {
+                  await addForeshadow(novelId, f.content, chapter, f.importance || '支线').catch((e: any) => {
+                    sendLog(`⚠️ 埋设伏笔失败: ${e.message}`)
+                  })
+                }
+              }
+
+              // 2. 添加时间线事件
+              try {
+                await supabase.from('timelines').insert({
+                  novel_id: novelId,
+                  chapter_num: chapter,
+                  event_order: 1,
+                  event_type: 'chapter',
+                  title: `第${chapter}章完成`,
+                  description: result.draft.slice(0, 200),
+                  characters_involved: [],
+                  importance: 5,
+                })
+              } catch {}
+
+              // 3. 更新进度
+              await updateProgress(novelId, chapter, result.draft.length)
+
+              sendLog(`📊 故事状态已更新: 伏笔回收${foreshadowReview?.foreshadows_harvested?.length || 0}个, 新埋${foreshadowReview?.foreshadows_planted?.length || 0}个`)
+            } catch (e: any) {
+              sendLog(`⚠️ 状态更新部分失败: ${e.message}`)
             }
-            progress.total_words = (progress.total_words || 0) + result.draft.length
-            await supabase.from('novels').update({ progress, updated_at: new Date().toISOString() }).eq('id', novelId)
           }
 
           sendProgress({

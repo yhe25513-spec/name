@@ -16,8 +16,8 @@ export async function getForeshadows(novelId: string) {
 }
 
 export async function addForeshadow(novelId: string, content: string, chapter: number, importance = '支线', tier = 'sub', category = 'plot_hook', expectedRevealRange?: [number, number]) {
-  // Use timestamp + random suffix to avoid ID collisions in concurrent requests
-  const id = `fs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  // Use crypto.randomUUID to prevent ID collisions in concurrent requests
+  const id = `fs_${crypto.randomUUID().slice(0, 8)}`
   const today = new Date().toISOString().split('T')[0]
 
   const { error } = await supabase.from('foreshadows').insert({

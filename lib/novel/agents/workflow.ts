@@ -385,8 +385,25 @@ export async function runChapterWorkflow(
   novelId: string,
   chapter: number,
   context: any,
-  onLog?: (log: string) => void
+  onLog?: (log: string) => void,
+  aiSettings?: { provider?: string; apiKey?: string; baseUrl?: string; model?: string }
 ) {
+  // 一次性设置 AI 配置（避免并发请求竞态）
+  if (aiSettings) {
+    if (aiSettings.provider) process.env.AI_PROVIDER = aiSettings.provider
+    if (aiSettings.apiKey) {
+      process.env.AI_API_KEY = aiSettings.apiKey
+      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
+    }
+    if (aiSettings.baseUrl) {
+      process.env.AI_BASE_URL = aiSettings.baseUrl
+      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
+    }
+    if (aiSettings.model) {
+      process.env.AI_MODEL = aiSettings.model
+      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
+    }
+  }
   const graph = buildChapterWorkflow()
 
   const initialState: Partial<State> = {

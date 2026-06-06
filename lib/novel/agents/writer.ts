@@ -78,7 +78,14 @@ export function buildWriterPrompt(context: {
   overdueForeshadows: string
   mysteryState: string
   storyStateText?: string
+  chapterOutline?: any
+  mysteryConstraints?: string
 }) {
+  // 如果有九段式产出的章节大纲，优先使用
+  const outlineText = context.chapterOutline
+    ? `视角角色: ${context.chapterOutline.pov || '未指定'}\n场景: ${context.chapterOutline.setting || '未指定'}\n核心冲突: ${context.chapterOutline.coreConflict || '未指定'}\n摘要: ${context.chapterOutline.summary || context.outline || '请根据前文自然推进'}\n情感基调: ${context.chapterOutline.emotionalBeat || '未指定'}\n章末钩子: ${context.chapterOutline.hook || '未指定'}`
+    : context.outline || '请根据前文自然推进'
+
   return `${WRITER_SYSTEM_PROMPT}
 
 ## 写作任务书
@@ -97,7 +104,7 @@ ${context.characters || '暂无'}
 ${context.previousSummary || '这是第一章'}
 
 ### 本章大纲
-${context.outline || '请根据前文自然推进'}
+${outlineText}
 
 ### 写作约束
 ${context.constraints || '无特殊约束'}
@@ -108,6 +115,7 @@ ${context.overdueForeshadows || '无'}
 ### 悬念状态
 ${context.mysteryState || '无悬念控制'}
 
+${context.mysteryConstraints ? `### 悬念揭露约束（重要！）\n${context.mysteryConstraints}\n` : ''}
 ### 剧情状态机（重要！）
 ${context.storyStateText || '暂无剧情状态数据'}
 
