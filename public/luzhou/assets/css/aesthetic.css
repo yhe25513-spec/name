@@ -1,0 +1,898 @@
+/*
+ * 泸州酒城 · 东方墨韵美学覆盖层
+ * 基于 bedimcode travel template，用中国文人审美重塑视觉
+ *
+ * 设计方向：宣纸质感 + 宋体标题 + 朱砂点缀 + 水墨纹理
+ * 色彩： Rice Paper #f5f0e6 / Ink #1c1917 / Cinnabar #bf3a2b / Gold Ink #8b7355
+ */
+
+/* ========================================
+   0. FONT LOADING
+   ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&display=swap');
+
+/* ========================================
+   1. CSS CUSTOM PROPERTIES OVERRIDE
+   ======================================== */
+:root {
+  /* 核心色彩 — 取自中国传统色 */
+  --ink:          #1c1917;
+  --ink-light:    #44403c;
+  --ink-mist:     #78716c;
+  --paper:        #f5f0e6;
+  --paper-warm:   #ede7d9;
+  --paper-cool:   #f0ece4;
+  --cinnabar:     #bf3a2b;
+  --cinnabar-dim: #a33528;
+  --gold-ink:     #8b7355;
+  --gold-light:   #b8a07a;
+  --jade:         #4a6741;
+
+  /* 覆盖 bedimcode 变量 */
+  --first-color:          var(--cinnabar);
+  --first-color-second:   var(--cinnabar-dim);
+  --first-color-alt:      #8f2e22;
+  --title-color:          var(--ink);
+  --text-color:           var(--ink-light);
+  --text-color-light:     var(--ink-mist);
+  --input-color:          var(--paper-warm);
+  --body-color:           var(--paper);
+  --scroll-bar-color:     #d6cfc2;
+  --scroll-thumb-color:   #b8a99a;
+
+  /* 字体 */
+  --body-font: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  --title-font: 'Ma Shan Zheng', 'ZCOOL XiaoWei', 'Noto Serif SC', serif;
+
+  /* 间距微调 */
+  --header-height: 4rem;
+}
+
+/* 深色主题覆盖 */
+body.dark-theme {
+  --first-color-second: #3d1a15;
+  --title-color:        #e7e0d4;
+  --text-color:         #a8a094;
+  --input-color:        #292524;
+  --body-color:         #1c1917;
+  --scroll-bar-color:   #44403c;
+  --scroll-thumb-color: #57534e;
+}
+
+/* ========================================
+   2. BASE RESET & BODY
+   ======================================== */
+*, *::before, *::after {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  /* 宣纸纹理 — 纯CSS实现 */
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(139,115,85,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(191,58,43,0.02) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: rgba(191, 58, 43, 0.15);
+  color: var(--ink);
+}
+
+/* ========================================
+   3. TYPOGRAPHY
+   ======================================== */
+h1, h2, h3 {
+  font-family: var(--title-font);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+/* 大标题特殊处理 — 毛笔字质感 + 强阴影 */
+.home__data-title {
+  font-family: var(--title-font);
+  font-weight: 900;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 1.15;
+  letter-spacing: 0.05em;
+  text-shadow:
+    2px 2px 4px rgba(28,25,23,0.5),
+    0 0 30px rgba(28,25,23,0.3),
+    0 0 60px rgba(28,25,23,0.15);
+}
+
+.home__data-subtitle {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  font-size: 0.85rem;
+  text-transform: none;
+  opacity: 0.9;
+  text-shadow: 1px 1px 3px rgba(28,25,23,0.4);
+}
+
+.section__title {
+  font-family: var(--title-font);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  letter-spacing: 0.08em;
+  text-transform: none;
+  position: relative;
+}
+
+/* 标题下方水墨横线装饰 */
+.section__title::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cinnabar), transparent);
+  margin: 0.75rem auto 0;
+  opacity: 0.6;
+}
+
+/* ========================================
+   4. HEADER / NAV
+   ======================================== */
+.header {
+  transition: background-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+.nav__logo {
+  font-family: var(--title-font);
+  font-size: 1.2rem;
+  letter-spacing: 0.15em;
+  color: var(--white-color) !important;
+}
+
+.nav__link {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  transition: color 0.3s ease;
+}
+
+/* 导航下划线用朱砂色 */
+.active-link::before {
+  background-color: var(--cinnabar) !important;
+  height: 1.5px;
+}
+
+.scroll-header {
+  background-color: rgba(245, 240, 230, 0.95) !important;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 rgba(28, 25, 23, 0.06);
+}
+
+/* 滚动后导航文字改为深色 */
+.scroll-header .nav__link {
+  color: var(--ink) !important;
+  opacity: 0.85;
+}
+
+.scroll-header .nav__link:hover,
+.scroll-header .active-link {
+  color: var(--cinnabar) !important;
+  opacity: 1;
+}
+
+.scroll-header .nav__toggle {
+  color: var(--ink) !important;
+}
+
+.scroll-header .change-theme {
+  color: var(--ink) !important;
+}
+
+/* ========================================
+   5. BUTTONS
+   ======================================== */
+.button {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.6s ease;
+}
+
+.button:hover::before {
+  left: 100%;
+}
+
+.button--link {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--gold-ink);
+  padding-bottom: 2px;
+}
+
+/* ========================================
+   6. HOME HERO
+   ======================================== */
+.home__img {
+  filter: brightness(0.85) saturate(0.9);
+  transition: transform 0.1s linear;
+}
+
+/* Hero 视差效果 — 背景图随滚动位移 */
+@media screen and (min-width: 768px) {
+  .home {
+    overflow: hidden;
+  }
+  .home__img {
+    will-change: transform;
+  }
+}
+
+/* Hero 区域加一层暗色渐变遮罩，提升文字可读性 */
+.home::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(28,25,23,0.55) 0%,
+    rgba(28,25,23,0.25) 40%,
+    rgba(28,25,23,0.1) 60%,
+    rgba(28,25,23,0.3) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.home__info {
+  background-color: var(--cinnabar);
+  border: none;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.home__info-title {
+  letter-spacing: 0.05em;
+}
+
+/* ========================================
+   7. ABOUT SECTION
+   ======================================== */
+.about__title {
+  font-family: var(--title-font);
+  text-transform: none;
+  letter-spacing: 0.1em;
+}
+
+.about__description {
+  font-family: 'Noto Serif SC', serif;
+  line-height: 2;
+  letter-spacing: 0.03em;
+  color: var(--ink-light);
+}
+
+/* 图片叠加层 — 水墨画框效果 */
+.about__img-overlay {
+  border: 3px solid var(--paper);
+  box-shadow: 0 4px 20px rgba(28, 25, 23, 0.08);
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.5s ease;
+}
+
+.about__img-overlay:hover {
+  box-shadow: 0 8px 30px rgba(28, 25, 23, 0.12);
+}
+
+/* ========================================
+   8. DISCOVER CAROUSEL
+   ======================================== */
+.discover__card {
+  border-radius: 0;
+  box-shadow: 0 2px 16px rgba(28, 25, 23, 0.06);
+}
+
+.discover__title {
+  font-family: var(--title-font);
+  letter-spacing: 0.08em;
+}
+
+.discover__description {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+/* 卡片底部渐变 — 更柔和 */
+.discover__card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60%;
+  background: linear-gradient(to top, rgba(28,25,23,0.7), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.discover__data {
+  z-index: 2;
+}
+
+/* ========================================
+   9. EXPERIENCE / STATS
+   ======================================== */
+.experience__number {
+  font-family: var(--title-font);
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--cinnabar);
+  font-weight: 700;
+}
+
+.experience__description {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.08em;
+  color: var(--ink-mist);
+}
+
+/* 统计数字之间的竖线分隔 */
+.experience__content .experience__data + .experience__data {
+  position: relative;
+}
+
+.experience__content .experience__data + .experience__data::before {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  top: 15%;
+  height: 70%;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--gold-light), transparent);
+}
+
+/* ========================================
+   10. PLACES CARDS
+   ======================================== */
+.place__card {
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(28, 25, 23, 0.06);
+  transition: box-shadow 0.4s ease, transform 0.4s ease;
+}
+
+.place__card:hover {
+  box-shadow: 0 8px 32px rgba(28, 25, 23, 0.12);
+  transform: translateY(-4px);
+}
+
+.place__title {
+  font-family: var(--title-font);
+  letter-spacing: 0.08em;
+}
+
+.place__subtitle {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.place__price {
+  font-family: 'Noto Serif SC', serif;
+  color: var(--gold-light);
+  letter-spacing: 0.05em;
+}
+
+.place__button {
+  background-color: var(--cinnabar) !important;
+  border-radius: 0 !important;
+}
+
+.place__button:hover {
+  background-color: var(--cinnabar-dim) !important;
+}
+
+/* ========================================
+   11. SUBSCRIBE / CTA
+   ======================================== */
+.subscribe__bg {
+  background-color: var(--ink) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 订阅区背景加水墨纹理 */
+.subscribe__bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+.subscribe__title {
+  font-family: var(--title-font);
+  text-transform: none;
+  letter-spacing: 0.12em;
+  position: relative;
+  z-index: 1;
+}
+
+.subscribe__description {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+  line-height: 1.9;
+  position: relative;
+  z-index: 1;
+}
+
+.subscribe__form {
+  border-radius: 0;
+  border: 1px solid rgba(245,240,230,0.15);
+  background: rgba(245,240,230,0.08);
+  position: relative;
+  z-index: 1;
+}
+
+.subscribe__input {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+}
+
+.subscribe__input::placeholder {
+  color: rgba(245,240,230,0.35);
+}
+
+/* ========================================
+   12. SPONSORS
+   ======================================== */
+.sponsor__img {
+  filter: invert(0.5) sepia(0.3) hue-rotate(10deg);
+  opacity: 0.5;
+  transition: all 0.4s ease;
+}
+
+.sponsor__content:hover .sponsor__img {
+  filter: invert(0.3) sepia(0.2);
+  opacity: 0.8;
+}
+
+/* ========================================
+   13. FOOTER
+   ======================================== */
+.footer {
+  border-top: 1px solid rgba(28, 25, 23, 0.06);
+}
+
+.footer__title {
+  font-family: var(--title-font);
+  letter-spacing: 0.12em;
+}
+
+.footer__subtitle {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.footer__link {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+  transition: color 0.3s ease;
+}
+
+.footer__link:hover {
+  color: var(--cinnabar) !important;
+}
+
+.footer__social {
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.footer__social:hover {
+  color: var(--cinnabar) !important;
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   14. SCROLL-UP BUTTON
+   ======================================== */
+.scrollup {
+  background-color: var(--ink);
+  border-radius: 0;
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+.scrollup:hover {
+  background-color: var(--cinnabar);
+}
+
+.show-scroll {
+  opacity: 0.8;
+}
+
+/* ========================================
+   15. SCROLLBAR
+   ======================================== */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gold-light);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-ink);
+}
+
+/* ========================================
+   16. PARTICLES OVERRIDE
+   ======================================== */
+.particles span {
+  background: var(--cinnabar);
+  opacity: 0;
+}
+
+.particles span:nth-child(odd) {
+  background: var(--gold-ink);
+}
+
+/* ========================================
+   17. PAGE LOAD ANIMATION
+   ======================================== */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.main {
+  animation: page-fade-in 0.8s ease-out;
+}
+
+/* ========================================
+   18. DECORATIVE ELEMENTS
+   ======================================== */
+
+/* 篆刻印章装饰 — 仿真实印章效果 */
+.about::before {
+  content: '';
+  position: absolute;
+  right: 8%;
+  top: 5%;
+  width: 80px;
+  height: 80px;
+  border: 3px solid var(--cinnabar);
+  border-radius: 4px;
+  background: transparent;
+  pointer-events: none;
+  opacity: 0.12;
+  /* 印章内部用 box-shadow 模拟文字 */
+  box-shadow:
+    inset 0 0 0 2px transparent,
+    12px 14px 0 -2px var(--cinnabar),
+    12px 14px 0 -1px var(--cinnabar);
+  line-height: 1;
+}
+
+/* 印章内"泸"字 — 用伪元素实现 */
+.about::after {
+  content: '泸';
+  position: absolute;
+  right: calc(8% + 14px);
+  top: calc(5% + 12px);
+  font-family: 'Ma Shan Zheng', serif;
+  font-size: 3rem;
+  color: var(--cinnabar);
+  opacity: 0.12;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.experience::before {
+  content: '酒';
+  position: absolute;
+  left: 5%;
+  top: 8%;
+  font-family: 'Ma Shan Zheng', serif;
+  font-size: 8rem;
+  color: var(--cinnabar);
+  opacity: 0.04;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* ========================================
+   19. RESPONSIVE FINE-TUNING
+   ======================================== */
+@media screen and (max-width: 767px) {
+  :root {
+    --header-height: 3.5rem;
+  }
+
+  .nav__logo {
+    font-size: 1rem;
+  }
+
+  .home__data-title {
+    font-size: 2rem;
+  }
+
+  .section__title {
+    font-size: 1.3rem;
+  }
+
+  .about::before,
+  .experience::before {
+    display: none;
+  }
+
+  .experience__content .experience__data + .experience__data::before {
+    display: none;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .about, .experience, .video, .place, .subscribe, .sponsor {
+    position: relative;
+  }
+}
+
+/* ========================================
+   20. HOVER MICRO-INTERACTIONS
+   ======================================== */
+
+/* 导航链接墨迹下划线 */
+@media screen and (min-width: 768px) {
+  .nav__link {
+    position: relative;
+  }
+
+  .nav__link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    width: 0;
+    height: 1.5px;
+    background: var(--cinnabar);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+  }
+
+  .nav__link:hover::after {
+    width: 100%;
+  }
+
+  .nav__link:hover {
+    color: var(--cinnabar) !important;
+  }
+}
+
+/* 图片 hover — 微妙的水墨滤镜 */
+.about__img-one,
+.about__img-two,
+.experience__img-one,
+.experience__img-two {
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.5s ease;
+}
+
+.about__img-one:hover,
+.about__img-two:hover {
+  filter: contrast(1.05) saturate(0.9);
+}
+
+/* ========================================
+   21. VIDEO SECTION
+   ======================================== */
+.video__description {
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+  line-height: 2;
+}
+
+.video__button {
+  background-color: var(--cinnabar) !important;
+  border-radius: 0 !important;
+}
+
+.video__button:hover {
+  background-color: var(--cinnabar-dim) !important;
+}
+
+/* ========================================
+   22. CARD INTERACTION ENHANCEMENTS
+   ======================================== */
+
+/* Discover 卡片 hover 增强 */
+.discover__card {
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.5s ease;
+}
+
+.discover__card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(28, 25, 23, 0.15);
+}
+
+.discover__card:hover .discover__img {
+  transform: scale(1.08);
+  filter: brightness(0.9) saturate(1.1);
+}
+
+/* Discover 卡片底部渐变 hover 加深 */
+.discover__card:hover::after {
+  background: linear-gradient(to top, rgba(28,25,23,0.85), transparent 70%);
+}
+
+/* Place 卡片 hover 描边效果 */
+.place__card {
+  border: 2px solid transparent;
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.place__card:hover {
+  border-color: var(--gold-light);
+  box-shadow: 0 12px 40px rgba(28, 25, 23, 0.15);
+}
+
+/* 按钮墨迹扩散效果 */
+.button {
+  position: relative;
+  overflow: hidden;
+}
+
+.button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.button:hover::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* ========================================
+   23. SECTION INK DIVIDERS
+   ======================================== */
+
+/* 水墨分隔线 — 各区域之间 */
+.about + .discover::before,
+.discover + .experience::before,
+.experience + .video::before,
+.video + .place::before,
+.place + .subscribe::before {
+  content: '◆';
+  display: block;
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--gold-ink);
+  opacity: 0.4;
+  letter-spacing: 1.5em;
+  margin-bottom: 1rem;
+}
+
+/* ========================================
+   24. INK DROP PARTICLES UPGRADE
+   ======================================== */
+
+/* 粒子改为不规则墨滴形状 */
+.particles span {
+  border-radius: 40% 60% 55% 45% / 50% 40% 60% 50%;
+  animation: float-up linear infinite, ink-morph 4s ease-in-out infinite;
+}
+
+.particles span:nth-child(odd) {
+  border-radius: 55% 45% 40% 60% / 45% 55% 50% 50%;
+  animation-delay: 0.5s;
+}
+
+@keyframes ink-morph {
+  0%, 100% { border-radius: 40% 60% 55% 45% / 50% 40% 60% 50%; }
+  25% { border-radius: 55% 45% 50% 50% / 40% 60% 45% 55%; }
+  50% { border-radius: 45% 55% 60% 40% / 55% 45% 50% 50%; }
+  75% { border-radius: 50% 50% 45% 55% / 60% 40% 55% 45%; }
+}
+
+/* ========================================
+   25. COUNTER ANIMATION
+   ======================================== */
+
+.experience__number {
+  transition: color 0.3s ease;
+}
+
+.experience__data:hover .experience__number {
+  color: var(--gold-ink);
+  text-shadow: 0 0 20px rgba(139,115,85,0.15);
+}
+
+/* ========================================
+   26. FOOTER ENHANCEMENT
+   ======================================== */
+
+.footer::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  background: var(--cinnabar);
+  margin: 0 auto 2rem;
+  opacity: 0.4;
+}
+
+/* ========================================
+   27. VIDEO SECTION UPGRADE
+   ======================================== */
+
+.video__content {
+  border: 1px solid rgba(28,25,23,0.06);
+  overflow: hidden;
+}
+
+.video__content video {
+  display: block;
+  width: 100%;
+}
+
+/* ========================================
+   28. SMOOTH SCROLL ENHANCEMENT
+   ======================================== */
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4rem;
+}
+
+/* ========================================
+   29. MOBILE PARTICLES DISABLE
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+  .particles {
+    display: none;
+  }
+}
+
+/* ========================================
+   30. DARK MODE COMPATIBILITY
+   ======================================== */
+
+body.dark-theme .ink-loader {
+  background: #1c1917;
+}
+
+body.dark-theme .ink-loader__text {
+  color: #e7e0d4;
+}
+
+body.dark-theme .ink-loader__drop {
+  background: #e7e0d4;
+}
+
+body.dark-theme .place__card:hover {
+  border-color: var(--cinnabar);
+}
+
+body.dark-theme .footer::before {
+  background: var(--cinnabar);
+  opacity: 0.3;
+}

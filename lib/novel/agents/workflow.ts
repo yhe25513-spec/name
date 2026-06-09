@@ -69,6 +69,7 @@ const ChapterState = Annotation.Root({
   allScores: Annotation<any>({ reducer: (_, prev) => prev, default: () => ({}) }),
   isApproved: Annotation<boolean>({ reducer: (_, prev) => prev, default: () => false }),
   status: Annotation<string>({ reducer: (_, prev) => prev, default: () => '' }),
+  styleConfig: Annotation<any>({ reducer: (_, prev) => prev, default: () => null }),
 
   // 流式输出用
   logs: Annotation<string[]>({

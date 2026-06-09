@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="shortcut icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍶</text></svg>">
+
+        <!--=============== REMIXICONS ===============-->
+        <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+        <!--=============== SWIPER CSS ===============-->
+        <link rel="stylesheet" href="assets/css/swiper-bundle.min.css">
+
+        <!--=============== BASE CSS (bedimcode original) ===============-->
+        <link rel="stylesheet" href="assets/css/styles.css">
+
+        <!--=============== AESTHETIC OVERLAY (泸州墨韵) ===============-->
+        <link rel="stylesheet" href="assets/css/aesthetic.css">
+
+        <!--=============== LOADING ANIMATION ===============-->
+        <link rel="stylesheet" href="assets/css/loading.css">
+
+        <title>泸州 — 中国酒城 · 醉美酒城</title>
+    </head>
+    <body>
+        <!-- 墨韵加载动画 -->
+        <div class="ink-loader" id="ink-loader">
+            <div class="ink-loader__drop"></div>
+            <div class="ink-loader__text">泸州</div>
+            <div class="ink-loader__sub">中国酒城 · 醉美酒城</div>
+        </div>
+        <!-- 轻量CSS粒子特效 -->
+        <div class="particles">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+        </div>
+
+        <header class="header" id="header">
+            <nav class="nav container">
+                <a href="#" class="nav__logo">🍶 泸州</a>
+
+                <div class="nav__menu" id="nav-menu">
+                    <ul class="nav__list">
+                        <li class="nav__item">
+                            <a href="#home" class="nav__link active-link">首页</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#about" class="nav__link">关于泸州</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#discover" class="nav__link">探索景点</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#place" class="nav__link">名酒美食</a>
+                        </li>
+                    </ul>
+
+                    <div class="nav__dark">
+                        <!-- Theme change button -->
+                        <span class="change-theme-name">Dark mode</span>
+                        <i class="ri-moon-line change-theme" id="theme-button"></i>
+                    </div>
+
+                    <i class="ri-close-line nav__close" id="nav-close"></i>
+                </div>
+
+                <div class="nav__toggle" id="nav-toggle">
+                    <i class="ri-function-line"></i>
+                </div>
+            </nav>
+        </header>
+
+        <main class="main">
+            <!--==================== HOME ====================-->
+            <section class="home" id="home">
+                <img src="assets/img/home1.jpg" alt="" class="home__img">
+
+                <div class="home__container container grid">
+                    <div class="home__data">
+                        <span class="home__data-subtitle">中国酒城 · 四川泸州</span>
+                        <h1 class="home__data-title">探索 <br> 醉美 <b>酒城 <br> 泸州</b></h1>
+                        <a href="#discover" class="button">开始探索</a>
+
+                    </div>
+
+                    <div class="home__social">
+                        <a href="https://www.luzhou.gov.cn" target="_blank" class="home__social-link">
+                            <i class="ri-government-fill"></i>
+                        </a>
+                        <a href="https://www.ctrip.com" target="_blank" class="home__social-link">
+                            <i class="ri-map-pin-fill"></i>
+                        </a>
+                        <a href="https://www.dianping.com" target="_blank" class="home__social-link">
+                            <i class="ri-restaurant-fill"></i>
+                        </a>
+                    </div>
+
+                    <div class="home__info">
+                        <div>
+                            <span class="home__info-title">2100年建城历史</span>
+                            <a href="#about" class="button button--flex button--link home__info-button">
+                                了解更多 <i class="ri-arrow-right-line"></i>
+                            </a>
+                        </div>
+
+                        <div class="home__info-overlay">
+                            <img src="assets/img/home2.jpg" alt="" class="home__info-img">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!--==================== ABOUT ====================-->
+            <section class="about section" id="about">
+                <div class="about__container container grid">
+                    <div class="about__data">
+                        <h2 class="section__title about__title">千年酒城 <br> 醉美泸州</h2>
+                        <p class="about__description">泸州地处四川盆地南缘，长江与沱江在此交汇。自西汉设江阳郡以来，已有两千余年建城史。这里是中国唯一的"酒城"——国窖1573、泸州老窖、郎酒的故乡。走进泸州，品一杯千年窖藏的醇香，听一段长江边的古老传说。
+                        </p>
+                        <a href="#discover" class="button">探索泸州</a>
+                    </div>
+
+                    <div class="about__img">
+                        <div class="about__img-overlay">
+                            <img src="assets/img/about1.jpg" alt="" class="about__img-one">
+                        </div>
+
+                        <div class="about__img-overlay">
+                            <img src="assets/img/about2.jpg" alt="" class="about__img-two">
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!--==================== DISCOVER ====================-->
+            <section class="discover section" id="discover">
+                <h2 class="section__title">探索泸州 <br> 最美景点</h2>
+
+                <div class="discover__container container swiper-container">
+                    <div class="swiper-wrapper">
+                        <!--==================== DISCOVER 1 ====================-->
+                        <div class="discover__card swiper-slide">
+                            <img src="assets/img/discover1.jpg" alt="" class="discover__img">
+                            <div class="discover__data">
+                                <h2 class="discover__title">国窖1573</h2>
+                                <span class="discover__description">450年国宝窖池</span>
+                            </div>
+                        </div>
+
+                        <!--==================== DISCOVER 2 ====================-->
+                        <div class="discover__card swiper-slide">
+                            <img src="assets/img/discover2.jpg" alt="" class="discover__img">
+                            <div class="discover__data">
+                                <h2 class="discover__title">佛宝古镇</h2>
+                                <span class="discover__description">千年川南明珠</span>
+                            </div>
+                        </div>
+
+                        <!--==================== DISCOVER 3 ====================-->
+                        <div class="discover__card swiper-slide">
+                            <img src="assets/img/discover3.jpg" alt="" class="discover__img">
+                            <div class="discover__data">
+                                <h2 class="discover__title">黄荆老林</h2>
+                                <span class="discover__description">北纬28°原始森林</span>
+                            </div>
+                        </div>
+
+                        <!--==================== DISCOVER 4 ====================-->
+                        <div class="discover__card swiper-slide">
+                            <img src="assets/img/discover4.jpg" alt="" class="discover__img">
+                            <div class="discover__data">
+                                <h2 class="discover__title">太平古镇</h2>
+                                <span class="discover__description">红色文化胜地</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!--==================== EXPERIENCE ====================-->
+            <section class="experience section">
+                <h2 class="section__title">泸州数据 <br> 一眼千年</h2>
+
+                <div class="experience__container container grid">
+                    <div class="experience__content grid">
+                        <div class="experience__data">
+                            <h2 class="experience__number">2100</h2>
+                            <span class="experience__description">年 <br> 建城历史</span>
+                        </div>
+
+                        <div class="experience__data">
+                            <h2 class="experience__number">450</h2>
+                            <span class="experience__description">年 <br> 不间断酿造</span>
+                        </div>
+
+                        <div class="experience__data">
+                            <h2 class="experience__number">437万</h2>
+                            <span class="experience__description">常住 <br> 人口</span>
+                        </div>
+                    </div>
+
+                    <div class="experience__img grid">
+                        <div class="experience__overlay">
+                            <img src="assets/img/experience1.jpg" alt="" class="experience__img-one">
+                        </div>
+                        
+                        <div class="experience__overlay">
+                            <img src="assets/img/experience2.jpg" alt="" class="experience__img-two">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!--==================== VIDEO ====================-->
+            <section class="video section">
+                <h2 class="section__title">酒城印象</h2>
+
+                <div class="video__container container">
+                    <p class="video__description">泸州，一座因酒而名、因江而兴的千年古城。长江与沱江在此交汇，千年窖池飘出的酒香弥漫全城。
+                    </p>
+
+                    <div class="video__content">
+                        <video id="video-file">
+                            <source src="assets/video/video.mp4" type="video/mp4">
+                        </video>
+
+                        <button class="button button--flex video__button" id="video-button">
+                            <i class="ri-play-line video__button-icon" id="video-icon"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!--==================== PLACES ====================-->
+            <section class="place section" id="place">
+                <h2 class="section__title">名酒与美食</h2>
+
+                <div class="place__container container grid">
+                    <!--==================== PLACES CARD 1 ====================-->
+                    <div class="place__card">
+                        <img src="assets/img/place1.jpg" alt="" class="place__img">
+
+                        <div class="place__content">
+                            <span class="place__rating">
+                                <i class="ri-star-line place__rating-icon"></i>
+                                <span class="place__rating-number">国窖</span>
+                            </span>
+
+                            <div class="place__data">
+                                <h3 class="place__title">国窖1573</h3>
+                                <span class="place__subtitle">中国白酒鉴赏</span>
+                                <span class="place__price">始于1573年</span>
+                            </div>
+                        </div>
+
+                        <button class="button button--flex place__button">
+                            <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </div>
+
+                    <!--==================== PLACES CARD 2 ====================-->
+                    <div class="place__card">
+                        <img src="assets/img/place2.jpg" alt="" class="place__img">
+
+                        <div class="place__content">
+                            <span class="place__rating">
+                                <i class="ri-star-line place__rating-icon"></i>
+                                <span class="place__rating-number">老窖</span>
+                            </span>
+
+                            <div class="place__data">
+                                <h3 class="place__title">泸州老窖</h3>
+                                <span class="place__subtitle">浓香型白酒鼻祖</span>
+                                <span class="place__price">国家级非遗</span>
+                            </div>
+                        </div>
+
+                        <button class="button button--flex place__button">
+                            <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </div>
+
+                    <!--==================== PLACES CARD 3 ====================-->
+                    <div class="place__card">
+                        <img src="assets/img/place3.jpg" alt="" class="place__img">
+
+                        <div class="place__content">
+                            <span class="place__rating">
+                                <i class="ri-star-line place__rating-icon"></i>
+                                <span class="place__rating-number">郎酒</span>
+                            </span>
+
+                            <div class="place__data">
+                                <h3 class="place__title">青花郎</h3>
+                                <span class="place__subtitle">中国两大酱香白酒之一</span>
+                                <span class="place__price">赤水河畔</span>
+                            </div>
+                        </div>
+
+                        <button class="button button--flex place__button">
+                            <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </div>
+
+                    <!--==================== PLACES CARD 4 ====================-->
+                    <div class="place__card">
+                        <img src="assets/img/place4.jpg" alt="" class="place__img">
+
+                        <div class="place__content">
+                            <span class="place__rating">
+                                <i class="ri-star-line place__rating-icon"></i>
+                                <span class="place__rating-number">美食</span>
+                            </span>
+
+                            <div class="place__data">
+                                <h3 class="place__title">泸州白糕</h3>
+                                <span class="place__subtitle">米香浓郁 · 入口即化</span>
+                                <span class="place__price">百年老字号</span>
+                            </div>
+                        </div>
+
+                        <button class="button button--flex place__button">
+                            <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </div>
+
+                    <!--==================== PLACES CARD 5 ====================-->
+                    <div class="place__card">
+                        <img src="assets/img/place5.jpg" alt="" class="place__img">
+
+                        <div class="place__content">
+                            <span class="place__rating">
+                                <i class="ri-star-line place__rating-icon"></i>
+                                <span class="place__rating-number">特产</span>
+                            </span>
+
+                            <div class="place__data">
+                                <h3 class="place__title">古蔺麻辣鸡</h3>
+                                <span class="place__subtitle">麻辣鲜香 · 回味无穷</span>
+                                <span class="place__price">川南名小吃</span>
+                            </div>
+                        </div>
+
+                        <button class="button button--flex place__button">
+                            <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!--==================== SUBSCRIBE ====================-->
+            <section class="subscribe section">
+                <div class="subscribe__bg">
+                    <div class="subscribe__container container">
+                        <h2 class="section__title subscribe__title">走进酒城 <br> 品味泸州</h2>
+                        <p class="subscribe__description">从国窖1573的醇香到长江边的江风，从佛宝古镇的青石板到黄荆老林的原始秘境——泸州，等你来发现。
+                        </p>
+
+                        <form action="" class="subscribe__form">
+                            <input type="text" placeholder="输入你想了解的内容" class="subscribe__input">
+
+                            <button class="button">
+                                搜索
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+            
+            <!--==================== SPONSORS ====================-->
+            <section class="sponsor section">
+                <div class="sponsor__container container grid">
+                    <div class="sponsor__content">
+                        <img src="assets/img/sponsors1.png" alt="" class="sponsor__img">
+                    </div>
+                    <div class="sponsor__content">
+                        <img src="assets/img/sponsors2.png" alt="" class="sponsor__img">
+                    </div>
+                    <div class="sponsor__content">
+                        <img src="assets/img/sponsors3.png" alt="" class="sponsor__img">
+                    </div>
+                    <div class="sponsor__content">
+                        <img src="assets/img/sponsors4.png" alt="" class="sponsor__img">
+                    </div>
+                    <div class="sponsor__content">
+                        <img src="assets/img/sponsors5.png" alt="" class="sponsor__img">
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!--==================== FOOTER ====================-->
+        <footer class="footer section">
+            <div class="footer__container container grid">
+                <div class="footer__content grid">
+                    <div class="footer__data">
+                        <h3 class="footer__title">🍶 泸州</h3>
+                        <p class="footer__description">中国酒城 · 醉美泸州<br>长江与沱江交汇处的千年古城
+                        </p>
+                        <div>
+                            <a href="https://www.luzhou.gov.cn" target="_blank" class="footer__social">
+                                <i class="ri-government-fill"></i>
+                            </a>
+                            <a href="https://www.baidu.com" target="_blank" class="footer__social">
+                                <i class="ri-search-line"></i>
+                            </a>
+                            <a href="https://www.dianping.com" target="_blank" class="footer__social">
+                                <i class="ri-restaurant-fill"></i>
+                            </a>
+                            <a href="https://www.ctrip.com" target="_blank" class="footer__social">
+                                <i class="ri-map-pin-fill"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="footer__data">
+                        <h3 class="footer__subtitle">著名景点</h3>
+                        <ul>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=泸州国窖1573旅游区" target="_blank" class="footer__link">国窖1573旅游区</a></li>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=泸州佛宝古镇" target="_blank" class="footer__link">佛宝古镇</a></li>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=泸州黄荆老林" target="_blank" class="footer__link">黄荆老林</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="footer__data">
+                        <h3 class="footer__subtitle">名酒佳酿</h3>
+                        <ul>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=国窖1573官网" target="_blank" class="footer__link">国窖1573</a></li>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=泸州老窖官网" target="_blank" class="footer__link">泸州老窖特曲</a></li>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=青花郎官网" target="_blank" class="footer__link">青花郎</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="footer__data">
+                        <h3 class="footer__subtitle">非遗文化</h3>
+                        <ul>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=泸州雨坛彩龙" target="_blank" class="footer__link">泸州雨坛彩龙</a></li>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=泸州分水油纸伞" target="_blank" class="footer__link">分水油纸伞</a></li>
+                            <li class="footer__item"><a href="https://www.baidu.com/s?wd=古蔺花灯" target="_blank" class="footer__link">古蔺花灯</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="footer__rights">
+                    <p class="footer__copy">&#169; 2026 泸州 — 中国酒城. 基于 bedimcode 开源项目制作.</p>
+                    <div class="footer__terms">
+                        <a href="#" class="footer__terms-link">泸州市人民政府</a>
+                        <a href="#" class="footer__terms-link">百度百科 · 泸州</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+         <!--========== SCROLL UP ==========-->
+        <a href="#" class="scrollup" id="scroll-up">
+            <i class="ri-arrow-up-line scrollup__icon"></i>
+        </a>
+
+        <!--=============== SCROLL REVEAL===============-->
+        <script src="assets/js/scrollreveal.min.js"></script>
+        
+        <!--=============== SWIPER JS ===============-->
+        <script src="assets/js/swiper-bundle.min.js"></script>
+
+        <!--=============== MAIN JS ===============-->
+        <script src="assets/js/main.js"></script>
+
+        <!--=============== LOADING JS ===============-->
+        <script src="assets/js/loading.js"></script>
+    </body>
+</html>

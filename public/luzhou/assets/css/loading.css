@@ -1,0 +1,92 @@
+/*
+ * 墨韵加载动画 — 墨滴扩散 + 书法字显现
+ */
+
+.ink-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #f5f0e6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+.ink-loader.loaded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 墨滴 */
+.ink-loader__drop {
+  width: 12px;
+  height: 12px;
+  background: #1c1917;
+  border-radius: 50%;
+  animation: ink-expand 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  position: relative;
+}
+
+/* 墨滴扩散后的光晕 */
+.ink-loader__drop::after {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(28,25,23,0.08) 0%, transparent 70%);
+  animation: ink-glow 1.2s ease forwards;
+}
+
+/* 书法字 */
+.ink-loader__text {
+  font-family: 'Ma Shan Zheng', 'ZCOOL XiaoWei', serif;
+  font-size: 3rem;
+  color: #1c1917;
+  letter-spacing: 0.3em;
+  margin-top: 1.5rem;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: text-reveal 0.8s ease 0.6s forwards;
+}
+
+/* 副标题 */
+.ink-loader__sub {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 0.8rem;
+  color: #8b7355;
+  letter-spacing: 0.4em;
+  margin-top: 0.5rem;
+  opacity: 0;
+  animation: text-reveal 0.6s ease 1s forwards;
+}
+
+@keyframes ink-expand {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(30);
+    opacity: 0;
+  }
+}
+
+@keyframes ink-glow {
+  0% { opacity: 0; transform: scale(0.5); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: scale(2); }
+}
+
+@keyframes text-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

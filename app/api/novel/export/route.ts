@@ -35,11 +35,18 @@ export async function GET(req: NextRequest) {
 
     // EPUB 格式
     if (format === 'epub') {
+      const chapterData = chapters.map(ch => ({
+        title: ch.title || `第${ch.chapter_num}章`,
+        data: `<h2>${ch.title || `第${ch.chapter_num}章`}</h2>` +
+          (ch.content || '').split('\n\n').map((p: string) => `<p>${p.trim()}</p>`).join('\n'),
+      }))
+
       const option = {
         title: novel.title,
         author: 'AI Novel Studio',
         publisher: 'AI Novel Studio',
         description: novel.soul?.reader_promise || `${novel.genre}小说`,
+        content: chapterData,
         css: `
           body { font-family: "Noto Serif SC", "Source Han Serif SC", serif; line-height: 1.8; margin: 1em; }
           h1 { text-align: center; margin: 2em 0 1em; }
@@ -47,12 +54,6 @@ export async function GET(req: NextRequest) {
           p { text-indent: 2em; margin: 0.5em 0; }
         `,
       }
-
-      const chapterData = chapters.map(ch => ({
-        title: ch.title || `第${ch.chapter_num}章`,
-        data: `<h2>${ch.title || `第${ch.chapter_num}章`}</h2>` +
-          (ch.content || '').split('\n\n').map(p => `<p>${p.trim()}</p>`).join('\n'),
-      }))
 
       const epub = new EPub(option, `/tmp/${novel.title}.epub`)
       await epub.render()

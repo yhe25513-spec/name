@@ -770,7 +770,7 @@ function EditorView({ novelId }: { novelId: string }) {
                       return
                     }
                     if (btn.mode === 'style') {
-                      const style = prompt('请输入目标风格（如：轻松幽默、热血爽文、悬疑紧张、文艺清新）：')
+                      const style = window.prompt('请输入目标风格（如：轻松幽默、热血爽文、悬疑紧张、文艺清新）：')
                       if (!style) return
                       generateWithMode('style', style)
                     } else if (btn.mode === 'rewrite') {
