@@ -72,6 +72,9 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [showLimitDialog, setShowLimitDialog] = useState(false)
+  const [videoImageFile, setVideoImageFile] = useState<File | null>(null)
+  const [videoImagePreview, setVideoImagePreview] = useState('')
+  const [uploading, setUploading] = useState(false)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
@@ -130,6 +133,62 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : '下载失败'
       toast.error('下载失败', { description: msg })
+    }
+  }
+
+  // 处理视频图片上传
+  function handleVideoImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      toast.error('请选择图片文件')
+      return
+    }
+
+    // 验证文件大小（最大 5MB）
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('图片大小不能超过 5MB')
+      return
+    }
+
+    setVideoImageFile(file)
+    setVideoImagePreview(URL.createObjectURL(file))
+  }
+
+  // 清除选择的图片
+  function clearVideoImage() {
+    setVideoImageFile(null)
+    setVideoImagePreview('')
+  }
+
+  // 上传图片到 Supabase Storage 并获取 URL
+  async function uploadVideoImage(): Promise<string | null> {
+    if (!videoImageFile) return null
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', videoImageFile)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (res.ok && data.url) {
+        return data.url
+      } else {
+        throw new Error(data.error || '上传失败')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '上传失败'
+      toast.error('图片上传失败', { description: msg })
+      return null
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -269,10 +328,31 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         }
       } else {
         // 视频生成（异步提交 + 轮询）
+        let imageUrl: string | undefined
+
+        // 如果有参考图片，先上传到服务器
+        if (videoImageFile) {
+          setPollingStatus('正在上传图片...')
+          imageUrl = (await uploadVideoImage()) || undefined
+          if (videoImageFile && !imageUrl) {
+            // 上传失败，停止生成
+            setGenerating(false)
+            return
+          }
+        }
+
+        const requestBody: Record<string, string> = {
+          prompt: prompt.trim(),
+          size: RATIO_SIZE[ratio],
+        }
+        if (imageUrl) {
+          requestBody.image_url = imageUrl
+        }
+
         const res = await fetch('/api/generate-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt.trim(), size: RATIO_SIZE[ratio] }),
+          body: JSON.stringify(requestBody),
         })
         const data = await res.json()
         if (res.ok && data.request_id) {
@@ -395,6 +475,49 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
             </div>
           </div>
         </div>
+
+        {/* 参考图片上传 - 仅视频模式 */}
+        {mode === 'video' && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-[var(--text-secondary)]">参考图片（可选，用于图生视频）</span>
+              {videoImagePreview && (
+                <button
+                  onClick={clearVideoImage}
+                  className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                >
+                  清除图片
+                </button>
+              )}
+            </div>
+            {videoImagePreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={videoImagePreview}
+                  alt="参考图片"
+                  className="w-32 h-32 object-cover rounded-lg border border-[var(--border)]"
+                />
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                    <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-purple-500/50 transition-colors">
+                <ImageIcon className="w-8 h-8 text-[var(--text-muted)] mb-2" />
+                <span className="text-sm text-[var(--text-muted)]">点击上传图片</span>
+                <span className="text-xs text-zinc-600 mt-1">支持 JPG、PNG，最大 5MB</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleVideoImageSelect}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+        )}
 
         {/* 风格选择 - 仅图片模式 */}
         {mode === 'image' && (

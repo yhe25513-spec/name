@@ -31,9 +31,11 @@ export async function POST(req: NextRequest) {
   }
 
   let prompt: string
+  let imageUrl: string | undefined
   try {
     const body = await req.json()
     prompt = body.prompt
+    imageUrl = body.image_url // 可选：图生视频的参考图片URL
   } catch {
     return NextResponse.json({ error: '请求格式错误' }, { status: 400 })
   }
@@ -83,6 +85,21 @@ export async function POST(req: NextRequest) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 60000)
 
+    // 构建请求体
+    const requestBody: Record<string, unknown> = {
+      model: modelName,
+      prompt: prompt,
+      width: 1152,
+      height: 768,
+      num_frames: 121,
+      frame_rate: 24,
+    }
+
+    // 如果有参考图片，添加到请求中（图生视频）
+    if (imageUrl) {
+      requestBody.image = imageUrl
+    }
+
     const response = await fetch(AGNES_VIDEO_API, {
       signal: controller.signal,
       method: 'POST',
@@ -90,14 +107,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: modelName,
-        prompt: prompt,
-        width: 1152,
-        height: 768,
-        num_frames: 121,
-        frame_rate: 24,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     clearTimeout(timeout)
