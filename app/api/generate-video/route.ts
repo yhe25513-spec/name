@@ -1,20 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
-const SILICONFLOW_API = 'https://api.siliconflow.cn/v1/video/submit'
-
-// 将通用尺寸映射为视频 API 支持的尺寸
-const VIDEO_SIZE_MAP: Record<string, string> = {
-  '1024x1024': '960x960',
-  '576x1024': '720x1280',
-  '1024x576': '1280x720',
-  '768x1024': '720x1280',
-  '1024x768': '1280x720',
-}
-
-function toVideoSize(size: string): string {
-  return VIDEO_SIZE_MAP[size] || size
-}
+const AGNES_VIDEO_API = 'https://apihub.agnes-ai.com/v1/videos'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -23,18 +10,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '请先登录' }, { status: 401 })
   }
 
-  // 仅管理员可用
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: '仅管理员可用' }, { status: 403 })
+  // 获取用户角色和每日视频次数
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, daily_video_count, daily_video_date')
+    .eq('id', user.id)
+    .single()
+  const isAdmin = profile?.role === 'admin'
+
+  // 普通用户每日视频次数限制
+  if (!isAdmin) {
+    const today = new Date().toISOString().slice(0, 10)
+    const count = profile?.daily_video_date === today ? (profile?.daily_video_count || 0) : 0
+    if (count >= 1) {
+      return NextResponse.json(
+        { error: '今日视频生成次数达到上限，明天再来吧' },
+        { status: 429 }
+      )
+    }
   }
 
   let prompt: string
-  let size = '1024x1024'
   try {
     const body = await req.json()
     prompt = body.prompt
-    if (body.size) size = body.size
   } catch {
     return NextResponse.json({ error: '请求格式错误' }, { status: 400 })
   }
@@ -44,32 +43,47 @@ export async function POST(req: NextRequest) {
   }
 
   // 获取 API key
-  let apiKey = process.env.SILICONFLOW_API_KEY || ''
+  const adminSupabase = await createAdminClient()
+  let apiKey = process.env.AGNES_API_KEY || ''
+  let modelName = process.env.AGNES_VIDEO_MODEL || 'agnes-video-v2.0'
+
   if (!apiKey) {
     try {
-      const adminSupabase = await createAdminClient()
       const { data: config } = await adminSupabase
         .from('ai_configs')
-        .select('api_key')
-        .eq('provider', 'siliconflow')
+        .select('api_key, model')
+        .eq('provider', 'agnes')
         .limit(1)
         .single()
-      if (config?.api_key) apiKey = config.api_key.trim()
+      if (config?.api_key) {
+        apiKey = config.api_key.trim()
+        if (config.model) modelName = config.model
+      }
     } catch { /* ignore */ }
   }
 
   if (!apiKey) {
     return NextResponse.json(
-      { error: '未配置 SiliconFlow API Key' },
+      { error: '未配置 Agnes AI API Key。请在 AI 配置中创建 provider 为 agnes 的配置' },
       { status: 400 }
     )
   }
 
+  // 先更新计数，如果生成失败再回滚
+  const today = new Date().toISOString().slice(0, 10)
+  if (!isAdmin) {
+    const newCount = profile?.daily_video_date === today ? (profile?.daily_video_count || 0) + 1 : 1
+    await adminSupabase.from('profiles').update({
+      daily_video_count: newCount,
+      daily_video_date: today,
+    }).eq('id', user.id)
+  }
+
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30000)
+    const timeout = setTimeout(() => controller.abort(), 60000)
 
-    const response = await fetch(SILICONFLOW_API, {
+    const response = await fetch(AGNES_VIDEO_API, {
       signal: controller.signal,
       method: 'POST',
       headers: {
@@ -77,15 +91,26 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'Wan-AI/Wan2.2-T2V-A14B',
+        model: modelName,
         prompt: prompt,
-        image_size: toVideoSize(size),
+        width: 1152,
+        height: 768,
+        num_frames: 121,
+        frame_rate: 24,
       }),
     })
 
     clearTimeout(timeout)
 
     if (!response.ok) {
+      // API 失败 → 回滚计数
+      if (!isAdmin) {
+        const rollbackCount = profile?.daily_video_date === today ? (profile?.daily_video_count || 0) : 0
+        await adminSupabase.from('profiles').update({
+          daily_video_count: rollbackCount,
+          daily_video_date: profile?.daily_video_date || '',
+        }).eq('id', user.id)
+      }
       const errText = await response.text()
       return NextResponse.json(
         { error: `视频生成提交失败 (${response.status})`, detail: errText },
@@ -94,17 +119,36 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json()
-    const requestId = data.requestId
+    const taskId = data.id
+    const videoId = data.video_id
 
-    if (!requestId) {
+    if (!taskId && !videoId) {
+      // 无任务 ID → 回滚计数
+      if (!isAdmin) {
+        const rollbackCount = profile?.daily_video_date === today ? (profile?.daily_video_count || 0) : 0
+        await adminSupabase.from('profiles').update({
+          daily_video_count: rollbackCount,
+          daily_video_date: profile?.daily_video_date || '',
+        }).eq('id', user.id)
+      }
       return NextResponse.json(
         { error: 'AI 未返回任务 ID' },
         { status: 502 }
       )
     }
 
-    return NextResponse.json({ request_id: requestId, requestId })
+    // 使用 video_id 作为轮询 ID（Agnes 推荐方式）
+    const pollingId = videoId || taskId
+    return NextResponse.json({ request_id: pollingId, video_id: videoId })
   } catch (err) {
+    // 异常 → 回滚计数
+    if (!isAdmin) {
+      const rollbackCount = profile?.daily_video_date === today ? (profile?.daily_video_count || 0) : 0
+      await adminSupabase.from('profiles').update({
+        daily_video_count: rollbackCount,
+        daily_video_date: profile?.daily_video_date || '',
+      }).eq('id', user.id)
+    }
     const msg = err instanceof Error ? err.message : '未知错误'
     return NextResponse.json({ error: `视频生成提交失败: ${msg}` }, { status: 500 })
   }

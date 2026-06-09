@@ -59,7 +59,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const searchParams = useSearchParams()
   const [mode, setMode] = useState<Mode>(() => {
     const param = searchParams.get('mode') as Mode
-    return param === 'video' && !isAdmin ? 'image' : (param || 'image')
+    return (param as Mode) || 'image'
   })
   const [prompt, setPrompt] = useState('')
   const [style, setStyle] = useState<Style>('奇幻')
@@ -268,12 +268,6 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           setGenerating(false)
         }
       } else {
-        if (mode === 'video' && !isAdmin) {
-          toast.error('视频生成功能仅管理员可用')
-          setGenerating(false)
-          return
-        }
-
         // 视频生成（异步提交 + 轮询）
         const res = await fetch('/api/generate-video', {
           method: 'POST',
@@ -282,7 +276,9 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         })
         const data = await res.json()
         if (res.ok && data.request_id) {
-          pollVideoStatus(data.request_id, prompt.trim(), style)
+          // Agnes 使用 video_id 进行状态轮询
+          const pollingId = data.video_id || data.request_id
+          pollVideoStatus(pollingId, prompt.trim(), style)
         } else {
           toast.error('提交失败', { description: data.error || '请检查 API 配置' })
           setGenerating(false)
@@ -296,11 +292,6 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
 
   // 从历史记录恢复
   function restoreFromHistory(item: HistoryItem) {
-    // 非管理员不能恢复视频记录
-    if (item.mode === 'video' && !isAdmin) {
-      toast.error('视频生成功能仅管理员可用')
-      return
-    }
     setPrompt(item.prompt)
     setStyle(item.style)
     setResultUrl(item.url)
@@ -361,25 +352,17 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
               图片生成
             </button>
             <button
-              onClick={() => { if (isAdmin && mode !== 'video') { setMode('video'); setResultUrl('') } }}
-              disabled={!isAdmin}
+              onClick={() => { if (mode !== 'video') { setMode('video'); setResultUrl('') } }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 mode === 'video'
                   ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm border border-[var(--border)]'
-                  : !isAdmin
-                    ? 'text-zinc-600 cursor-not-allowed'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               <Video className="w-4 h-4" />
               视频生成
             </button>
           </div>
-          {!isAdmin && (
-            <p className="text-[11px] text-zinc-600 text-center">
-              视频生成功能暂不开放，敬请期待
-            </p>
-          )}
         </div>
 
         {/* 提示词输入区 */}
