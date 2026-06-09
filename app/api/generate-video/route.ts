@@ -45,19 +45,19 @@ export async function POST(req: NextRequest) {
   // 获取 API key
   const adminSupabase = await createAdminClient()
   let apiKey = process.env.AGNES_API_KEY || ''
-  let modelName = process.env.AGNES_VIDEO_MODEL || 'agnes-video-v2.0'
+  // 视频使用固定的模型名称，不从配置中读取模型名
+  let modelName = 'agnes-video-v2.0'
 
   if (!apiKey) {
     try {
       const { data: config } = await adminSupabase
         .from('ai_configs')
-        .select('api_key, model')
+        .select('api_key')
         .eq('provider', 'agnes')
         .limit(1)
         .single()
       if (config?.api_key) {
         apiKey = config.api_key.trim()
-        if (config.model) modelName = config.model
       }
     } catch { /* ignore */ }
   }
