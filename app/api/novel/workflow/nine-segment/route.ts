@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { supabase } from '@/lib/novel/store'
-import { getCurrentConfig, parseJsonFromLLM as parseJson } from '@/lib/novel/ai-config'
+import { getCurrentConfig, parseJsonFromLLM as parseJson, resolveAIConfig, applyAIConfigTemporarily } from '@/lib/novel/ai-config'
 import { requireNovelOwnership } from '@/lib/novel/auth'
 
 function getLLM() {
@@ -259,20 +259,9 @@ export async function POST(req: NextRequest) {
       if (authError) return authError
     }
 
-    // 设置客户端传来的 AI 配置（在调用 LLM 前一次性设置）
-    if (aiSettings?.provider) process.env.AI_PROVIDER = aiSettings.provider
-    if (aiSettings?.apiKey) {
-      process.env.AI_API_KEY = aiSettings.apiKey
-      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
-    }
-    if (aiSettings?.baseUrl) {
-      process.env.AI_BASE_URL = aiSettings.baseUrl
-      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
-    }
-    if (aiSettings?.model) {
-      process.env.AI_MODEL = aiSettings.model
-      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
-    }
+    // 安全解析 AI 配置（临时应用，请求结束后自动恢复）
+    const aiConfig = resolveAIConfig(aiSettings)
+    const restoreConfig = applyAIConfigTemporarily(aiConfig)
 
     const systemPrompt = STAGE_SYSTEM_PROMPTS[stage]
     if (!systemPrompt) {
@@ -310,5 +299,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
+  } finally {
+    restoreConfig?.()
   }
 }

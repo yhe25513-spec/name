@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/novel/store'
-import { callAI, extractJson, getCurrentConfig } from '@/lib/novel/ai-config'
+import { callAI, extractJson, getCurrentConfig, resolveAIConfig, applyAIConfigTemporarily } from '@/lib/novel/ai-config'
 import { requireNovelOwnership } from '@/lib/novel/auth'
 
 // ========== 设定文件识别 ==========
@@ -331,20 +331,9 @@ export async function POST(req: NextRequest) {
     const { error: authError } = await requireNovelOwnership(req, novelId)
     if (authError) return authError
 
-    // 设置 AI 配置
-    if (aiProvider) process.env.AI_PROVIDER = aiProvider
-    if (aiApiKey) {
-      process.env.AI_API_KEY = aiApiKey
-      process.env[`${aiProvider?.toUpperCase()}_API_KEY`] = aiApiKey
-    }
-    if (aiBaseUrl) {
-      process.env.AI_BASE_URL = aiBaseUrl
-      process.env[`${aiProvider?.toUpperCase()}_BASE_URL`] = aiBaseUrl
-    }
-    if (aiModel) {
-      process.env.AI_MODEL = aiModel
-      process.env[`${aiProvider?.toUpperCase()}_MODEL`] = aiModel
-    }
+    // 安全解析 AI 配置（临时应用，请求结束后自动恢复）
+    const aiConfig = resolveAIConfig({ provider: aiProvider, apiKey: aiApiKey, baseUrl: aiBaseUrl, model: aiModel })
+    const restoreConfig = applyAIConfigTemporarily(aiConfig)
 
     console.log(`Import started: ${files.length} files, novelId=${novelId}, analyze=${analyzeWithAI}`)
 
@@ -639,6 +628,8 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     console.error('Import error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })
+  } finally {
+    restoreConfig?.()
   }
 }
 
@@ -708,10 +699,8 @@ export async function GET(req: NextRequest) {
       const aiApiKey = req.nextUrl.searchParams.get('aiApiKey')
       const aiBaseUrl = req.nextUrl.searchParams.get('aiBaseUrl')
       const aiModel = req.nextUrl.searchParams.get('aiModel')
-      if (aiProvider) process.env.AI_PROVIDER = aiProvider
-      if (aiApiKey) process.env[`${aiProvider?.toUpperCase()}_API_KEY`] = aiApiKey
-      if (aiBaseUrl) process.env[`${aiProvider?.toUpperCase()}_BASE_URL`] = aiBaseUrl
-      if (aiModel) process.env[`${aiProvider?.toUpperCase()}_MODEL`] = aiModel
+      const aiConfig = resolveAIConfig({ provider: aiProvider || undefined, apiKey: aiApiKey || undefined, baseUrl: aiBaseUrl || undefined, model: aiModel || undefined })
+      const restoreConfig = applyAIConfigTemporarily(aiConfig)
 
       const { data: chapters } = await supabase.from('chapters')
         .select('chapter_num, title, content')
@@ -850,6 +839,8 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     console.error('Import GET error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })
+  } finally {
+    restoreConfig?.()
   }
 }
 

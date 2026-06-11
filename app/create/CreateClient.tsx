@@ -67,7 +67,7 @@ const DURATION_LABELS: Record<Duration, string> = {
 
 const HISTORY_KEY = 'create-history'
 const POLL_INTERVAL = 2000
-const MAX_POLL_TIME = 300000 // 5 分钟超时（视频 URL 10 分钟后过期）
+const MAX_POLL_TIME = 1800000 // 30 分钟超时
 
 export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const router = useRouter()
@@ -125,7 +125,21 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     toast.success('历史已清空')
   }
 
-  // 下载文件（通过服务端代理绕过 CORS）
+  // 删除单条历史
+  const deleteHistoryItem = (id: string) => {
+    setHistory(prev => {
+      const updated = prev.filter(item => item.id !== id)
+      if (updated.length === 0) {
+        localStorage.removeItem(HISTORY_KEY)
+      } else {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(updated))
+      }
+      return updated
+    })
+    toast.success('已删除')
+  }
+
+  // 下载文件（通过服务端代理绕过 CORS，兼容手机浏览器）
   async function handleDownload(url: string) {
     try {
       toast.success('正在准备下载...')
@@ -139,15 +153,35 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         throw new Error(err.error)
       }
       const blob = await res.blob()
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      // 从 Content-Disposition 头提取文件名，或使用默认名
       const disposition = res.headers.get('Content-Disposition')
       const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
-      a.download = filenameMatch?.[1] || `ai-创作-${Date.now()}.mp4`
-      a.click()
-      URL.revokeObjectURL(a.href)
-      toast.success('下载完成')
+      const filename = filenameMatch?.[1] || `ai-创作-${Date.now()}.mp4`
+
+      // 检测是否为移动设备
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+      if (isMobile) {
+        // 手机：打开 blob URL 让浏览器原生处理（用户可长按保存）
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.target = '_blank'
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        // 延迟释放，给浏览器时间处理
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+        toast.success('已打开文件，请长按保存到相册')
+      } else {
+        // 桌面：用传统 a.download 方式
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(a.href)
+        toast.success('下载完成')
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '下载失败'
       toast.error('下载失败', { description: msg })
@@ -349,14 +383,27 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
             })
             if (downloadRes.ok) {
               const blob = await downloadRes.blob()
-              const a = document.createElement('a')
-              a.href = URL.createObjectURL(blob)
-              const disposition = downloadRes.headers.get('Content-Disposition')
-              const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
-              a.download = filenameMatch?.[1] || `ai-视频-${Date.now()}.mp4`
-              a.click()
-              URL.revokeObjectURL(a.href)
-              toast.success('视频已保存到本地')
+              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+              if (isMobile) {
+                const blobUrl = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = blobUrl
+                a.target = '_blank'
+                a.rel = 'noopener'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+                toast.success('已打开文件，请长按保存到相册')
+              } else {
+                const a = document.createElement('a')
+                a.href = URL.createObjectURL(blob)
+                const disposition = downloadRes.headers.get('Content-Disposition')
+                const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
+                a.download = filenameMatch?.[1] || `ai-视频-${Date.now()}.mp4`
+                a.click()
+                URL.revokeObjectURL(a.href)
+                toast.success('视频已保存到本地')
             } else {
               toast.error('自动下载失败，请手动点击下载按钮', {
                 description: '链接 10 分钟后过期',
@@ -979,6 +1026,13 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
                     onClick={() => restoreFromHistory(item)}
                     className="relative aspect-square rounded-xl overflow-hidden border border-[var(--border)] hover:border-purple-500/50 transition-all duration-200 group/hover"
                   >
+                    {/* 单条删除按钮 */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteHistoryItem(item.id) }}
+                      className="absolute top-1 right-1 z-10 w-5 h-5 rounded-full bg-black/60 hover:bg-red-500/80 flex items-center justify-center opacity-0 group-hover/hover:opacity-100 transition-all"
+                    >
+                      <Trash2 className="w-2.5 h-2.5 text-white" />
+                    </button>
                     {item.mode === 'video' ? (
                       <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                         <Video className="w-6 h-6 text-zinc-500" />

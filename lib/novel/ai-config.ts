@@ -95,11 +95,7 @@ function getApiKey(): string {
   const key = process.env[`${provider.toUpperCase()}_API_KEY`]
     || process.env.AI_API_KEY
     || process.env.DEEPSEEK_API_KEY
-    || process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY
     || ''
-
-  // 调试日志
-  console.log(`[AI Config] Provider: ${provider}, Key found: ${!!key}, Key prefix: ${key ? key.slice(0, 8) + '...' : 'none'}`)
 
   return key
 }
@@ -321,4 +317,70 @@ export function parseJsonFromLLM(text: string): any {
   }
 
   return null
+}
+
+// 安全地解析 AI 配置 — 不写入 process.env，通过返回值传递
+export interface ResolvedAIConfig {
+  provider: string
+  apiKey: string
+  baseUrl: string
+  model: string
+}
+
+export function resolveAIConfig(aiSettings?: {
+  provider?: string
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+}): ResolvedAIConfig {
+  const provider = aiSettings?.provider || getProvider()
+  const providerUpper = provider.toUpperCase()
+
+  const apiKey = aiSettings?.apiKey
+    || process.env[`${providerUpper}_API_KEY`]
+    || process.env.AI_API_KEY
+    || process.env.DEEPSEEK_API_KEY
+    || ''
+
+  const baseUrl = aiSettings?.baseUrl
+    || process.env[`${providerUpper}_BASE_URL`]
+    || process.env.AI_BASE_URL
+    || AI_PROVIDERS[provider]?.baseUrl
+    || 'https://api.deepseek.com'
+
+  const model = aiSettings?.model
+    || process.env[`${providerUpper}_MODEL`]
+    || process.env.AI_MODEL
+    || AI_PROVIDERS[provider]?.defaultModel
+    || 'deepseek-chat'
+
+  return { provider, apiKey, baseUrl, model }
+}
+
+// 临时应用 AI 配置到 process.env（请求作用域，用完自动恢复）
+export function applyAIConfigTemporarily(config: ResolvedAIConfig): () => void {
+  const prev: Record<string, string | undefined> = {}
+  const keys = ['AI_PROVIDER', 'AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL',
+    `${config.provider.toUpperCase()}_API_KEY`,
+    `${config.provider.toUpperCase()}_BASE_URL`,
+    `${config.provider.toUpperCase()}_MODEL`]
+
+  for (const key of keys) {
+    prev[key] = process.env[key]
+  }
+
+  process.env.AI_PROVIDER = config.provider
+  process.env.AI_API_KEY = config.apiKey
+  process.env.AI_BASE_URL = config.baseUrl
+  process.env.AI_MODEL = config.model
+  process.env[`${config.provider.toUpperCase()}_API_KEY`] = config.apiKey
+  process.env[`${config.provider.toUpperCase()}_BASE_URL`] = config.baseUrl
+  process.env[`${config.provider.toUpperCase()}_MODEL`] = config.model
+
+  return () => {
+    for (const key of keys) {
+      if (prev[key] === undefined) delete process.env[key]
+      else process.env[key] = prev[key]
+    }
+  }
 }

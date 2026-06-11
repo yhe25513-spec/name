@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { getCurrentConfig, getHeaders, buildMessages, getChatUrl } from '@/lib/novel/ai-config'
+import { getCurrentConfig, getHeaders, buildMessages, getChatUrl, resolveAIConfig } from '@/lib/novel/ai-config'
 import { requireNovelOwnership } from '@/lib/novel/auth'
 import { supabase } from '@/lib/novel/store'
 
@@ -93,22 +93,9 @@ export async function POST(req: NextRequest) {
       if (authError) return authError
     }
 
-    // 设置 AI 配置
-    if (aiSettings?.provider) process.env.AI_PROVIDER = aiSettings.provider
-    if (aiSettings?.apiKey) {
-      process.env.AI_API_KEY = aiSettings.apiKey
-      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
-    }
-    if (aiSettings?.baseUrl) {
-      process.env.AI_BASE_URL = aiSettings.baseUrl
-      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
-    }
-    if (aiSettings?.model) {
-      process.env.AI_MODEL = aiSettings.model
-      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
-    }
-
-    const config = getCurrentConfig()
+    // 安全解析 AI 配置（不写入 process.env）
+    const aiConfig = resolveAIConfig(aiSettings)
+    const config = getCurrentConfig(aiConfig)
     if (!config.hasApiKey) {
       return new Response(JSON.stringify({ error: `未配置 ${config.providerName} API Key` }), { status: 500 })
     }
@@ -126,11 +113,12 @@ export async function POST(req: NextRequest) {
       ? modeConfig.buildUser(prompt, selectedText)
       : modeConfig.buildUser(prompt, currentContent, selectedText)
 
-    const url = getChatUrl()
-    const headers = getHeaders()
+    const url = getChatUrl(aiConfig)
+    const headers = getHeaders(aiConfig)
     const body = buildMessages(modeConfig.system, userContent, {
       temperature: mode === 'rewrite' ? 0.8 : mode === 'polish' ? 0.6 : 0.85,
       maxTokens: mode === 'polish' || mode === 'condense' ? 2048 : 8192,
+      config: aiConfig,
     })
 
     const response = await fetch(url, {

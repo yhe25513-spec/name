@@ -25,6 +25,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const adminSupabase = await createAdminClient()
+
+    // 检查用户上传数量限制（每人最多 50 张）
+    const { data: existingFiles } = await adminSupabase.storage
+      .from('scenario-bg-images')
+      .list()
+    const userFileCount = existingFiles?.filter(f => f.name.includes(user.id.slice(0, 8)))?.length || 0
+    if (userFileCount >= 50) {
+      return NextResponse.json({ error: 'Upload limit reached (50 images max)' }, { status: 400 })
+    }
+    const adminSupabase = await createAdminClient()
     const buffer = Buffer.from(await file.arrayBuffer())
     // 用时间戳 + 用户 ID 保证文件名唯一
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')

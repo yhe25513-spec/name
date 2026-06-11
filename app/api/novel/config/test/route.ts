@@ -1,11 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+// SSRF 防护：禁止访问的内网地址
+const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254']
+function isBlockedUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr)
+    const hostname = url.hostname.toLowerCase()
+    if (BLOCKED_HOSTS.includes(hostname)) return true
+    if (hostname.startsWith('10.')) return true
+    if (hostname.startsWith('192.168.')) return true
+    if (hostname.startsWith('172.')) {
+      const secondOctet = parseInt(hostname.split('.')[1])
+      if (secondOctet >= 16 && secondOctet <= 31) return true
+    }
+    return false
+  } catch {
+    return true
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
+    // 鉴权：必须登录
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 })
+    }
+
     const { provider, apiKey, baseUrl, model } = await req.json()
 
     if (!provider) {
       return NextResponse.json({ error: '缺少 provider' }, { status: 400 })
+    }
+
+    // SSRF 防护：检查 baseUrl
+    if (baseUrl && isBlockedUrl(baseUrl)) {
+      return NextResponse.json({ error: '不允许访问内网地址' }, { status: 400 })
     }
 
     // Ollama 不需要 API Key
@@ -45,12 +77,11 @@ export async function POST(req: NextRequest) {
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      return NextResponse.json({ error: `API 错误 (${response.status}): ${error.slice(0, 200)}` })
+      return NextResponse.json({ error: `API 错误 (${response.status})` })
     }
 
     return NextResponse.json({ ok: true, message: '连接成功' })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message })
+    return NextResponse.json({ error: '连接失败' })
   }
 }

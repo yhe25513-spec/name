@@ -8,7 +8,7 @@ import { WRITER_SYSTEM_PROMPT, buildWriterPrompt } from './writer'
 import { READER_SYSTEM_PROMPT, EDITOR_SYSTEM_PROMPT, LOGIC_SYSTEM_PROMPT, CHARACTER_DIRECTOR_SYSTEM_PROMPT } from './reviewers'
 import { reviewByDirector } from './director'
 import { generateStateSnapshot, formatStateForAgents, checkMysteryConstraints } from './state-machine'
-import { parseJsonFromLLM } from '../ai-config'
+import { parseJsonFromLLM, resolveAIConfig, applyAIConfigTemporarily } from '../ai-config'
 import { STYLE_GUARD_SYSTEM_PROMPT, FORESHADOW_AGENT_SYSTEM_PROMPT, POWER_SYSTEM_AGENT_PROMPT, IP_DIRECTOR_SYSTEM_PROMPT } from './missing-agents'
 import { detectAiTells, getAiTellScore, formatAiTellReport } from './ai-tells'
 import { analyzeStyle, formatStyleReport, profileToStyleConfig } from './style-analyzer'
@@ -534,21 +534,9 @@ export async function runChapterWorkflow(
   onLog?: (log: string) => void,
   aiSettings?: { provider?: string; apiKey?: string; baseUrl?: string; model?: string }
 ) {
-  if (aiSettings) {
-    if (aiSettings.provider) process.env.AI_PROVIDER = aiSettings.provider
-    if (aiSettings.apiKey) {
-      process.env.AI_API_KEY = aiSettings.apiKey
-      process.env[`${aiSettings.provider?.toUpperCase()}_API_KEY`] = aiSettings.apiKey
-    }
-    if (aiSettings.baseUrl) {
-      process.env.AI_BASE_URL = aiSettings.baseUrl
-      process.env[`${aiSettings.provider?.toUpperCase()}_BASE_URL`] = aiSettings.baseUrl
-    }
-    if (aiSettings.model) {
-      process.env.AI_MODEL = aiSettings.model
-      process.env[`${aiSettings.provider?.toUpperCase()}_MODEL`] = aiSettings.model
-    }
-  }
+  // 安全解析 AI 配置（临时应用，函数结束后自动恢复）
+  const aiConfig = aiSettings ? resolveAIConfig(aiSettings) : undefined
+  const restoreConfig = aiConfig ? applyAIConfigTemporarily(aiConfig) : undefined
 
   const graph = buildChapterWorkflow()
 
@@ -564,30 +552,34 @@ export async function runChapterWorkflow(
     logs: [],
   }
 
-  const stream = await graph.stream(initialState, { streamMode: 'updates' })
+  try {
+    const stream = await graph.stream(initialState, { streamMode: 'updates' })
 
-  let finalState: any = null
+    let finalState: any = null
 
-  for await (const chunk of stream) {
-    for (const [nodeName, nodeOutput] of Object.entries(chunk)) {
-      const output = nodeOutput as any
-      if (output.logs) {
-        for (const log of output.logs) {
-          onLog?.(log)
+    for await (const chunk of stream) {
+      for (const [nodeName, nodeOutput] of Object.entries(chunk)) {
+        const output = nodeOutput as any
+        if (output.logs) {
+          for (const log of output.logs) {
+            onLog?.(log)
+          }
         }
+        finalState = { ...finalState, ...output }
       }
-      finalState = { ...finalState, ...output }
     }
-  }
 
-  return {
-    draft: finalState?.finalDraft || finalState?.draft || '',
-    scores: finalState?.allScores || {},
-    isApproved: finalState?.isApproved || false,
-    status: finalState?.status || 'unknown',
-    revisionCount: finalState?.revisionCount || 0,
-    logs: finalState?.logs || [],
-    styleConfig: finalState?.styleConfig || null,
+    return {
+      draft: finalState?.finalDraft || finalState?.draft || '',
+      scores: finalState?.allScores || {},
+      isApproved: finalState?.isApproved || false,
+      status: finalState?.status || 'unknown',
+      revisionCount: finalState?.revisionCount || 0,
+      logs: finalState?.logs || [],
+      styleConfig: finalState?.styleConfig || null,
+    }
+  } finally {
+    restoreConfig?.()
   }
 }
 
