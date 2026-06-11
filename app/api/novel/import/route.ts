@@ -314,6 +314,7 @@ async function safeInsert(table: string, data: any): Promise<boolean> {
 // ========== POST: 上传并分析小说 ==========
 
 export async function POST(req: NextRequest) {
+  let restoreConfig: (() => void) | undefined
   try {
     const formData = await req.formData()
     const files = formData.getAll('files') as File[]
@@ -657,6 +658,7 @@ function buildMessage(chapters: number, settings: number, words: number, files: 
 // ========== GET: 工具操作 ==========
 
 export async function GET(req: NextRequest) {
+  let restoreConfig: (() => void) | undefined
   try {
     const novelId = req.nextUrl.searchParams.get('novelId')
     const action = req.nextUrl.searchParams.get('action')

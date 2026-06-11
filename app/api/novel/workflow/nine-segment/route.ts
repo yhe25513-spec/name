@@ -245,6 +245,7 @@ async function saveStageResult(novelId: string, stage: number, result: any) {
 }
 
 export async function POST(req: NextRequest) {
+  let restoreConfig: (() => void) | undefined
   try {
     const { stage, input, previousResults, aiSettings } = await req.json()
 

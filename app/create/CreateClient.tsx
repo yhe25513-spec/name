@@ -404,6 +404,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
                 a.click()
                 URL.revokeObjectURL(a.href)
                 toast.success('视频已保存到本地')
+              }
             } else {
               toast.error('自动下载失败，请手动点击下载按钮', {
                 description: '链接 10 分钟后过期',

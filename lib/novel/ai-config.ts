@@ -119,9 +119,9 @@ function getModel(): string {
 }
 
 // 构建请求头
-export function getHeaders(): Record<string, string> {
-  const provider = getProvider()
-  const apiKey = getApiKey()
+export function getHeaders(cfg?: ResolvedAIConfig): Record<string, string> {
+  const provider = cfg?.provider || getProvider()
+  const apiKey = cfg?.apiKey || getApiKey()
 
   // Anthropic 使用不同的认证方式
   if (provider === 'anthropic') {
@@ -150,11 +150,11 @@ export function getHeaders(): Record<string, string> {
 }
 
 // 获取聊天补全 URL
-export function getChatUrl(): string {
-  const provider = getProvider()
-  const baseUrl = getBaseUrl()
-  const apiKey = getApiKey()
-  const model = getModel()
+export function getChatUrl(cfg?: ResolvedAIConfig): string {
+  const provider = cfg?.provider || getProvider()
+  const baseUrl = cfg?.baseUrl || getBaseUrl()
+  const apiKey = cfg?.apiKey || getApiKey()
+  const model = cfg?.model || getModel()
 
   // Anthropic 使用不同的端点
   if (provider === 'anthropic') {
@@ -179,10 +179,10 @@ export function getChatUrl(): string {
 export function buildMessages(
   systemPrompt: string,
   userContent: string,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; config?: ResolvedAIConfig }
 ): any {
-  const provider = getProvider()
-  const model = getModel()
+  const provider = options?.config?.provider || getProvider()
+  const model = options?.config?.model || getModel()
 
   const temperature = options?.temperature ?? 0.7
   const maxTokens = options?.maxTokens ?? 4096
@@ -237,14 +237,14 @@ export function parseResponse(data: any): string {
 }
 
 // 获取当前配置信息（用于 UI 显示）
-export function getCurrentConfig() {
-  const provider = getProvider()
+export function getCurrentConfig(cfg?: ResolvedAIConfig) {
+  const provider = cfg?.provider || getProvider()
   return {
     provider,
     providerName: AI_PROVIDERS[provider]?.name || provider,
-    model: getModel(),
-    baseUrl: getBaseUrl(),
-    hasApiKey: !!getApiKey(),
+    model: cfg?.model || getModel(),
+    baseUrl: cfg?.baseUrl || getBaseUrl(),
+    hasApiKey: !!(cfg?.apiKey || getApiKey()),
   }
 }
 

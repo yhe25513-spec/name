@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
     if (userFileCount >= 50) {
       return NextResponse.json({ error: 'Upload limit reached (50 images max)' }, { status: 400 })
     }
-    const adminSupabase = await createAdminClient()
     const buffer = Buffer.from(await file.arrayBuffer())
     // 用时间戳 + 用户 ID 保证文件名唯一
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
