@@ -13,10 +13,14 @@ export async function POST(req: NextRequest) {
 
   let prompt: string
   let size = '1024x576' // 16:9 适合横图背景
+  let imageUrls: string[] | undefined
   try {
     const body = await req.json()
     prompt = body.prompt
     if (body.size) size = body.size
+    if (body.image_urls && Array.isArray(body.image_urls) && body.image_urls.length > 0) {
+      imageUrls = body.image_urls
+    }
   } catch {
     return NextResponse.json({ error: '请求格式错误' }, { status: 400 })
   }
@@ -92,6 +96,23 @@ export async function POST(req: NextRequest) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 60000)
 
+    const requestBody: Record<string, unknown> = {
+      model: modelName,
+      prompt: prompt,
+      size: size,
+      extra_body: {
+        response_format: 'url',
+      },
+    }
+
+    // 如果有参考图片，添加到请求中（图生图）
+    if (imageUrls && imageUrls.length > 0) {
+      requestBody.extra_body = {
+        ...requestBody.extra_body as Record<string, unknown>,
+        image: imageUrls,
+      }
+    }
+
     const response = await fetch(AGNES_API, {
       signal: controller.signal,
       method: 'POST',
@@ -99,14 +120,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: modelName,
-        prompt: prompt,
-        size: size,
-        extra_body: {
-          response_format: 'url',
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     clearTimeout(timeout)

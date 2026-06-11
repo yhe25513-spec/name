@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 })
   }
 
-  // 10MB 限制
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: 'File too large. Max 10MB.' }, { status: 400 })
+  // 20MB 限制
+  if (file.size > 20 * 1024 * 1024) {
+    return NextResponse.json({ error: 'File too large. Max 20MB.' }, { status: 400 })
   }
 
   try {

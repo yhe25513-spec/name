@@ -32,10 +32,16 @@ export async function POST(req: NextRequest) {
 
   let prompt: string
   let imageUrl: string | undefined
+  let imageUrls: string[] | undefined
+  let duration: number = 5
   try {
     const body = await req.json()
     prompt = body.prompt
-    imageUrl = body.image_url // 可选：图生视频的参考图片URL
+    imageUrl = body.image_url // 单张参考图片（兼容旧版）
+    imageUrls = body.image_urls // 多张参考图片
+    if (body.duration && [3, 5, 10, 18].includes(body.duration)) {
+      duration = body.duration
+    }
   } catch {
     return NextResponse.json({ error: '请求格式错误' }, { status: 400 })
   }
@@ -85,18 +91,25 @@ export async function POST(req: NextRequest) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 60000)
 
+    // 根据时长计算帧数（8n+1 规则）
+    const frameMap: Record<number, number> = { 3: 81, 5: 121, 10: 241, 18: 441 }
+    const numFrames = frameMap[duration] || 121
+
     // 构建请求体
     const requestBody: Record<string, unknown> = {
       model: modelName,
       prompt: prompt,
       width: 1152,
       height: 768,
-      num_frames: 121,
+      num_frames: numFrames,
       frame_rate: 24,
     }
 
-    // 如果有参考图片，添加到请求中（图生视频）
-    if (imageUrl) {
+    // 如果有多张参考图片，使用 extra_body.image 数组
+    if (imageUrls && imageUrls.length > 0) {
+      requestBody.extra_body = { image: imageUrls }
+    } else if (imageUrl) {
+      // 单张参考图片（兼容旧版）
       requestBody.image = imageUrl
     }
 

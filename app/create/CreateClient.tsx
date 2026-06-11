@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 type Mode = 'image' | 'video'
 type Style = '写实' | '奇幻' | '水墨' | '赛博' | '原画'
 type Ratio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
+type Duration = '3' | '5' | '10' | '18'
 
 interface HistoryItem {
   id: string
@@ -50,6 +51,20 @@ const RATIO_SIZE: Record<Ratio, string> = {
   '3:4': '768x1024',
 }
 
+const DURATION_FRAMES: Record<Duration, number> = {
+  '3': 81,
+  '5': 121,
+  '10': 241,
+  '18': 441,
+}
+
+const DURATION_LABELS: Record<Duration, string> = {
+  '3': '3 秒',
+  '5': '5 秒',
+  '10': '10 秒',
+  '18': '18 秒',
+}
+
 const HISTORY_KEY = 'create-history'
 const POLL_INTERVAL = 2000
 const MAX_POLL_TIME = 300000 // 5 分钟超时（视频 URL 10 分钟后过期）
@@ -72,8 +87,11 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [showLimitDialog, setShowLimitDialog] = useState(false)
-  const [videoImageFile, setVideoImageFile] = useState<File | null>(null)
-  const [videoImagePreview, setVideoImagePreview] = useState('')
+  const [videoImageFiles, setVideoImageFiles] = useState<File[]>([])
+  const [videoImagePreviews, setVideoImagePreviews] = useState<string[]>([])
+  const [videoDuration, setVideoDuration] = useState<Duration>('5')
+  const [imageRefFiles, setImageRefFiles] = useState<File[]>([])
+  const [imageRefPreviews, setImageRefPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
@@ -136,57 +154,155 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  // 处理视频图片上传
+  // 处理视频图片上传（支持多张）
   function handleVideoImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
-    // 验证文件类型
-    if (!file.type.startsWith('image/')) {
-      toast.error('请选择图片文件')
-      return
-    }
-
-    // 验证文件大小（最大 5MB）
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('图片大小不能超过 5MB')
-      return
-    }
-
-    setVideoImageFile(file)
-    setVideoImagePreview(URL.createObjectURL(file))
-  }
-
-  // 清除选择的图片
-  function clearVideoImage() {
-    setVideoImageFile(null)
-    setVideoImagePreview('')
-  }
-
-  // 上传图片到 Supabase Storage 并获取 URL
-  async function uploadVideoImage(): Promise<string | null> {
-    if (!videoImageFile) return null
-
-    setUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', videoImageFile)
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const data = await res.json()
-      if (res.ok && data.url) {
-        return data.url
-      } else {
-        throw new Error(data.error || '上传失败')
+    const validFiles: File[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) {
+        toast.error(`"${file.name}" 不是图片文件，已跳过`)
+        continue
       }
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`"${file.name}" 超过 20MB，已跳过`)
+        continue
+      }
+      validFiles.push(file)
+    }
+
+    if (validFiles.length === 0) return
+
+    // 限制最多 4 张
+    const total = videoImageFiles.length + validFiles.length
+    if (total > 4) {
+      toast.error(`最多上传 4 张图片，已截取前 ${4 - videoImageFiles.length} 张`)
+      validFiles.splice(4 - videoImageFiles.length)
+    }
+
+    const newPreviews = validFiles.map(f => URL.createObjectURL(f))
+    setVideoImageFiles(prev => [...prev, ...validFiles])
+    setVideoImagePreviews(prev => [...prev, ...newPreviews])
+
+    // 重置 input 以允许再次选择相同文件
+    e.target.value = ''
+  }
+
+  // 清除单张图片
+  function removeVideoImage(index: number) {
+    URL.revokeObjectURL(videoImagePreviews[index])
+    setVideoImageFiles(prev => prev.filter((_, i) => i !== index))
+    setVideoImagePreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // 清除所有图片
+  function clearVideoImages() {
+    videoImagePreviews.forEach(url => URL.revokeObjectURL(url))
+    setVideoImageFiles([])
+    setVideoImagePreviews([])
+  }
+
+  // ===== 图片模式参考图片 =====
+  function handleImageRefSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const validFiles: File[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) {
+        toast.error(`"${file.name}" 不是图片文件，已跳过`)
+        continue
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`"${file.name}" 超过 20MB，已跳过`)
+        continue
+      }
+      validFiles.push(file)
+    }
+
+    if (validFiles.length === 0) return
+
+    const total = imageRefFiles.length + validFiles.length
+    if (total > 4) {
+      toast.error(`最多上传 4 张图片，已截取前 ${4 - imageRefFiles.length} 张`)
+      validFiles.splice(4 - imageRefFiles.length)
+    }
+
+    const newPreviews = validFiles.map(f => URL.createObjectURL(f))
+    setImageRefFiles(prev => [...prev, ...validFiles])
+    setImageRefPreviews(prev => [...prev, ...newPreviews])
+    e.target.value = ''
+  }
+
+  function removeImageRef(index: number) {
+    URL.revokeObjectURL(imageRefPreviews[index])
+    setImageRefFiles(prev => prev.filter((_, i) => i !== index))
+    setImageRefPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function clearImageRefs() {
+    imageRefPreviews.forEach(url => URL.revokeObjectURL(url))
+    setImageRefFiles([])
+    setImageRefPreviews([])
+  }
+
+  async function uploadImageRefs(): Promise<string[]> {
+    if (imageRefFiles.length === 0) return []
+    setUploading(true)
+    const urls: string[] = []
+    try {
+      for (const file of imageRefFiles) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (res.ok && data.url) {
+          urls.push(data.url)
+        } else {
+          throw new Error(data.error || `"${file.name}" 上传失败`)
+        }
+      }
+      return urls
     } catch (err) {
       const msg = err instanceof Error ? err.message : '上传失败'
       toast.error('图片上传失败', { description: msg })
-      return null
+      return []
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // 上传多张图片到 Supabase Storage 并获取 URL 列表
+  async function uploadVideoImages(): Promise<string[]> {
+    if (videoImageFiles.length === 0) return []
+
+    setUploading(true)
+    const urls: string[] = []
+    try {
+      for (const file of videoImageFiles) {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const data = await res.json()
+        if (res.ok && data.url) {
+          urls.push(data.url)
+        } else {
+          throw new Error(data.error || `"${file.name}" 上传失败`)
+        }
+      }
+      return urls
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '上传失败'
+      toast.error('图片上传失败', { description: msg })
+      return []
     } finally {
       setUploading(false)
     }
@@ -298,10 +414,27 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
     try {
       if (mode === 'image') {
         const fullPrompt = prompt.trim() + STYLE_MODIFIERS[style]
+
+        // 如果有参考图片，先上传
+        let refImageUrls: string[] = []
+        if (imageRefFiles.length > 0) {
+          setPollingStatus('正在上传参考图片...')
+          refImageUrls = await uploadImageRefs()
+          if (imageRefFiles.length > 0 && refImageUrls.length === 0) {
+            setGenerating(false)
+            return
+          }
+        }
+
+        const imageBody: Record<string, unknown> = { prompt: fullPrompt, size: RATIO_SIZE[ratio] }
+        if (refImageUrls.length > 0) {
+          imageBody.image_urls = refImageUrls
+        }
+
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: fullPrompt, size: RATIO_SIZE[ratio] }),
+          body: JSON.stringify(imageBody),
         })
         const data = await res.json()
         if (res.ok && data.url) {
@@ -328,25 +461,26 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
         }
       } else {
         // 视频生成（异步提交 + 轮询）
-        let imageUrl: string | undefined
+        let imageUrls: string[] = []
 
         // 如果有参考图片，先上传到服务器
-        if (videoImageFile) {
+        if (videoImageFiles.length > 0) {
           setPollingStatus('正在上传图片...')
-          imageUrl = (await uploadVideoImage()) || undefined
-          if (videoImageFile && !imageUrl) {
+          imageUrls = await uploadVideoImages()
+          if (videoImageFiles.length > 0 && imageUrls.length === 0) {
             // 上传失败，停止生成
             setGenerating(false)
             return
           }
         }
 
-        const requestBody: Record<string, string> = {
+        const requestBody: Record<string, unknown> = {
           prompt: prompt.trim(),
           size: RATIO_SIZE[ratio],
+          duration: parseInt(videoDuration),
         }
-        if (imageUrl) {
-          requestBody.image_url = imageUrl
+        if (imageUrls.length > 0) {
+          requestBody.image_urls = imageUrls
         }
 
         const res = await fetch('/api/generate-video', {
@@ -476,47 +610,96 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </div>
 
-        {/* 参考图片上传 - 仅视频模式 */}
+        {/* 视频专属设置 - 仅视频模式 */}
         {mode === 'video' && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-[var(--text-secondary)]">参考图片（可选，用于图生视频）</span>
-              {videoImagePreview && (
-                <button
-                  onClick={clearVideoImage}
-                  className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
-                >
-                  清除图片
-                </button>
-              )}
+          <>
+            {/* 时长选择 */}
+            <div>
+              <label className="text-xs text-[var(--text-secondary)] mb-2.5 block font-medium">视频时长</label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(DURATION_LABELS) as Duration[]).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setVideoDuration(d)}
+                    className={`px-3.5 py-1.5 rounded-lg border text-sm transition-all duration-200 ${
+                      videoDuration === d
+                        ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
+                        : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]/30 hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {DURATION_LABELS[d]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                时长越长生成时间越久，最长 18 秒
+              </p>
             </div>
-            {videoImagePreview ? (
-              <div className="relative inline-block">
-                <img
-                  src={videoImagePreview}
-                  alt="参考图片"
-                  className="w-32 h-32 object-cover rounded-lg border border-[var(--border)]"
-                />
-                {uploading && (
-                  <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-                    <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
-                  </div>
+
+            {/* 参考图片上传 */}
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-[var(--text-secondary)]">
+                  参考图片（可选，用于图生视频）
+                  {videoImageFiles.length > 0 && (
+                    <span className="text-[11px] text-[var(--text-muted)] ml-1.5">
+                      已选 {videoImageFiles.length}/4 张
+                    </span>
+                  )}
+                </span>
+                {videoImageFiles.length > 0 && (
+                  <button
+                    onClick={clearVideoImages}
+                    className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                  >
+                    清除全部
+                  </button>
                 )}
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-purple-500/50 transition-colors">
-                <ImageIcon className="w-8 h-8 text-[var(--text-muted)] mb-2" />
-                <span className="text-sm text-[var(--text-muted)]">点击上传图片</span>
-                <span className="text-xs text-zinc-600 mt-1">支持 JPG、PNG，最大 5MB</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleVideoImageSelect}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </div>
+
+              {/* 已选图片预览网格 */}
+              {videoImagePreviews.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {videoImagePreviews.map((preview, index) => (
+                    <div key={index} className="relative w-20 h-20">
+                      <img
+                        src={preview}
+                        alt={`参考图片 ${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg border border-[var(--border)]"
+                      />
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                        </div>
+                      )}
+                      <button
+                        onClick={() => removeVideoImage(index)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-[10px] leading-none transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 上传按钮 */}
+              {videoImageFiles.length < 4 && (
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-purple-500/50 transition-colors">
+                  <ImageIcon className="w-6 h-6 text-[var(--text-muted)] mb-1" />
+                  <span className="text-xs text-[var(--text-muted)]">点击上传图片（最多 4 张）</span>
+                  <span className="text-[11px] text-zinc-600 mt-0.5">支持 JPG、PNG，单张最大 20MB</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleVideoImageSelect}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </>
         )}
 
         {/* 风格选择 - 仅图片模式 */}
@@ -541,6 +724,70 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {/* 参考图片上传 - 仅图片模式 */}
+        {mode === 'image' && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-[var(--text-secondary)] font-medium">
+                参考图片（可选，用于图生图）
+                {imageRefFiles.length > 0 && (
+                  <span className="text-[11px] text-[var(--text-muted)] ml-1.5">
+                    已选 {imageRefFiles.length}/4 张
+                  </span>
+                )}
+              </span>
+              {imageRefFiles.length > 0 && (
+                <button
+                  onClick={clearImageRefs}
+                  className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                >
+                  清除全部
+                </button>
+              )}
+            </div>
+
+            {imageRefPreviews.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {imageRefPreviews.map((preview, index) => (
+                  <div key={index} className="relative w-20 h-20">
+                    <img
+                      src={preview}
+                      alt={`参考图片 ${index + 1}`}
+                      className="w-full h-full object-cover rounded-lg border border-[var(--border)]"
+                    />
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeImageRef(index)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-[10px] leading-none transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {imageRefFiles.length < 4 && (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-purple-500/50 transition-colors">
+                <ImageIcon className="w-6 h-6 text-[var(--text-muted)] mb-1" />
+                <span className="text-xs text-[var(--text-muted)]">点击上传参考图片（最多 4 张）</span>
+                <span className="text-[11px] text-zinc-600 mt-0.5">支持 JPG、PNG，单张最大 5MB</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageRefSelect}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         )}
 
