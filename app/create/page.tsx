@@ -14,5 +14,8 @@ export default async function CreatePage() {
     .eq('id', user.id)
     .single()
 
-  return <CreateClient isAdmin={profile?.role === 'admin'} />
+  // 只有管理员可以使用生图和生成视频功能
+  if (profile?.role !== 'admin') redirect('/')
+
+  return <CreateClient isAdmin={true} />
 }
