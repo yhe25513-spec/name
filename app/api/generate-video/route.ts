@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!isAdmin) {
     const today = new Date().toISOString().slice(0, 10)
     const count = profile?.daily_video_date === today ? (profile?.daily_video_count || 0) : 0
-    if (count >= 1) {
+    if (count >= 5) {
       return NextResponse.json(
         { error: '今日视频生成次数达到上限，明天再来吧' },
         { status: 429 }
