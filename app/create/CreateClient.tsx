@@ -372,49 +372,7 @@ export function CreateClient({ isAdmin }: { isAdmin: boolean }) {
             url: videoUrl,
             timestamp: Date.now(),
           })
-          toast.success('视频生成成功，正在下载到本地...')
-
-          // 自动下载到用户设备
-          try {
-            const downloadRes = await fetch('/api/generate-video/download', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: videoUrl }),
-            })
-            if (downloadRes.ok) {
-              const blob = await downloadRes.blob()
-              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-              if (isMobile) {
-                const blobUrl = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = blobUrl
-                a.target = '_blank'
-                a.rel = 'noopener'
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-                toast.success('已打开文件，请长按保存到相册')
-              } else {
-                const a = document.createElement('a')
-                a.href = URL.createObjectURL(blob)
-                const disposition = downloadRes.headers.get('Content-Disposition')
-                const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
-                a.download = filenameMatch?.[1] || `ai-视频-${Date.now()}.mp4`
-                a.click()
-                URL.revokeObjectURL(a.href)
-                toast.success('视频已保存到本地')
-              }
-            } else {
-              toast.error('自动下载失败，请手动点击下载按钮', {
-                description: '链接 10 分钟后过期',
-              })
-            }
-          } catch {
-            toast.error('自动下载失败，请手动点击下载按钮', {
-              description: '链接 10 分钟后过期',
-            })
-          }
+          toast.success('视频生成成功')
         } else if (data.status === 'failed' || data.status === 'error') {
           clearInterval(pollRef.current)
           setGenerating(false)
