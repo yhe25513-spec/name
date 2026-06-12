@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
-// Step 4: 批量为分镜生成视频（并发控制，最多 2 个同时）
+// Step 4: 为分镜提交视频生成请求（异步，不等待结果）
+// 提交后立即返回，通过 /api/drama/check-status 轮询结果
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -11,6 +12,8 @@ export async function POST(req: NextRequest) {
   if (!projectId) return NextResponse.json({ error: '缺少项目 ID' }, { status: 400 })
 
   const adminSupabase = await createAdminClient()
+  const apiKey = process.env.AGNES_API_KEY || ''
+  if (!apiKey) return NextResponse.json({ error: '未配置 AGNES_API_KEY' }, { status: 400 })
 
   // 获取有图片但没有视频的分镜
   let query = adminSupabase
@@ -26,38 +29,29 @@ export async function POST(req: NextRequest) {
 
   const { data: scenes, error } = await query.order('scene_number')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!scenes?.length) return NextResponse.json({ scenes: [], message: '没有待生成视频的分镜' })
+  if (!scenes?.length) return NextResponse.json({ results: [], message: '没有待生成视频的分镜' })
 
-  // 并发生成视频（最多 2 个同时）
-  const MAX_CONCURRENT = 2
+  // 逐个提交视频生成请求（不等待结果）
   const results: any[] = []
 
-  for (let i = 0; i < scenes.length; i += MAX_CONCURRENT) {
-    const batch = scenes.slice(i, i + MAX_CONCURRENT)
-    const batchResults = await Promise.allSettled(
-      batch.map(scene => generateVideoForScene(scene))
-    )
-
-    for (const result of batchResults) {
-      if (result.status === 'fulfilled' && result.value) {
-        results.push(result.value)
-      }
+  for (const scene of scenes) {
+    try {
+      const result = await submitVideoGeneration(scene, apiKey)
+      results.push(result)
+    } catch (err: any) {
+      results.push({ sceneId: scene.id, status: 'error', error: err.message })
     }
   }
 
   return NextResponse.json({ results })
 }
 
-async function generateVideoForScene(scene: any): Promise<any> {
-  const apiKey = process.env.AGNES_API_KEY || ''
-  if (!apiKey) throw new Error('未配置 AGNES_API_KEY')
-
+async function submitVideoGeneration(scene: any, apiKey: string): Promise<any> {
   const modelName = process.env.AGNES_VIDEO_MODEL || 'agnes-video-v2.0'
   const duration = Math.min(scene.duration || 5, 18)
   const frameMap: Record<number, number> = { 3: 81, 5: 121, 10: 241, 18: 441 }
   const numFrames = frameMap[duration] || 121
 
-  // 构建请求体
   const requestBody: Record<string, unknown> = {
     model: modelName,
     prompt: scene.description,
@@ -67,12 +61,11 @@ async function generateVideoForScene(scene: any): Promise<any> {
     frame_rate: 24,
   }
 
-  // 如果有参考图片，添加到请求中
   if (scene.image_url) {
     requestBody.extra_body = { image: [scene.image_url] }
   }
 
-  // 用图片作为参考，生成视频
+  // 提交请求，8 秒超时（只等提交确认，不等生成结果）
   const response = await fetch('https://apihub.agnes-ai.com/v1/videos', {
     method: 'POST',
     headers: {
@@ -80,13 +73,17 @@ async function generateVideoForScene(scene: any): Promise<any> {
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(requestBody),
-    signal: AbortSignal.timeout(300000),
+    signal: AbortSignal.timeout(8000),
   })
 
-  if (!response.ok) throw new Error(`Agnes API error: ${response.status}`)
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Agnes API error: ${response.status} - ${errText.slice(0, 200)}`)
+  }
 
   const data = await response.json()
 
+  // 更新数据库状态
   const adminSupabase = await createAdminClient()
   await adminSupabase
     .from('drama_scenes')
