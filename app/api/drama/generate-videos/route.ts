@@ -9,10 +9,14 @@ export async function POST(req: NextRequest) {
   if (!projectId) return NextResponse.json({ error: '缺少项目 ID' }, { status: 400 })
 
   const auth = await requireDramaAuth(projectId)
-  if (auth.error) return auth.error
+  if (auth.error) {
+    console.error('[drama-videos] Auth failed:', JSON.stringify(auth.error))
+    return auth.error
+  }
   const { adminSupabase } = auth
 
   const apiKey = process.env.AGNES_API_KEY || ''
+  console.log('[drama-videos] API key present:', !!apiKey)
   if (!apiKey) return NextResponse.json({ error: '未配置 AGNES_API_KEY' }, { status: 400 })
 
   // 如果指定了 sceneId，只提交这一个
