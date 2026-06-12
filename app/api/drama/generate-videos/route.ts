@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { requireDramaAuth } from '@/lib/drama/auth'
 
 // Step 4: 为下一个分镜提交视频生成请求
-// 每次只提交一个视频，完成后再提交下一个
 export async function POST(req: NextRequest) {
+  console.log('[drama-videos] Request received')
   const { projectId, sceneId } = await req.json()
+  console.log('[drama-videos] projectId:', projectId, 'sceneId:', sceneId)
   if (!projectId) return NextResponse.json({ error: '缺少项目 ID' }, { status: 400 })
 
-  const auth = await requireDramaAuth(projectId)
-  if (auth.error) {
-    console.error('[drama-videos] Auth failed:', JSON.stringify(auth.error))
-    return auth.error
-  }
-  const { adminSupabase } = auth
+  const adminSupabase = await createAdminClient()
 
   const apiKey = process.env.AGNES_API_KEY || ''
   console.log('[drama-videos] API key present:', !!apiKey)

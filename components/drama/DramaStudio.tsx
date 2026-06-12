@@ -453,15 +453,18 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, sceneId }),
       })
-      const data = await res.json()
+      const text = await res.text()
+      console.log('[drama] Video response:', res.status, text)
+      const data = JSON.parse(text)
       if (data.result?.status === 'submitted') {
         toast.success(`分镜 #${data.result.sceneNumber} 视频已提交`)
         window.location.reload()
       } else {
         toast.error(data.error || '提交失败')
       }
-    } catch (err) {
-      toast.error('请求失败')
+    } catch (err: any) {
+      console.error('[drama] Video error:', err)
+      toast.error('请求失败: ' + err.message)
     }
   }
 
