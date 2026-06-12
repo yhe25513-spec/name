@@ -58,3 +58,31 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ projects: data })
 }
+
+// 删除短剧项目
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
+
+  const { projectId } = await req.json()
+  if (!projectId) return NextResponse.json({ error: '缺少项目 ID' }, { status: 400 })
+
+  const adminSupabase = await createAdminClient()
+
+  // 先删除分镜
+  await adminSupabase
+    .from('drama_scenes')
+    .delete()
+    .eq('project_id', projectId)
+
+  // 再删除项目
+  const { error } = await adminSupabase
+    .from('drama_projects')
+    .delete()
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

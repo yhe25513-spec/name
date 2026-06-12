@@ -361,14 +361,38 @@ function InputStep({ title, setTitle, genre, setGenre, style, setStyle, synopsis
           <h3 className="text-zinc-400 text-sm mb-3">历史项目</h3>
           <div className="space-y-2">
             {projects.map((p: Project) => (
-              <button
+              <div
                 key={p.id}
-                onClick={() => onSelectProject(p)}
-                className="w-full text-left p-4 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/30 transition-colors"
+                className="flex items-center gap-2 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/30 transition-colors group"
               >
-                <div className="text-white font-medium">{p.title}</div>
-                <div className="text-zinc-500 text-xs mt-1">{p.genre} · {p.style} · {p.status}</div>
-              </button>
+                <button
+                  onClick={() => onSelectProject(p)}
+                  className="flex-1 text-left"
+                >
+                  <div className="text-white font-medium">{p.title}</div>
+                  <div className="text-zinc-500 text-xs mt-1">{p.genre} · {p.style} · {p.status}</div>
+                </button>
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    if (!confirm('确定删除这个项目？')) return
+                    try {
+                      await fetch('/api/drama/project', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectId: p.id }),
+                      })
+                      toast.success('已删除')
+                      window.location.reload()
+                    } catch {
+                      toast.error('删除失败')
+                    }
+                  }}
+                  className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -440,10 +464,24 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
         {scenes.map((scene: Scene) => (
           <div key={scene.id} className="bg-white/5 rounded-xl border border-white/10 p-4">
             <div className="flex items-start gap-4">
-              {/* 缩略图 */}
-              <div className="w-32 h-20 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0">
+              {/* 缩略图 - 点击可播放/下载 */}
+              <button
+                onClick={() => {
+                  if (scene.video_url) {
+                    window.open(scene.video_url, '_blank')
+                  } else if (scene.image_url) {
+                    window.open(scene.image_url, '_blank')
+                  }
+                }}
+                className="w-32 h-20 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 relative group cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all"
+              >
                 {scene.video_url ? (
-                  <video src={scene.video_url} className="w-full h-full object-cover" />
+                  <>
+                    <video src={scene.video_url} className="w-full h-full object-cover" muted />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Play className="w-6 h-6 text-white" />
+                    </div>
+                  </>
                 ) : scene.image_url ? (
                   <img src={scene.image_url} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -451,7 +489,7 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
                     {statusEmoji[scene.status] || '⏳'}
                   </div>
                 )}
-              </div>
+              </button>
 
               {/* 信息 */}
               <div className="flex-1 min-w-0">
@@ -459,6 +497,26 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
                   <span className="text-purple-400 font-medium text-sm">#{scene.scene_number}</span>
                   <span className="text-zinc-500 text-xs">{scene.duration}秒</span>
                   <span className="text-xs">{statusEmoji[scene.status]}</span>
+                  {scene.video_url && (
+                    <a
+                      href={scene.video_url}
+                      download={`scene-${scene.scene_number}.mp4`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-zinc-500 hover:text-blue-400 transition-colors flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" /> 下载
+                    </a>
+                  )}
+                  {scene.image_url && !scene.video_url && (
+                    <a
+                      href={scene.image_url}
+                      download={`scene-${scene.scene_number}.png`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-zinc-500 hover:text-blue-400 transition-colors flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" /> 下载图片
+                    </a>
+                  )}
                 </div>
                 <p className="text-zinc-300 text-sm mb-1 line-clamp-2">{scene.description}</p>
                 {scene.dialogue && (
