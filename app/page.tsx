@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BookOpen, Image, Sparkles, ArrowRight, CookingPot, Gamepad2, PenTool } from 'lucide-react'
+import { BookOpen, Image, Sparkles, ArrowRight, CookingPot, Gamepad2, PenTool, Film } from 'lucide-react'
 
 const features = [
   {
@@ -48,6 +48,15 @@ const features = [
     icon: PenTool,
     href: '/novel',
     badge: '创作',
+  },
+  {
+    id: 'drama',
+    title: 'AI 短剧创作',
+    subtitle: '光影剧场',
+    description: '剧本→分镜→生图→视频→配音→合成，一键创作短剧',
+    icon: Film,
+    href: '/drama',
+    badge: '新功能',
   },
   {
     id: 'hotpot',
