@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
           let videoUrl = data.video_url || data.remixed_from_video_id || ''
           const status = (data.status || '').toLowerCase()
 
+          console.log(`[check-status] Scene ${scene.scene_number}: status=${status}, hasUrl=${!!videoUrl}`)
+
           if (videoUrl && (status === 'succeeded' || doneAliases.includes(status))) {
             await adminSupabase
               .from('drama_scenes')
