@@ -428,13 +428,15 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
         body: JSON.stringify({ projectId, sceneIds: [sceneId] }),
       })
       const data = await res.json()
+      console.log('[drama] Video submit result:', JSON.stringify(data))
       if (data.results?.[0]?.status === 'submitted') {
         toast.success('视频生成已提交，等待完成...')
         window.location.reload()
       } else {
         toast.error(data.results?.[0]?.error || '提交失败')
       }
-    } catch {
+    } catch (err) {
+      console.error('[drama] Video submit error:', err)
       toast.error('请求失败')
     }
   }

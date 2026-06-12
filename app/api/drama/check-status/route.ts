@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   let updated = 0
 
   for (const scene of scenes) {
+    console.log(`[check-status] Scene ${scene.scene_number}: status=${scene.status}, requestId=${scene.video_request_id || 'NONE'}`)
     try {
       if (scene.status === 'generating_video' && scene.video_request_id) {
         // 复用已有的视频状态查询逻辑
