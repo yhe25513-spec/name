@@ -52,19 +52,34 @@ async function generateVideoForScene(scene: any): Promise<any> {
   const apiKey = process.env.AGNES_API_KEY || ''
   if (!apiKey) throw new Error('未配置 AGNES_API_KEY')
 
+  const modelName = process.env.AGNES_VIDEO_MODEL || 'agnes-video-v2.0'
+  const duration = Math.min(scene.duration || 5, 18)
+  const frameMap: Record<number, number> = { 3: 81, 5: 121, 10: 241, 18: 441 }
+  const numFrames = frameMap[duration] || 121
+
+  // 构建请求体
+  const requestBody: Record<string, unknown> = {
+    model: modelName,
+    prompt: scene.description,
+    width: 1152,
+    height: 768,
+    num_frames: numFrames,
+    frame_rate: 24,
+  }
+
+  // 如果有参考图片，添加到请求中
+  if (scene.image_url) {
+    requestBody.extra_body = { image: [scene.image_url] }
+  }
+
   // 用图片作为参考，生成视频
-  const response = await fetch('https://apihub.agnes-ai.com/agnesapi', {
+  const response = await fetch('https://apihub.agnes-ai.com/v1/videos', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      prompt: scene.description,
-      model: 'agnes-video-v2.0',
-      image_url: scene.image_url,
-      duration: Math.min(scene.duration || 5, 18),
-    }),
+    body: JSON.stringify(requestBody),
     signal: AbortSignal.timeout(300000),
   })
 

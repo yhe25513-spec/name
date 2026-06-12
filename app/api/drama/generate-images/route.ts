@@ -59,28 +59,33 @@ async function generateImageForScene(scene: any): Promise<any> {
   const apiKey = process.env.AGNES_API_KEY || ''
   if (!apiKey) throw new Error('未配置 AGNES_API_KEY')
 
-  // 调用 Agnes AI 生成图片
-  const response = await fetch('https://apihub.agnes-ai.com/agnesapi', {
+  const modelName = process.env.AGNES_IMAGE_MODEL || 'agnes-image-2.1-flash'
+
+  // 调用 Agnes AI 生成图片（OpenAI 兼容格式）
+  const response = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
+      model: modelName,
       prompt: scene.image_prompt,
-      model: 'agnes-image-v2.0',
-      width: 1024,
-      height: 576,
+      size: '1024x576',
+      extra_body: {
+        response_format: 'url',
+      },
     }),
     signal: AbortSignal.timeout(120000),
   })
 
   if (!response.ok) {
-    throw new Error(`Agnes API error: ${response.status}`)
+    const errText = await response.text()
+    throw new Error(`Agnes API error: ${response.status} - ${errText.slice(0, 200)}`)
   }
 
   const data = await response.json()
-  const imageUrl = data.image_url || data.url || data.output?.[0]
+  const imageUrl = data.data?.[0]?.url || data.image_url || data.url
 
   // 更新数据库
   const adminSupabase = await createAdminClient()
