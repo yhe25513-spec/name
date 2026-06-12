@@ -154,26 +154,28 @@ export function DramaStudio({ userId }: DramaStudioProps) {
     }
   }
 
-  // Step 3: 批量生成视频
+  // Step 3: 批量生成视频（提交第一个，后续由 check-status 自动提交）
   async function handleGenerateVideos() {
     if (!currentProject) return
     setGenerating(true)
-    setStep('generating')
 
     try {
+      // 只提交第一个待生成的分镜
       const res = await fetch('/api/drama/generate-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: currentProject.id }),
       })
-      const { results } = await res.json()
-      toast.success(`视频生成请求已提交`)
+      const data = await res.json()
+      if (data.message === '没有待生成视频的分镜') {
+        toast.info('所有视频已生成')
+      } else {
+        toast.success(`分镜 #${data.result?.sceneNumber || '?'} 视频已提交，轮询会自动提交下一个`)
+      }
 
       await refreshScenes()
-      setStep('scenes')
     } catch (err: any) {
-      toast.error(err.message || '视频生成失败')
-      setStep('scenes')
+      toast.error(err.message || '视频提交失败')
     } finally {
       setGenerating(false)
     }
@@ -425,18 +427,16 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
       const res = await fetch('/api/drama/generate-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, sceneIds: [sceneId] }),
+        body: JSON.stringify({ projectId, sceneId }),
       })
       const data = await res.json()
-      console.log('[drama] Video submit result:', JSON.stringify(data))
-      if (data.results?.[0]?.status === 'submitted') {
-        toast.success('视频生成已提交，等待完成...')
+      if (data.result?.status === 'submitted') {
+        toast.success(`分镜 #${data.result.sceneNumber} 视频已提交`)
         window.location.reload()
       } else {
-        toast.error(data.results?.[0]?.error || '提交失败')
+        toast.error(data.error || '提交失败')
       }
     } catch (err) {
-      console.error('[drama] Video submit error:', err)
       toast.error('请求失败')
     }
   }
