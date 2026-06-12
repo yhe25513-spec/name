@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
   for (const scene of scenes) {
     try {
       if (scene.status === 'generating_video' && scene.video_request_id) {
-        // 检查视频状态
-        const response = await fetch(
+        // 复用已有的视频状态查询逻辑
+        const statusResponse = await fetch(
           `https://apihub.agnes-ai.com/agnesapi?video_id=${scene.video_request_id}`,
           {
             headers: { 'Authorization': `Bearer ${apiKeyVal}` },
@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
           }
         )
 
-        if (response.ok) {
-          const data = await response.json()
+        if (statusResponse.ok) {
+          const data = await statusResponse.json()
           const doneAliases = ['completed', 'done', 'succeed', 'success', 'ready', 'finish', 'finished']
           let videoUrl = data.video_url || data.remixed_from_video_id || ''
           const status = (data.status || '').toLowerCase()

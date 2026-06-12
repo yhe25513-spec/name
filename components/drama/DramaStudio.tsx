@@ -69,8 +69,10 @@ export function DramaStudio({ userId }: DramaStudioProps) {
         if (data.updated > 0) {
           window.location.reload()
         }
-      } catch {}
-    }, 15000) // 每 15 秒检查一次
+      } catch (err) {
+        console.error('[drama-poll] Error:', err)
+      }
+    }, 20000) // 每 20 秒检查一次
 
     return () => clearInterval(interval)
   }, [currentProject, step])
