@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BookOpen, Image, Sparkles, ArrowRight, CookingPot, Gamepad2, PenTool, Film } from 'lucide-react'
+import { BookOpen, Image, Sparkles, ArrowRight, Gamepad2, PenTool, Film } from 'lucide-react'
 
 const features = [
   {
@@ -57,15 +57,6 @@ const features = [
     icon: Film,
     href: '/drama',
     badge: '新功能',
-  },
-  {
-    id: 'hotpot',
-    title: 'Python火锅店',
-    subtitle: '红汤翻滚',
-    description: '清汤滋补，麻辣鲜香，手机上的火锅点单助手',
-    icon: CookingPot,
-    href: '/hotpot',
-    badge: '小工具',
   },
 ]
 

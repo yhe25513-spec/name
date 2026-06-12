@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Film, Plus, Trash2, Loader2, Play, Download, Wand2, ArrowLeft, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,6 +34,7 @@ interface DramaStudioProps {
 }
 
 export function DramaStudio({ userId }: DramaStudioProps) {
+  const router = useRouter()
   const [step, setStep] = useState<'input' | 'script' | 'scenes' | 'generating' | 'compose'>('input')
   const [projects, setProjects] = useState<Project[]>([])
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
@@ -213,6 +215,9 @@ export function DramaStudio({ userId }: DramaStudioProps) {
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* 顶栏 */}
       <header className="border-b border-white/10 px-6 py-3 flex items-center gap-3">
+        <button onClick={() => router.push('/')} className="text-zinc-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
         <Film className="w-5 h-5 text-purple-400" />
         <h1 className="text-white font-medium">AI 短剧创作工作室</h1>
         {currentProject && (
