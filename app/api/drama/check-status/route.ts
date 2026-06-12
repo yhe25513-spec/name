@@ -20,7 +20,11 @@ export async function POST(req: NextRequest) {
     .eq('project_id', projectId)
     .in('status', ['generating_image', 'generating_video'])
 
-  if (!scenes?.length) return NextResponse.json({ updated: 0 })
+  if (!scenes?.length) {
+    console.log('[check-status] No generating scenes found for project', projectId)
+    return NextResponse.json({ updated: 0 })
+  }
+  console.log(`[check-status] Found ${scenes.length} generating scenes`)
 
   const apiKeyVal = apiKey
   let updated = 0

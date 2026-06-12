@@ -53,14 +53,10 @@ export function DramaStudio({ userId }: DramaStudioProps) {
     fetchProjects()
   }, [])
 
-  // 自动轮询：检查生成中的分镜状态
+  // 自动轮询：只要在分镜页面就持续检查
   useEffect(() => {
     if (!currentProject) return
     if (step !== 'scenes') return
-
-    // 只有有生成中的分镜时才轮询
-    const hasGenerating = scenes.some(s => s.status === 'generating_video' || s.status === 'generating_image')
-    if (!hasGenerating) return
 
     const interval = setInterval(async () => {
       try {
@@ -71,14 +67,13 @@ export function DramaStudio({ userId }: DramaStudioProps) {
         })
         const data = await res.json()
         if (data.updated > 0) {
-          // 刷新分镜列表
           window.location.reload()
         }
       } catch {}
     }, 15000) // 每 15 秒检查一次
 
     return () => clearInterval(interval)
-  }, [currentProject, step, scenes])
+  }, [currentProject, step])
 
   async function fetchProjects() {
     try {
