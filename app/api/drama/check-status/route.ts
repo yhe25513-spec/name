@@ -40,11 +40,23 @@ export async function POST(req: NextRequest) {
 
     if (statusResponse.ok) {
       const data = await statusResponse.json()
-      const doneAliases = ['completed', 'done', 'succeed', 'success', 'ready', 'finish', 'finished']
-      let videoUrl = data.video_url || ''
+
+      // 和 /api/generate-video/status 一样的字段转换
+      // 视频 URL 实际在 remixed_from_video_id 字段中
+      if (data.remixed_from_video_id && !data.video_url) {
+        data.video_url = data.remixed_from_video_id
+      }
+
+      // 统一状态名为 succeeded
+      const doneAliases = new Set(['completed', 'done', 'succeed', 'success', 'ready', 'finish', 'finished'])
+      if (data.status && doneAliases.has(data.status.toLowerCase())) {
+        data.status = 'succeeded'
+      }
+
+      const videoUrl = data.video_url || ''
       const status = (data.status || '').toLowerCase()
 
-      if (videoUrl && (status === 'succeeded' || doneAliases.includes(status))) {
+      if (videoUrl && status === 'succeeded') {
         await adminSupabase
           .from('drama_scenes')
           .update({ video_url: videoUrl, status: 'done' })
