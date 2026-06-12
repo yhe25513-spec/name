@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // API 路由也需要安全头
+        source: '/api/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+      {
         source: '/(.*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
