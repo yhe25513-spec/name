@@ -206,9 +206,11 @@ export function DramaStudio({ userId }: DramaStudioProps) {
 
   async function refreshScenes() {
     if (!currentProject) return
-    const res = await fetch(`/api/drama/project`)
-    // 用简单方式刷新 - 重新加载页面
-    window.location.reload()
+    try {
+      const res = await fetch(`/api/drama/project?projectId=${currentProject.id}`)
+      const data = await res.json()
+      if (data.scenes) setScenes(data.scenes)
+    } catch {}
   }
 
   return (
@@ -235,8 +237,16 @@ export function DramaStudio({ userId }: DramaStudioProps) {
             onGenerate={handleGenerateScript}
             generating={generating}
             projects={projects}
-            onSelectProject={(p: Project) => {
+            onSelectProject={async (p: Project) => {
               setCurrentProject(p)
+              // 加载该项目的分镜
+              try {
+                const res = await fetch(`/api/drama/project?projectId=${p.id}`)
+                const data = await res.json()
+                setScenes(data.scenes || [])
+              } catch {
+                setScenes([])
+              }
               setStep('scenes')
             }}
           />

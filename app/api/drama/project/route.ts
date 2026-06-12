@@ -26,13 +26,28 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ project: data })
 }
 
-// 获取用户的短剧项目列表
+// 获取用户的短剧项目列表，或获取某个项目的分镜
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
+  const projectId = req.nextUrl.searchParams.get('projectId')
   const adminSupabase = await createAdminClient()
+
+  // 如果指定了 projectId，返回该项目的分镜
+  if (projectId) {
+    const { data: scenes, error } = await adminSupabase
+      .from('drama_scenes')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('scene_number')
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ scenes })
+  }
+
+  // 否则返回项目列表
   const { data, error } = await adminSupabase
     .from('drama_projects')
     .select('*')
