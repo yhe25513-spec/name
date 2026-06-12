@@ -178,26 +178,43 @@ export function DramaStudio({ userId }: DramaStudioProps) {
     }
   }
 
-  // Step 3: 批量生成视频（提交第一个，后续由 check-status 自动提交）
+  // Step 3: 批量生成视频（提交第一个，后续由轮询自动提交）
   async function handleGenerateVideos() {
     if (!currentProject) return
     setGenerating(true)
 
     try {
-      // 只提交第一个待生成的分镜
-      const res = await fetch('/api/drama/generate-videos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: currentProject.id }),
-      })
-      const data = await res.json()
-      if (data.message === '没有待生成视频的分镜') {
+      // 找第一个有图片但没视频的分镜
+      const nextScene = scenes.find((s: Scene) => s.image_url && !s.video_url && s.status !== 'generating_video')
+      if (!nextScene) {
         toast.info('所有视频已生成')
-      } else {
-        toast.success(`分镜 #${data.result?.sceneNumber || '?'} 视频已提交，轮询会自动提交下一个`)
+        setGenerating(false)
+        return
       }
 
-      await refreshScenes()
+      // 直接调用已有的视频生成接口
+      const res = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: nextScene.description,
+          image_url: nextScene.image_url,
+          duration: Math.min(nextScene.duration || 5, 18),
+        }),
+      })
+      const data = await res.json()
+      if (data.request_id) {
+        // 保存 request_id 到数据库
+        await fetch('/api/drama/generate-videos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: currentProject.id, sceneId: nextScene.id, requestId: data.request_id }),
+        })
+        toast.success(`分镜 #${nextScene.scene_number} 视频已提交，轮询会自动提交下一个`)
+        await refreshScenes()
+      } else {
+        toast.error(data.error || '提交失败')
+      }
     } catch (err: any) {
       toast.error(err.message || '视频提交失败')
     } finally {
@@ -447,23 +464,34 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
   const totalAudio = scenes.filter((s: Scene) => s.audio_url).length
 
   async function handleGenerateSingleVideo(sceneId: string) {
+    const scene = scenes.find((s: Scene) => s.id === sceneId)
+    if (!scene || !scene.image_url) return toast.error('该分镜没有图片')
+
     try {
-      const res = await fetch('/api/drama/generate-videos', {
+      // 直接调用已有的视频生成接口
+      const res = await fetch('/api/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, sceneId }),
+        body: JSON.stringify({
+          prompt: scene.description,
+          image_url: scene.image_url,
+          duration: Math.min(scene.duration || 5, 18),
+        }),
       })
-      const text = await res.text()
-      console.log('[drama] Video response:', res.status, text)
-      const data = JSON.parse(text)
-      if (data.result?.status === 'submitted') {
-        toast.success(`分镜 #${data.result.sceneNumber} 视频已提交`)
+      const data = await res.json()
+      if (data.request_id) {
+        // 保存 request_id 到数据库用于轮询
+        await fetch('/api/drama/generate-videos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, sceneId, requestId: data.request_id }),
+        })
+        toast.success(`分镜 #${scene.scene_number} 视频已提交`)
         window.location.reload()
       } else {
         toast.error(data.error || '提交失败')
       }
     } catch (err: any) {
-      console.error('[drama] Video error:', err)
       toast.error('请求失败: ' + err.message)
     }
   }
