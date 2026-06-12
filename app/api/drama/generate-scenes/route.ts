@@ -70,5 +70,29 @@ function buildImagePrompt(scene: any, character: any): string {
     neutral: 'calm, neutral expression',
   }
 
-  return `${charDesc}, ${emotionMap[emotion] || emotionMap.neutral}, ${scene.description}, cinematic lighting, high quality, detailed, 4k`
+  // 角色一致性：每次都带上完整的角色外貌描述
+  const charConsistency = charDesc
+    ? `consistent character design: ${charDesc}`
+    : ''
+
+  // 环境一致性：从画面描述中提取环境关键词
+  const envKeywords = extractEnvironment(scene.description)
+
+  return `${charConsistency}, ${emotionMap[emotion] || emotionMap.neutral}, ${scene.description}, ${envKeywords}, same art style throughout, cinematic lighting, high quality, detailed, 4k, masterpiece`
+}
+
+// 从画面描述中提取环境关键词，保持场景一致
+function extractEnvironment(description: string): string {
+  const envKeywords: string[] = []
+
+  // 地点
+  if (/山|林|树|森林/.test(description)) envKeywords.push('forest setting')
+  if (/城|镇|村|街/.test(description)) envKeywords.push('town setting')
+  if (/殿|宫|庙/.test(description)) envKeywords.push('temple palace setting')
+  if (/荒|野|沙漠/.test(description)) envKeywords.push('wilderness setting')
+  if (/夜|月|暗/.test(description)) envKeywords.push('nighttime')
+  if (/日|阳|晴/.test(description)) envKeywords.push('daytime')
+  if (/雨|雪|风/.test(description)) envKeywords.push('dramatic weather')
+
+  return envKeywords.join(', ')
 }
