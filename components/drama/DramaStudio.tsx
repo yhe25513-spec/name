@@ -255,6 +255,7 @@ export function DramaStudio({ userId }: DramaStudioProps) {
             onGenerateAudio={handleGenerateAudio}
             generating={generating}
             onBack={() => setStep('input')}
+            projectId={currentProject?.id}
           />
         )}
 
@@ -402,7 +403,7 @@ function InputStep({ title, setTitle, genre, setGenre, style, setStyle, synopsis
 }
 
 // 分镜步骤
-function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudio, generating, onBack }: any) {
+function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudio, generating, onBack, projectId }: any) {
   const statusEmoji: Record<string, string> = {
     pending: '⏳',
     generating_image: '🎨',
@@ -416,6 +417,25 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
   const totalImages = scenes.filter((s: Scene) => s.image_url).length
   const totalVideos = scenes.filter((s: Scene) => s.video_url).length
   const totalAudio = scenes.filter((s: Scene) => s.audio_url).length
+
+  async function handleGenerateSingleVideo(sceneId: string) {
+    try {
+      const res = await fetch('/api/drama/generate-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, sceneIds: [sceneId] }),
+      })
+      const data = await res.json()
+      if (data.results?.[0]?.status === 'submitted') {
+        toast.success('视频生成已提交，等待完成...')
+        window.location.reload()
+      } else {
+        toast.error(data.results?.[0]?.error || '提交失败')
+      }
+    } catch {
+      toast.error('请求失败')
+    }
+  }
 
   return (
     <div>
@@ -525,6 +545,19 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
                 <div className="flex gap-3 mt-2 text-xs text-zinc-600">
                   <span>{scene.character_name}</span>
                   <span>{scene.emotion}</span>
+                  {!scene.video_url && scene.image_url && scene.status !== 'generating_video' && (
+                    <button
+                      onClick={() => handleGenerateSingleVideo(scene.id)}
+                      className="text-purple-400 hover:text-purple-300 transition-colors ml-auto"
+                    >
+                      ▶ 生成视频
+                    </button>
+                  )}
+                  {scene.status === 'generating_video' && (
+                    <span className="text-yellow-400 ml-auto flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> 生成中...
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
