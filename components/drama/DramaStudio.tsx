@@ -389,12 +389,12 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
           {generating ? '生成中...' : '批量生视频'}
         </button>
         <button
-          onClick={onGenerateAudio}
-          disabled={generating}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/30 disabled:opacity-50 text-sm"
+          disabled
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-600/10 border border-zinc-500/20 text-zinc-500 cursor-not-allowed text-sm"
+          title="配音功能需要 TTS 服务，暂不可用"
         >
           🎙️
-          {generating ? '生成中...' : '批量配音'}
+          配音（即将上线）
         </button>
       </div>
 
