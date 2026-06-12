@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -20,54 +20,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '缺少 requestId' }, { status: 400 })
   }
 
-  // 获取 API key
-  const adminSupabase = await createAdminClient()
-  let apiKey = process.env.AGNES_API_KEY || ''
-  if (!apiKey) {
-    try {
-      const { data: config } = await adminSupabase
-        .from('ai_configs')
-        .select('api_key')
-        .eq('provider', 'agnes')
-        .limit(1)
-        .single()
-      if (config?.api_key) apiKey = config.api_key.trim()
-    } catch { /* ignore */ }
-  }
-
+  // 直接从环境变量获取 API key，避免查数据库
+  const apiKey = process.env.AGNES_API_KEY || ''
   if (!apiKey) {
     return NextResponse.json({ error: '未配置 API Key' }, { status: 400 })
   }
 
   try {
-    // Agnes 使用 GET 请求查询视频状态
     const statusUrl = `https://apihub.agnes-ai.com/agnesapi?video_id=${requestId}`
     const response = await fetch(statusUrl, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(8000),
     })
 
     if (!response.ok) {
-      const errText = await response.text()
       return NextResponse.json(
-        { error: `查询失败 (${response.status})`, detail: errText },
+        { error: `查询失败 (${response.status})` },
         { status: 502 }
       )
     }
 
     const data = await response.json()
 
-    // 标准化返回格式
     if (data.status) data.status = data.status.toLowerCase()
 
-    // Agnes 视频 URL 在 remixed_from_video_id 字段中
     if (data.remixed_from_video_id && !data.video_url) {
       data.video_url = data.remixed_from_video_id
     }
 
-    // 兼容不同状态命名 → 统一为 succeeded
     const doneAliases = new Set(['completed', 'done', 'succeed', 'success', 'ready', 'finish', 'finished'])
     if (data.status && doneAliases.has(data.status.toLowerCase())) {
       data.status = 'succeeded'
