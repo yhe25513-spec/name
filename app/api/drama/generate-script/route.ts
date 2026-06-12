@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { resolveAIConfig } from '@/lib/novel/ai-config'
 
 // Step 1: 用 DeepSeek 根据主题生成完整剧本
 export async function POST(req: NextRequest) {

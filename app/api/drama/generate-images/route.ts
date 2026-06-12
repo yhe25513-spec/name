@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requireDramaAuth } from '@/lib/drama/auth'
 
 // Step 3: 批量为分镜生成图片（并发控制，最多 3 张同时）
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
-
   const { projectId, sceneIds } = await req.json()
   if (!projectId) return NextResponse.json({ error: '缺少项目 ID' }, { status: 400 })
 
-  const adminSupabase = await createAdminClient()
+  const auth = await requireDramaAuth(projectId)
+  if (auth.error) return auth.error
+  const { adminSupabase } = auth
 
   // 获取需要生成图片的分镜
   let query = adminSupabase
@@ -94,7 +93,7 @@ async function generateImageForScene(scene: any): Promise<any> {
     .update({
       image_url: imageUrl || '',
       image_request_id: data.request_id || '',
-      status: imageUrl ? 'pending' : 'generating_image',
+      status: imageUrl ? 'done' : 'generating_image',
     })
     .eq('id', scene.id)
 

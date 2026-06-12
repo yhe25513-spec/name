@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requireDramaAuth } from '@/lib/drama/auth'
 
 // Step 4: 为下一个分镜提交视频生成请求
 // 每次只提交一个视频，完成后再提交下一个
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
-
   const { projectId, sceneId } = await req.json()
   if (!projectId) return NextResponse.json({ error: '缺少项目 ID' }, { status: 400 })
 
-  const adminSupabase = await createAdminClient()
+  const auth = await requireDramaAuth(projectId)
+  if (auth.error) return auth.error
+  const { adminSupabase } = auth
+
   const apiKey = process.env.AGNES_API_KEY || ''
   if (!apiKey) return NextResponse.json({ error: '未配置 AGNES_API_KEY' }, { status: 400 })
 
@@ -78,7 +78,7 @@ async function submitVideoGeneration(scene: any, apiKey: string): Promise<any> {
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(requestBody),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(30000),
   })
 
   if (!response.ok) {
@@ -87,15 +87,22 @@ async function submitVideoGeneration(scene: any, apiKey: string): Promise<any> {
   }
 
   const data = await response.json()
+  const taskId = data.id
+  const videoId = data.video_id
+  const pollingId = videoId || taskId || ''
+
+  if (!pollingId) {
+    throw new Error('Agnes AI 未返回任务 ID')
+  }
 
   const adminSupabase = await createAdminClient()
   await adminSupabase
     .from('drama_scenes')
     .update({
-      video_request_id: data.request_id || '',
+      video_request_id: pollingId,
       status: 'generating_video',
     })
     .eq('id', scene.id)
 
-  return { sceneId: scene.id, sceneNumber: scene.scene_number, requestId: data.request_id, status: 'submitted' }
+  return { sceneId: scene.id, sceneNumber: scene.scene_number, requestId: pollingId, status: 'submitted' }
 }

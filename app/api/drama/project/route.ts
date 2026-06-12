@@ -35,8 +35,17 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get('projectId')
   const adminSupabase = await createAdminClient()
 
-  // 如果指定了 projectId，返回该项目的分镜
+  // 如果指定了 projectId，返回该项目的分镜（需验证归属）
   if (projectId) {
+    const { data: project } = await adminSupabase
+      .from('drama_projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!project) return NextResponse.json({ error: '无权访问' }, { status: 403 })
+
     const { data: scenes, error } = await adminSupabase
       .from('drama_scenes')
       .select('*')
@@ -70,18 +79,27 @@ export async function DELETE(req: NextRequest) {
 
   const adminSupabase = await createAdminClient()
 
-  // 先删除分镜
+  // 先验证项目归属
+  const { data: project } = await adminSupabase
+    .from('drama_projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!project) return NextResponse.json({ error: '无权删除该项目' }, { status: 403 })
+
+  // 删除分镜
   await adminSupabase
     .from('drama_scenes')
     .delete()
     .eq('project_id', projectId)
 
-  // 再删除项目
+  // 删除项目
   const { error } = await adminSupabase
     .from('drama_projects')
     .delete()
     .eq('id', projectId)
-    .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

@@ -60,14 +60,26 @@ export function DramaStudio({ userId }: DramaStudioProps) {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/drama/check-status', {
+        // 1. 检查视频状态
+        const checkRes = await fetch('/api/drama/check-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ projectId: currentProject.id }),
         })
-        const data = await res.json()
-        if (data.updated > 0) {
-          window.location.reload()
+        const checkData = await checkRes.json()
+
+        // 2. 如果有视频完成了，自动提交下一个
+        if (checkData.updated > 0) {
+          const nextRes = await fetch('/api/drama/generate-videos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: currentProject.id }),
+          })
+          const nextData = await nextRes.json()
+          if (nextData.done) {
+            // 所有视频生成完成，刷新页面
+            window.location.reload()
+          }
         }
       } catch (err) {
         console.error('[drama-poll] Error:', err)
@@ -97,6 +109,10 @@ export function DramaStudio({ userId }: DramaStudioProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, genre, style, synopsis }),
       })
+      if (!projRes.ok) {
+        const err = await projRes.json().catch(() => ({ error: '创建项目失败' }))
+        throw new Error(err.error)
+      }
       const { project } = await projRes.json()
 
       // 生成剧本
@@ -105,6 +121,10 @@ export function DramaStudio({ userId }: DramaStudioProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: project.id, title, genre, style, synopsis }),
       })
+      if (!scriptRes.ok) {
+        const err = await scriptRes.json().catch(() => ({ error: '剧本生成失败' }))
+        throw new Error(err.error)
+      }
       const { script } = await scriptRes.json()
 
       if (!script) throw new Error('剧本生成失败')
@@ -115,6 +135,10 @@ export function DramaStudio({ userId }: DramaStudioProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: project.id, script }),
       })
+      if (!scenesRes.ok) {
+        const err = await scenesRes.json().catch(() => ({ error: '保存分镜失败' }))
+        throw new Error(err.error)
+      }
       const { scenes: savedScenes } = await scenesRes.json()
 
       setCurrentProject(project)
