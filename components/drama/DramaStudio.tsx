@@ -77,8 +77,8 @@ export function DramaStudio({ userId }: DramaStudioProps) {
           })
           const nextData = await nextRes.json()
           if (nextData.done) {
-            // 所有视频生成完成，刷新页面
-            window.location.reload()
+            // 所有视频生成完成，刷新分镜数据
+            await refreshScenes()
           }
         }
       } catch (err) {
@@ -253,6 +253,70 @@ export function DramaStudio({ userId }: DramaStudioProps) {
     } catch {}
   }
 
+  async function handleGenerateSingleVideo(sceneId: string) {
+    const scene = scenes.find((s: Scene) => s.id === sceneId)
+    if (!scene || !scene.image_url) return toast.error('该分镜没有图片')
+
+    try {
+      const res = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: scene.description,
+          image_url: scene.image_url,
+          duration: Math.min(scene.duration || 5, 18),
+        }),
+      })
+      const data = await res.json()
+      if (data.request_id) {
+        await fetch('/api/drama/generate-videos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: currentProject?.id, sceneId, requestId: data.request_id }),
+        })
+        toast.success(`分镜 #${scene.scene_number} 视频已提交`)
+        await refreshScenes()
+      } else {
+        toast.error(data.error || '提交失败')
+      }
+    } catch (err: any) {
+      toast.error('请求失败: ' + err.message)
+    }
+  }
+
+  async function handleDeleteProject(projectId: string) {
+    try {
+      await fetch('/api/drama/project', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      toast.success('已删除')
+      setStep('input')
+      setCurrentProject(null)
+      setScenes([])
+      await fetchProjects()
+    } catch {
+      toast.error('删除失败')
+    }
+  }
+
+  // 获取当前项目信息（页面刷新后恢复）
+  async function loadProject(projectId: string) {
+    try {
+      const res = await fetch('/api/drama/project')
+      const data = await res.json()
+      const proj = data.projects?.find((p: Project) => p.id === projectId)
+      if (proj) {
+        setCurrentProject(proj)
+        const scenesRes = await fetch(`/api/drama/project?projectId=${projectId}`)
+        const scenesData = await scenesRes.json()
+        setScenes(scenesData.scenes || [])
+        setStep('scenes')
+      }
+    } catch {}
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* 顶栏 */}
@@ -277,6 +341,7 @@ export function DramaStudio({ userId }: DramaStudioProps) {
             onGenerate={handleGenerateScript}
             generating={generating}
             projects={projects}
+            onDeleteProject={handleDeleteProject}
             onSelectProject={async (p: Project) => {
               setCurrentProject(p)
               // 加载该项目的分镜
@@ -297,6 +362,7 @@ export function DramaStudio({ userId }: DramaStudioProps) {
             scenes={scenes}
             onGenerateImages={handleGenerateImages}
             onGenerateVideos={handleGenerateVideos}
+            onGenerateSingleVideo={handleGenerateSingleVideo}
             onGenerateAudio={handleGenerateAudio}
             generating={generating}
             onBack={() => setStep('input')}
@@ -317,7 +383,7 @@ export function DramaStudio({ userId }: DramaStudioProps) {
 }
 
 // 输入步骤
-function InputStep({ title, setTitle, genre, setGenre, style, setStyle, synopsis, setSynopsis, onGenerate, generating, projects, onSelectProject }: any) {
+function InputStep({ title, setTitle, genre, setGenre, style, setStyle, synopsis, setSynopsis, onGenerate, generating, projects, onSelectProject, onDeleteProject }: any) {
   const genres = ['修仙', '都市', '悬疑', '喜剧', '爱情', '恐怖', '科幻']
   const styles = ['写实', '动漫', '水墨', '赛博朋克', '古风']
 
@@ -423,13 +489,7 @@ function InputStep({ title, setTitle, genre, setGenre, style, setStyle, synopsis
                     e.stopPropagation()
                     if (!confirm('确定删除这个项目？')) return
                     try {
-                      await fetch('/api/drama/project', {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ projectId: p.id }),
-                      })
-                      toast.success('已删除')
-                      window.location.reload()
+                      await onDeleteProject(p.id)
                     } catch {
                       toast.error('删除失败')
                     }
@@ -448,7 +508,7 @@ function InputStep({ title, setTitle, genre, setGenre, style, setStyle, synopsis
 }
 
 // 分镜步骤
-function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudio, generating, onBack, projectId }: any) {
+function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateSingleVideo, onGenerateAudio, generating, onBack, projectId }: any) {
   const statusEmoji: Record<string, string> = {
     pending: '⏳',
     generating_image: '🎨',
@@ -463,38 +523,9 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
   const totalVideos = scenes.filter((s: Scene) => s.video_url).length
   const totalAudio = scenes.filter((s: Scene) => s.audio_url).length
 
-  async function handleGenerateSingleVideo(sceneId: string) {
-    const scene = scenes.find((s: Scene) => s.id === sceneId)
-    if (!scene || !scene.image_url) return toast.error('该分镜没有图片')
 
-    try {
-      // 直接调用已有的视频生成接口
-      const res = await fetch('/api/generate-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: scene.description,
-          image_url: scene.image_url,
-          duration: Math.min(scene.duration || 5, 18),
-        }),
-      })
-      const data = await res.json()
-      if (data.request_id) {
-        // 保存 request_id 到数据库用于轮询
-        await fetch('/api/drama/generate-videos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, sceneId, requestId: data.request_id }),
-        })
-        toast.success(`分镜 #${scene.scene_number} 视频已提交`)
-        window.location.reload()
-      } else {
-        toast.error(data.error || '提交失败')
-      }
-    } catch (err: any) {
-      toast.error('请求失败: ' + err.message)
-    }
-  }
+
+
 
   return (
     <div>
@@ -606,7 +637,7 @@ function ScenesStep({ scenes, onGenerateImages, onGenerateVideos, onGenerateAudi
                   <span>{scene.emotion}</span>
                   {!scene.video_url && scene.image_url && scene.status !== 'generating_video' && (
                     <button
-                      onClick={() => handleGenerateSingleVideo(scene.id)}
+                      onClick={() => onGenerateSingleVideo(scene.id)}
                       className="text-purple-400 hover:text-purple-300 transition-colors ml-auto"
                     >
                       ▶ 生成视频
