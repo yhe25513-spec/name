@@ -24,6 +24,16 @@
 .DS_Store
 *.pem
 
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Claude session data
+.claude/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
